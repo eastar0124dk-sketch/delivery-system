@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>배송기사 서명</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;}
+    .topbar{background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 12px rgba(245,87,108,0.4);position:sticky;top:0;z-index:100;}
+    .topbar a{color:#fff;text-decoration:none;opacity:.8;}
+    .topbar h1{font-size:17px;font-weight:700;}
+    .wrap{max-width:600px;margin:0 auto;padding:20px 14px 60px;}
+    .card{background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.07);padding:20px;margin-bottom:16px;}
+    .card-title{font-size:15px;font-weight:700;color:#2d3748;display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:2px solid #f0f4f8;margin-bottom:16px;}
+    .card-title i{color:#f5576c;}
+    .info-row{display:flex;gap:8px;margin-bottom:10px;align-items:flex-start;}
+    .info-row .lbl{font-size:12px;font-weight:600;color:#718096;min-width:80px;padding-top:2px;}
+    .info-row .val{font-size:14px;font-weight:500;color:#1a202c;flex:1;}
+    .search-section{text-align:center;padding:20px 0;}
+    .search-section .icon-big{font-size:56px;margin-bottom:16px;background:linear-gradient(135deg,#f093fb,#f5576c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .search-section h2{font-size:20px;font-weight:700;color:#2d3748;margin-bottom:6px;}
+    .search-section p{font-size:13px;color:#718096;margin-bottom:24px;}
+    .input-group{display:flex;gap:10px;}
+    .input-group input{flex:1;padding:14px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:16px;font-family:inherit;transition:border .2s;}
+    .input-group input:focus{outline:none;border-color:#f5576c;box-shadow:0 0 0 3px rgba(245,87,108,.1);}
+    .btn{padding:12px 20px;border:none;border-radius:12px;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px;}
+    .btn-primary{background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(245,87,108,.4);}
+    .btn-primary:disabled{opacity:.6;transform:none;cursor:not-allowed;}
+    .btn-secondary{background:#e2e8f0;color:#4a5568;}
+    .btn-outline{background:transparent;border:2px solid #f5576c;color:#f5576c;}
+    .btn-full{width:100%;justify-content:center;}
+    .steps{display:flex;margin-bottom:20px;}
+    .step{flex:1;text-align:center;padding:10px 6px;position:relative;}
+    .step::after{content:'';position:absolute;top:18px;right:-50%;width:100%;height:2px;background:#e2e8f0;z-index:0;}
+    .step:last-child::after{display:none;}
+    .step-num{width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;position:relative;z-index:1;margin-bottom:4px;background:#e2e8f0;color:#718096;}
+    .step.done .step-num{background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;}
+    .step.active .step-num{background:#fff;border:2.5px solid #f5576c;color:#f5576c;}
+    .step-label{font-size:11px;color:#718096;}
+    .step.active .step-label{color:#f5576c;font-weight:600;}
+    .step.done .step-label{color:#059669;}
+    .form-group{margin-bottom:14px;}
+    .form-group label{font-size:12px;font-weight:600;color:#4a5568;margin-bottom:5px;display:block;}
+    .form-group input{width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;transition:border .2s;background:#fafafa;}
+    .form-group input:focus{outline:none;border-color:#f5576c;background:#fff;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    @media(max-width:400px){.form-grid{grid-template-columns:1fr;}}
+    .required{color:#e53e3e;}
+    .alert{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:14px;display:none;align-items:center;gap:8px;}
+    .alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;display:flex;}
+    .alert-success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;display:flex;}
+    .sig-canvas-container{border:2.5px dashed #e2e8f0;border-radius:12px;background:#fafafa;position:relative;overflow:hidden;touch-action:none;cursor:crosshair;}
+    .sig-canvas-container.active-sig{border-color:#f5576c;background:#fff8f8;}
+    canvas{display:block;width:100%;}
+    .sig-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#cbd5e0;pointer-events:none;transition:opacity .3s;}
+    .sig-hint i{font-size:28px;display:block;margin-bottom:6px;}
+    .sig-hint span{font-size:13px;}
+    .sig-controls{display:flex;gap:8px;margin-top:8px;}
+    .complete-box{text-align:center;padding:30px 20px;}
+    .complete-box .check-icon{width:72px;height:72px;background:linear-gradient(135deg,#43e97b,#38f9d7);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px;color:#fff;}
+    .complete-box h3{font-size:20px;font-weight:700;color:#2d3748;margin-bottom:8px;}
+    .complete-box p{font-size:14px;color:#718096;margin-bottom:20px;}
+    .order-info-box{background:linear-gradient(135deg,#ebf8ff,#f0fff4);border:1.5px solid #bee3f8;border-radius:12px;padding:16px;margin-bottom:4px;}
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="index.html"><i class="fas fa-arrow-left"></i></a>
+    <h1><i class="fas fa-truck"></i> 배송기사 서명 입력</h1>
+  </div>
+
+  <div class="wrap">
+    <div id="alertBox" class="alert"></div>
+
+    <!-- STEP 1: DN번호 검색 -->
+    <div id="stepSearch">
+      <div class="card">
+        <div class="steps">
+          <div id="step1" class="step active"><div class="step-num">1</div><div class="step-label">오더확인</div></div>
+          <div id="step2" class="step"><div class="step-num">2</div><div class="step-label">기사정보</div></div>
+          <div id="step3" class="step"><div class="step-num">3</div><div class="step-label">기사서명</div></div>
+          <div id="step4" class="step"><div class="step-num">4</div><div class="step-label">수령자서명</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="search-section">
+          <div class="icon-big"><i class="fas fa-truck"></i></div>
+          <h2>DN번호 검색</h2>
+          <p>배송 완료 후 DN번호를 입력하세요<br>번호를 모르면 담당자에게 문의하세요</p>
+          <div class="input-group">
+            <input type="text" id="searchOrderNo" placeholder="DN번호 입력" maxlength="30" inputmode="text">
+            <button class="btn btn-primary" onclick="searchOrder()"><i class="fas fa-search"></i>검색</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2~4: 서명 과정 -->
+    <div id="stepSign" style="display:none;">
+      <div class="card order-info-box">
+        <div class="card-title"><i class="fas fa-box"></i>배송 오더 정보</div>
+        <div id="orderInfoContent"></div>
+      </div>
+
+      <!-- STEP 2: 기사 정보 -->
+      <div id="driverInfoCard" class="card">
+        <div class="card-title"><i class="fas fa-user"></i>운송담당자 정보 입력</div>
+        <div class="form-group">
+          <label>운송담당자 성명 <span class="required">*</span></label>
+          <input type="text" id="inp_driver_name" placeholder="성명 입력" maxlength="30">
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>연락처</label>
+            <input type="tel" id="inp_driver_phone" placeholder="010-0000-0000" maxlength="20">
+          </div>
+          <div class="form-group">
+            <label>차량번호</label>
+            <input type="text" id="inp_vehicle_no" placeholder="00가 0000" maxlength="20">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="goToDriverSign()"><i class="fas fa-arrow-right"></i>다음 - 기사 서명</button>
+      </div>
+
+      <!-- STEP 3: 기사 서명 -->
+      <div id="driverSignCard" class="card" style="display:none;">
+        <div class="card-title"><i class="fas fa-pen"></i>운송담당자 서명</div>
+        <p style="font-size:12px;color:#718096;margin-bottom:12px;">아래 박스에 손가락으로 서명하세요</p>
+        <div class="sig-canvas-container" id="driverSigContainer">
+          <canvas id="driverCanvas"></canvas>
+          <div id="driverSigHint" class="sig-hint"><i class="fas fa-pen"></i><span>여기에 서명하세요</span></div>
+        </div>
+        <div class="sig-controls">
+          <button class="btn btn-secondary" onclick="clearSig('driver')" style="flex:1;"><i class="fas fa-redo"></i>지우기</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn btn-outline btn-full" onclick="goBack('driverSign')"><i class="fas fa-arrow-left"></i>이전</button>
+          <button class="btn btn-primary btn-full" onclick="goToReceiverSign()"><i class="fas fa-arrow-right"></i>다음 - 수령자 서명</button>
+        </div>
+      </div>
+
+      <!-- STEP 4: 수령자 서명 -->
+      <div id="receiverSignCard" class="card" style="display:none;">
+        <div class="card-title"><i class="fas fa-check"></i>수령자(확인검수자) 서명</div>
+        <div class="form-group">
+          <label>수령자 성함 <span class="required">*</span></label>
+          <input type="text" id="inp_receiver_name_confirm" placeholder="수령자 성명 입력" maxlength="30">
+        </div>
+        <p style="font-size:12px;color:#718096;margin-bottom:12px;">아래 박스에 손가락으로 서명하세요</p>
+        <div class="sig-canvas-container" id="receiverSigContainer">
+          <canvas id="receiverCanvas"></canvas>
+          <div id="receiverSigHint" class="sig-hint"><i class="fas fa-pen"></i><span>여기에 서명하세요</span></div>
+        </div>
+        <div class="sig-controls">
+          <button class="btn btn-secondary" onclick="clearSig('receiver')" style="flex:1;"><i class="fas fa-redo"></i>지우기</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn btn-outline btn-full" onclick="goBack('receiverSign')"><i class="fas fa-arrow-left"></i>이전</button>
+          <button class="btn btn-primary btn-full" id="submitBtn" onclick="submitSignatures()"><i class="fas fa-check"></i>서명 완료 제출</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 완료 화면 -->
+    <div id="stepComplete" style="display:none;">
+      <div class="card">
+        <div class="complete-box">
+          <div class="check-icon"><i class="fas fa-check"></i></div>
+          <h3>서명이 완료되었습니다!</h3>
+          <p id="completeMsg">인수증명서가 저장되었습니다.</p>
+          <div style="display:flex;gap:10px;">
+            <a href="index.html" class="btn btn-secondary btn-full" style="text-decoration:none;">메인으로</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentRecord = null;
+    let driverSigned = false;
+    let receiverSigned = false;
+
+    // 캔버스 초기화
+    function initCanvas(canvasId, containerId, hintId, sigType) {
+      const canvas = document.getElementById(canvasId);
+      const container = document.getElementById(containerId);
+      const hint = document.getElementById(hintId);
+      const ctx = canvas.getContext('2d');
+
+      function resize() {
+        const w = container.offsetWidth;
+        canvas.width = w;
+        canvas.height = 180;
+        ctx.strokeStyle = '#1a202c';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+      }
+      resize();
+
+      let drawing = false, lastX = 0, lastY = 0, hasDrawn = false;
+
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const sx = canvas.width / rect.width;
+        const sy = canvas.height / rect.height;
+        if (e.touches) return { x:(e.touches[0].clientX-rect.left)*sx, y:(e.touches[0].clientY-rect.top)*sy };
+        return { x:(e.clientX-rect.left)*sx, y:(e.clientY-rect.top)*sy };
+      }
+
+      function startDraw(e) { e.preventDefault(); drawing=true; const p=getPos(e); lastX=p.x; lastY=p.y; }
+      function draw(e) {
+        if(!drawing) return; e.preventDefault();
+        const p=getPos(e);
+        ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(p.x,p.y); ctx.stroke();
+        lastX=p.x; lastY=p.y;
+        if(!hasDrawn){ hasDrawn=true; hint.style.opacity='0'; container.classList.add('active-sig'); }
+        if(sigType==='driver') driverSigned=true; else receiverSigned=true;
+      }
+      function stopDraw() { drawing=false; }
+
+      canvas.addEventListener('mousedown',startDraw);
+      canvas.addEventListener('mousemove',draw);
+      canvas.addEventListener('mouseup',stopDraw);
+      canvas.addEventListener('touchstart',startDraw,{passive:false});
+      canvas.addEventListener('touchmove',draw,{passive:false});
+      canvas.addEventListener('touchend',stopDraw);
+
+      window._sig = window._sig || {};
+      window._sig[sigType] = {
+        canvas, hint, container,
+        reset:()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); hasDrawn=false; hint.style.opacity='1'; container.classList.remove('active-sig'); if(sigType==='driver') driverSigned=false; else receiverSigned=false; }
+      };
+    }
+
+    function clearSig(type) { window._sig[type].reset(); }
+    function getSigData(type) { return window._sig[type].canvas.toDataURL('image/png'); }
+
+    // DN번호 검색
+    async function searchOrder() {
+      const orderNo = document.getElementById('searchOrderNo').value.trim();
+      if(!orderNo){ showAlert('DN번호를 입력해주세요.','error'); return; }
+      showAlert('검색 중...','info');
+      try {
+        const res = await fetch(`/api/sign/search?order_no=${encodeURIComponent(orderNo)}`).then(r=>r.json());
+        const found = (res.data||[])[0];
+        if(!found){ showAlert(`DN번호 [${orderNo}]를 찾을 수 없습니다. 담당자에게 확인하세요.`,'error'); return; }
+        if(found.status==='signed'){ showAlert(`DN번호 [${orderNo}]는 이미 서명이 완료된 오더입니다.`,'error'); return; }
+        currentRecord = found;
+        hideAlert();
+        showOrderInfo(found);
+      } catch(e) {
+        showAlert('서버 연결 오류가 발생했습니다.','error');
+      }
+    }
+
+    function showOrderInfo(r) {
+      document.getElementById('stepSearch').style.display='none';
+      document.getElementById('stepSign').style.display='block';
+      if(r.driver_name) document.getElementById('inp_driver_name').value=r.driver_name;
+      if(r.driver_phone) document.getElementById('inp_driver_phone').value=r.driver_phone;
+      if(r.vehicle_no) document.getElementById('inp_vehicle_no').value=r.vehicle_no;
+
+      let locs='';
+      try {
+        const arr=JSON.parse(r.extra_locations||'[]');
+        if(arr.length) locs=`<div class="info-row"><div class="lbl">경유지</div><div class="val">${arr.join(', ')}</div></div>`;
+      } catch(e){}
+
+      document.getElementById('orderInfoContent').innerHTML=`
+        <div class="info-row"><div class="lbl">DN 번호</div><div class="val" style="font-weight:700;color:#f5576c;font-size:16px;">${r.order_no}</div></div>
+        <div class="info-row"><div class="lbl">배송일자</div><div class="val">${r.delivery_date||'-'}</div></div>
+        <div class="info-row"><div class="lbl">고객사</div><div class="val">${r.customer_company||'-'}</div></div>
+        <div class="info-row"><div class="lbl">배송지</div><div class="val">${r.customer_address||'-'}</div></div>
+        <div class="info-row"><div class="lbl">수취인</div><div class="val">${r.receiver_name||'-'}</div></div>
+        <div class="info-row"><div class="lbl">제품명</div><div class="val">${r.product_name||'-'}</div></div>
+        <div class="info-row"><div class="lbl">박스 수량</div><div class="val" style="font-weight:700;font-size:16px;color:#2d3748;">${r.quantity||'-'}</div></div>
+        ${r.wait_time?`<div class="info-row"><div class="lbl">현장대기</div><div class="val">${r.wait_time}분</div></div>`:''}
+        ${r.work_time?`<div class="info-row"><div class="lbl">수작업</div><div class="val">${r.work_time}분</div></div>`:''}
+        ${locs}
+        ${r.notes?`<div class="info-row"><div class="lbl">비고</div><div class="val">${r.notes}</div></div>`:''}
+      `;
+      setStep(2);
+    }
+
+    function goToDriverSign() {
+      const name=document.getElementById('inp_driver_name').value.trim();
+      if(!name){ showAlert('운송담당자 성명을 입력해주세요.','error'); return; }
+      hideAlert();
+      document.getElementById('driverInfoCard').style.display='none';
+      document.getElementById('driverSignCard').style.display='block';
+      setStep(3);
+      setTimeout(()=>initCanvas('driverCanvas','driverSigContainer','driverSigHint','driver'),100);
+    }
+
+    function goToReceiverSign() {
+      if(!driverSigned){ showAlert('서명을 먼저 해주세요.','error'); return; }
+      hideAlert();
+      document.getElementById('driverSignCard').style.display='none';
+      document.getElementById('receiverSignCard').style.display='block';
+      setStep(4);
+      setTimeout(()=>initCanvas('receiverCanvas','receiverSigContainer','receiverSigHint','receiver'),100);
+    }
+
+    function goBack(from) {
+      if(from==='driverSign'){
+        document.getElementById('driverSignCard').style.display='none';
+        document.getElementById('driverInfoCard').style.display='block';
+        setStep(2);
+      } else {
+        document.getElementById('receiverSignCard').style.display='none';
+        document.getElementById('driverSignCard').style.display='block';
+        setStep(3);
+      }
+    }
+
+    function setStep(n) {
+      for(let i=1;i<=4;i++){
+        const el=document.getElementById(`step${i}`);
+        el.className='step '+(i<n?'done':i===n?'active':'');
+        el.querySelector('.step-num').innerHTML=i<n?'<i class="fas fa-check" style="font-size:12px;"></i>':i;
+      }
+    }
+
+    async function submitSignatures() {
+      const receiverName=document.getElementById('inp_receiver_name_confirm').value.trim();
+      if(!receiverName){ showAlert('수령자 성함을 입력해주세요.','error'); return; }
+      if(!receiverSigned){ showAlert('수령자 서명을 해주세요.','error'); return; }
+
+      const btn=document.getElementById('submitBtn');
+      btn.disabled=true;
+      btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> 저장 중...';
+
+      try {
+        const res = await fetch(`/api/sign/${currentRecord.id}`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            driver_name: document.getElementById('inp_driver_name').value.trim(),
+            driver_phone: document.getElementById('inp_driver_phone').value.trim(),
+            vehicle_no: document.getElementById('inp_vehicle_no').value.trim(),
+            receiver_name: receiverName,
+            driver_signature: getSigData('driver'),
+            receiver_signature: getSigData('receiver')
+          })
+        });
+        const data=await res.json();
+        if(res.ok){
+          document.getElementById('stepSign').style.display='none';
+          document.getElementById('stepComplete').style.display='block';
+          document.getElementById('completeMsg').textContent=`DN번호 [${currentRecord.order_no}] 인수증명서가 성공적으로 저장되었습니다.`;
+        } else {
+          showAlert(data.error||'저장 중 오류가 발생했습니다.','error');
+          btn.disabled=false;
+          btn.innerHTML='<i class="fas fa-check"></i>서명 완료 제출';
+        }
+      } catch(e) {
+        showAlert('서버 연결 오류가 발생했습니다.','error');
+        btn.disabled=false;
+        btn.innerHTML='<i class="fas fa-check"></i>서명 완료 제출';
+      }
+    }
+
+    function showAlert(msg, type='error') {
+      const el=document.getElementById('alertBox');
+      const cls=type==='error'?'alert-error':'alert-success';
+      el.className=`alert ${cls}`;
+      el.innerHTML=`<i class="fas fa-${type==='error'?'exclamation-circle':'check-circle'}"></i> ${msg}`;
+      el.style.display='flex';
+      if(type!=='info') setTimeout(()=>el.style.display='none',4000);
+    }
+    function hideAlert(){ document.getElementById('alertBox').style.display='none'; }
+
+    // Enter키 검색
+    document.getElementById('searchOrderNo').addEventListener('keydown', e=>{ if(e.key==='Enter') searchOrder(); });
+  </script>
+</body>
+</html>

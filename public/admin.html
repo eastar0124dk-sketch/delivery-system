@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>오더 관리 - 관리자</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;}
+    .topbar{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(102,126,234,.4);position:sticky;top:0;z-index:100;}
+    .topbar .left{display:flex;align-items:center;gap:10px;}
+    .topbar h1{font-size:17px;font-weight:700;}
+    .topbar a{color:#fff;text-decoration:none;opacity:.8;font-size:13px;}
+    .topbar a:hover{opacity:1;}
+    .wrap{max-width:860px;margin:0 auto;padding:24px 16px;}
+    .card{background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:24px;margin-bottom:20px;}
+    .card-title{font-size:16px;font-weight:700;color:#2d3748;display:flex;align-items:center;gap:8px;padding-bottom:14px;border-bottom:2px solid #f0f4f8;margin-bottom:20px;}
+    .card-title i{color:#667eea;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    @media(max-width:600px){.form-grid{grid-template-columns:1fr;}}
+    .form-group{display:flex;flex-direction:column;gap:5px;}
+    .form-group.span2{grid-column:span 2;}
+    @media(max-width:600px){.form-group.span2{grid-column:span 1;}}
+    label{font-size:12px;font-weight:600;color:#4a5568;}
+    label .req{color:#e53e3e;margin-left:2px;}
+    input,textarea,select{padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;transition:border .2s;background:#fafafa;color:#1a202c;}
+    input:focus,textarea:focus,select:focus{outline:none;border-color:#667eea;background:#fff;box-shadow:0 0 0 3px rgba(102,126,234,.1);}
+    textarea{resize:vertical;min-height:60px;}
+    .btn{padding:10px 22px;border:none;border-radius:10px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:7px;}
+    .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(102,126,234,.4);}
+    .btn-secondary{background:#e2e8f0;color:#4a5568;}
+    .btn-danger{background:#fed7d7;color:#c53030;}
+    .btn-sm{padding:6px 14px;font-size:12px;border-radius:7px;}
+    .alert{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:14px;display:none;align-items:center;gap:8px;}
+    .alert-success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;display:flex;}
+    .alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;display:flex;}
+    .tabs{display:flex;gap:0;margin-bottom:20px;background:#e2e8f0;border-radius:12px;padding:4px;}
+    .tab-btn{flex:1;padding:10px;border:none;background:transparent;font-family:inherit;font-size:14px;font-weight:500;color:#718096;border-radius:9px;cursor:pointer;transition:all .2s;}
+    .tab-btn.active{background:#fff;color:#667eea;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+    .tab-content{display:none;}
+    .tab-content.active{display:block;}
+    .table-wrap{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th{background:#f7fafc;color:#4a5568;font-weight:600;padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;white-space:nowrap;}
+    td{padding:10px 12px;border-bottom:1px solid #f0f4f8;vertical-align:middle;}
+    tr:hover td{background:#fafafa;}
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+    .badge-draft{background:#fef3c7;color:#d97706;}
+    .badge-signed{background:#d1fae5;color:#059669;}
+    .order-no-badge{font-family:monospace;font-weight:700;color:#667eea;background:#ebf4ff;padding:2px 8px;border-radius:6px;font-size:13px;}
+    .search-bar{display:flex;gap:10px;margin-bottom:16px;}
+    .search-bar input{flex:1;}
+    .action-btns{display:flex;gap:6px;}
+    .no-data{text-align:center;padding:40px;color:#a0aec0;}
+    .no-data i{font-size:36px;display:block;margin-bottom:10px;}
+    .extra-locations{background:#f7fafc;border-radius:8px;padding:12px;margin-top:8px;}
+    .extra-loc-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+    .extra-loc-row:last-child{margin-bottom:0;}
+    .extra-loc-row input{flex:1;}
+    .extra-loc-row .loc-num{font-size:13px;font-weight:600;color:#667eea;min-width:20px;}
+    /* 로그인 모달 */
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;}
+    .modal-overlay.show{display:flex;}
+    .login-box{background:#fff;border-radius:20px;padding:36px 32px;width:100%;max-width:360px;text-align:center;}
+    .login-box h2{font-size:20px;font-weight:700;margin-bottom:6px;color:#2d3748;}
+    .login-box p{font-size:13px;color:#718096;margin-bottom:24px;}
+    .login-box input{width:100%;padding:13px 16px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:15px;font-family:inherit;margin-bottom:12px;text-align:center;letter-spacing:3px;}
+    .login-box input:focus{outline:none;border-color:#667eea;}
+    .login-error{color:#e53e3e;font-size:13px;margin-bottom:10px;display:none;}
+  </style>
+</head>
+<body>
+
+<!-- 로그인 모달 -->
+<div class="modal-overlay show" id="loginModal">
+  <div class="login-box">
+    <div style="font-size:40px;margin-bottom:12px;">🔐</div>
+    <h2>관리자 로그인</h2>
+    <p>관리자 비밀번호를 입력하세요</p>
+    <p class="login-error" id="loginError">비밀번호가 틀렸습니다.</p>
+    <input type="password" id="loginPw" placeholder="비밀번호" maxlength="30">
+    <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:15px;" onclick="doLogin()">
+      <i class="fas fa-sign-in-alt"></i> 로그인
+    </button>
+  </div>
+</div>
+
+<div class="topbar">
+  <div class="left">
+    <a href="index.html"><i class="fas fa-arrow-left"></i></a>
+    <h1><i class="fas fa-clipboard-list"></i> 오더 관리</h1>
+  </div>
+  <div style="display:flex;gap:14px;">
+    <a href="list.html">조회/출력</a>
+    <a href="index.html">홈</a>
+  </div>
+</div>
+
+<div class="wrap" id="mainWrap" style="display:none;">
+  <div id="alertBox" class="alert"></div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('register')"><i class="fas fa-plus-circle"></i> 오더 등록</button>
+    <button class="tab-btn" onclick="switchTab('search')"><i class="fas fa-search"></i> 오더 조회</button>
+  </div>
+
+  <!-- 등록 탭 -->
+  <div id="tab-register" class="tab-content active">
+    <div class="card">
+      <div class="card-title"><i class="fas fa-info-circle"></i> 배송 기본 정보</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>DN 번호 (오더번호) <span class="req">*</span></label>
+          <input type="text" id="order_no" placeholder="예: DN-20240101-001">
+        </div>
+        <div class="form-group">
+          <label>배송일자 <span class="req">*</span></label>
+          <input type="date" id="delivery_date">
+        </div>
+        <div class="form-group">
+          <label>도착 시간</label>
+          <input type="time" id="arrival_time">
+        </div>
+        <div class="form-group">
+          <label>수량 <span class="req">*</span></label>
+          <input type="text" id="quantity" placeholder="예: 3박스, 2plt, 1파렛트">
+        </div>
+        <div class="form-group span2">
+          <label>제품명 / 품목 <span class="req">*</span></label>
+          <div style="display:flex;gap:8px;">
+            <select id="product_name_select" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;" onchange="onProductSelect(this.value)">
+              <option value="">-- 선택 --</option>
+              <option value="계측기">계측기</option>
+              <option value="장비">장비</option>
+              <option value="저울">저울</option>
+              <option value="기타">기타 (직접입력)</option>
+            </select>
+            <input type="text" id="product_name" placeholder="직접 입력" style="flex:1;display:none;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><i class="fas fa-map-marker-alt"></i> 고객사 / 배송지</div>
+      <div class="form-grid">
+        <div class="form-group span2">
+          <label>고객사명 (배송지) <span class="req">*</span></label>
+          <input type="text" id="customer_company" placeholder="예: ABC 주식회사">
+        </div>
+        <div class="form-group span2">
+          <label>배송지 주소</label>
+          <input type="text" id="customer_address" placeholder="예: 서울시 강남구 테헤란로 123">
+        </div>
+        <div class="form-group">
+          <label>수취인 이름 <span class="req">*</span></label>
+          <input type="text" id="receiver_name">
+        </div>
+        <div class="form-group">
+          <label>수취인 연락처</label>
+          <input type="tel" id="receiver_phone" placeholder="010-0000-0000">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><i class="fas fa-user-tie"></i> 운송기사 정보 (선택)</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>기사 이름</label>
+          <input type="text" id="driver_name">
+        </div>
+        <div class="form-group">
+          <label>기사 연락처</label>
+          <input type="tel" id="driver_phone">
+        </div>
+        <div class="form-group span2">
+          <label>차량번호</label>
+          <input type="text" id="vehicle_no" placeholder="예: 01가 0001">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><i class="fas fa-tasks"></i> 작업 내용 및 추가 정보</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>현장 대기시간 (분)</label>
+          <input type="number" id="wait_time" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>현장 수작업 시간 (분)</label>
+          <input type="number" id="work_time" placeholder="0" min="0">
+        </div>
+        <div class="form-group span2">
+          <label>폐기물 회수</label>
+          <select id="waste_collection">
+            <option value="">선택 안함</option>
+            <option value="회수 불필요">회수 불필요</option>
+            <option value="우든 및 파렛트 회수">우든 및 파렛트 회수</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:18px;">
+        <label style="display:block;margin-bottom:10px;font-weight:700;color:#2d3748;">배송 경유지</label>
+        <div class="extra-locations">
+          <div class="extra-loc-row"><span class="loc-num">1.</span><input type="text" class="loc-input" placeholder="경유지 주소 1"></div>
+          <div class="extra-loc-row"><span class="loc-num">2.</span><input type="text" class="loc-input" placeholder="경유지 주소 2"></div>
+          <div class="extra-loc-row"><span class="loc-num">3.</span><input type="text" class="loc-input" placeholder="경유지 주소 3"></div>
+        </div>
+      </div>
+      <div style="margin-top:15px;">
+        <div class="form-group">
+          <label>비고</label>
+          <textarea id="notes" placeholder="추가 설명"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;justify-content:center;padding-bottom:20px;">
+      <button class="btn btn-secondary" onclick="resetForm()"><i class="fas fa-redo"></i> 초기화</button>
+      <button class="btn btn-primary" onclick="saveOrder()"><i class="fas fa-check-circle"></i> 오더 등록</button>
+    </div>
+  </div>
+
+  <!-- 조회 탭 -->
+  <div id="tab-search" class="tab-content">
+    <div class="card">
+      <div class="card-title"><i class="fas fa-search"></i> 오더 검색</div>
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="DN번호, 고객사, 제품명, 수취인 검색">
+        <button class="btn btn-primary btn-sm" onclick="searchOrders()"><i class="fas fa-search"></i> 조회</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>DN번호</th><th>배송일</th><th>고객사</th><th>제품명</th><th>수취인</th><th>상태</th><th>관리</th>
+            </tr>
+          </thead>
+          <tbody id="orderTbody">
+            <tr><td colspan="7" class="no-data"><i class="fas fa-inbox"></i>조회 버튼을 눌러 확인하세요</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let adminToken = sessionStorage.getItem('adminToken') || '';
+
+  async function doLogin() {
+    const pw = document.getElementById('loginPw').value;
+    try {
+      const res = await fetch('/api/auth', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({password:pw})
+      });
+      const data = await res.json();
+      if(res.ok) {
+        adminToken = data.token;
+        sessionStorage.setItem('adminToken', adminToken);
+        document.getElementById('loginModal').classList.remove('show');
+        document.getElementById('mainWrap').style.display='block';
+      } else {
+        document.getElementById('loginError').style.display='block';
+        document.getElementById('loginPw').value='';
+      }
+    } catch(e) {
+      alert('서버 연결 오류');
+    }
+  }
+
+  function authHeader() {
+    return { 'Content-Type':'application/json', 'Authorization': `Bearer ${adminToken}` };
+  }
+
+  async function checkAuth() {
+    if(!adminToken) return;
+    try {
+      const res = await fetch('/api/auth/check', { headers:{'Authorization':`Bearer ${adminToken}`} });
+      if(res.ok) {
+        document.getElementById('loginModal').classList.remove('show');
+        document.getElementById('mainWrap').style.display='block';
+      } else {
+        sessionStorage.removeItem('adminToken');
+        adminToken = '';
+      }
+    } catch(e) {}
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+      b.classList.toggle('active',(i===0&&tab==='register')||(i===1&&tab==='search'));
+    });
+    document.getElementById('tab-register').classList.toggle('active',tab==='register');
+    document.getElementById('tab-search').classList.toggle('active',tab==='search');
+    if(tab==='search') loadAllOrders();
+  }
+
+  function getExtraLocations() {
+    const locs=[];
+    document.querySelectorAll('.loc-input').forEach(i=>{ if(i.value.trim()) locs.push(i.value.trim()); });
+    return JSON.stringify(locs);
+  }
+
+  function onProductSelect(val) {
+    const txt = document.getElementById('product_name');
+    const sel = document.getElementById('product_name_select');
+    if (val === '기타') {
+      txt.style.display = 'block';
+      txt.focus();
+      txt.value = '';
+    } else {
+      txt.style.display = 'none';
+      txt.value = val;
+    }
+  }
+
+  async function saveOrder() {
+    const order_no=document.getElementById('order_no').value.trim();
+    const delivery_date=document.getElementById('delivery_date').value;
+    // 제품명: 드롭다운 선택값 또는 직접입력값
+    const selVal = document.getElementById('product_name_select').value;
+    const product_name = selVal === '기타'
+      ? document.getElementById('product_name').value.trim()
+      : (document.getElementById('product_name').value.trim() || selVal);
+    const quantity=document.getElementById('quantity').value.trim();
+    const customer_company=document.getElementById('customer_company').value.trim();
+    const receiver_name=document.getElementById('receiver_name').value.trim();
+
+    if(!order_no||!delivery_date||!product_name||!quantity||!customer_company||!receiver_name){
+      showAlert('필수 항목(*)을 모두 입력해주세요.','error'); return;
+    }
+
+    const res = await fetch('/api/records', {
+      method:'POST',
+      headers: authHeader(),
+      body: JSON.stringify({
+        order_no, delivery_date,
+        arrival_time: document.getElementById('arrival_time').value,
+        product_name, quantity, customer_company,
+        customer_address: document.getElementById('customer_address').value,
+        receiver_name,
+        receiver_phone: document.getElementById('receiver_phone').value,
+        driver_name: document.getElementById('driver_name').value,
+        driver_phone: document.getElementById('driver_phone').value,
+        vehicle_no: document.getElementById('vehicle_no').value,
+        wait_time: document.getElementById('wait_time').value,
+        work_time: document.getElementById('work_time').value,
+        waste_collection: document.getElementById('waste_collection').value,
+        extra_locations: getExtraLocations(),
+        notes: document.getElementById('notes').value
+      })
+    });
+    const data = await res.json();
+    if(res.ok) {
+      showAlert(`✅ DN번호 [${order_no}] 오더가 등록되었습니다!`,'success');
+      resetForm();
+    } else {
+      showAlert(data.error||'저장 중 오류가 발생했습니다.','error');
+    }
+  }
+
+  function resetForm() {
+    ['order_no','delivery_date','arrival_time','quantity','product_name',
+     'customer_company','customer_address','receiver_name','receiver_phone',
+     'driver_name','driver_phone','vehicle_no','wait_time','work_time','notes'].forEach(id=>{
+      document.getElementById(id).value='';
+    });
+    document.getElementById('waste_collection').value='';
+    document.getElementById('product_name_select').value='';
+    document.getElementById('product_name').style.display='none';
+    document.querySelectorAll('.loc-input').forEach(i=>i.value='');
+  }
+
+  async function loadAllOrders() {
+    const res = await fetch('/api/records?limit=100',{headers:{'Authorization':`Bearer ${adminToken}`}}).then(r=>r.json());
+    renderTable(res.data||[]);
+  }
+
+  async function searchOrders() {
+    const q=document.getElementById('searchInput').value.trim();
+    const url=q?`/api/records?search=${encodeURIComponent(q)}&limit=100`:'/api/records?limit=100';
+    const res = await fetch(url,{headers:{'Authorization':`Bearer ${adminToken}`}}).then(r=>r.json());
+    renderTable(res.data||[]);
+  }
+
+  function maskPhone(p){ if(!p) return '-'; return p.replace(/(\d{2,3})-?(\d{3,4})-?(\d{4})/,'$1-****-$3'); }
+  function maskName(n){ if(!n||n.length<2) return n||'-'; if(n.length===2) return n[0]+'*'; return n[0]+'*'.repeat(n.length-2)+n[n.length-1]; }
+
+  function renderTable(rows) {
+    const tbody=document.getElementById('orderTbody');
+    if(!rows.length){ tbody.innerHTML='<tr><td colspan="7" class="no-data"><i class="fas fa-inbox"></i>데이터가 없습니다.</td></tr>'; return; }
+    tbody.innerHTML=rows.map(r=>`
+      <tr>
+        <td><span class="order-no-badge">${r.order_no}</span></td>
+        <td>${r.delivery_date||'-'}</td>
+        <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.customer_company||'-'}</td>
+        <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.product_name||'-'}</td>
+        <td>${maskName(r.receiver_name)}</td>
+        <td><span class="badge ${r.status==='signed'?'badge-signed':'badge-draft'}">${r.status==='signed'?'✅완료':'📋대기'}</span></td>
+        <td>
+          <div class="action-btns">
+            <a href="list.html" class="btn btn-sm btn-secondary" title="목록에서 보기"><i class="fas fa-list"></i></a>
+            <button class="btn btn-sm btn-danger" onclick="deleteOrder('${r.id}','${r.order_no}')"><i class="fas fa-trash"></i></button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function deleteOrder(id, order_no) {
+    if(!confirm(`DN번호 [${order_no}]를 삭제하시겠습니까?`)) return;
+    await fetch(`/api/records/${id}`,{method:'DELETE',headers:authHeader()});
+    loadAllOrders();
+  }
+
+  function showAlert(msg, type='success') {
+    const el=document.getElementById('alertBox');
+    el.className=`alert alert-${type}`;
+    el.innerHTML=`<i class="fas fa-${type==='success'?'check-circle':'exclamation-circle'}"></i> ${msg}`;
+    el.style.display='flex';
+    if(type==='success') setTimeout(()=>el.style.display='none',5000);
+  }
+
+  document.getElementById('loginPw').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+  document.getElementById('delivery_date').value=new Date().toISOString().slice(0,10);
+  checkAuth();
+</script>
+</body>
+</html>

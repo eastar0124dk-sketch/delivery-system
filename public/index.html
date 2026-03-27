@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>배송 인수증명 시스템</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Noto Sans KR',sans-serif; background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460); min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; }
+    .logo { font-size:40px; margin-bottom:10px; }
+    h1 { color:#fff; font-size:24px; font-weight:900; margin-bottom:6px; text-align:center; }
+    .subtitle { color:rgba(255,255,255,0.65); font-size:13px; margin-bottom:40px; text-align:center; }
+    .cards { display:grid; grid-template-columns:1fr 1fr; gap:16px; width:100%; max-width:520px; }
+    @media(max-width:480px){ .cards { grid-template-columns:1fr; } }
+    .card { background:rgba(255,255,255,0.08); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.15); border-radius:20px; padding:28px 24px; text-align:center; text-decoration:none; color:#fff; transition:all 0.25s; }
+    .card:hover { background:rgba(255,255,255,0.15); transform:translateY(-4px); box-shadow:0 12px 30px rgba(0,0,0,0.3); }
+    .card .icon { font-size:36px; margin-bottom:14px; display:block; }
+    .card h2 { font-size:17px; font-weight:700; margin-bottom:6px; }
+    .card p { font-size:12px; color:rgba(255,255,255,0.65); line-height:1.5; }
+    .card.driver { border-color:rgba(248,113,113,0.5); }
+    .card.driver .icon { color:#f87171; }
+    .card.admin-card { border-color:rgba(96,165,250,0.5); }
+    .card.admin-card .icon { color:#60a5fa; }
+    .card.list-card { border-color:rgba(52,211,153,0.5); }
+    .card.list-card .icon { color:#34d399; }
+    .card.view-card { border-color:rgba(251,191,36,0.5); }
+    .card.view-card .icon { color:#fbbf24; }
+    .version { color:rgba(255,255,255,0.3); font-size:11px; margin-top:30px; }
+  </style>
+</head>
+<body>
+  <div class="logo">📦</div>
+  <h1 id="companyName">배송 인수증명 시스템</h1>
+  <p class="subtitle">디지털 서명 · 실시간 저장 · PDF 출력</p>
+  <div class="cards">
+    <a href="sign.html" class="card driver">
+      <span class="icon"><i class="fas fa-truck"></i></span>
+      <h2>배송기사 서명</h2>
+      <p>DN번호 입력 후<br>기사·수령자 서명</p>
+    </a>
+    <a href="admin.html" class="card admin-card">
+      <span class="icon"><i class="fas fa-clipboard-list"></i></span>
+      <h2>오더 관리</h2>
+      <p>출고 오더 등록 및<br>기본 정보 수정</p>
+    </a>
+    <a href="list.html" class="card list-card" style="grid-column:span 2;">
+      <span class="icon"><i class="fas fa-search"></i></span>
+      <h2>조회 · 출력</h2>
+      <p>기간 검색 · 건별 조회 · PDF 다운로드</p>
+    </a>
+  </div>
+  <p class="version">v1.0</p>
+  <script>
+    fetch('/api/config').then(r=>r.json()).then(d=>{
+      if(d.companyName) document.getElementById('companyName').textContent = d.companyName;
+    }).catch(()=>{});
+  </script>
+</body>
+</html>
