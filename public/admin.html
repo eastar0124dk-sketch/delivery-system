@@ -308,11 +308,7 @@
   }
 
   function applyRoleUI() {
-    if(userRole === 'staff') {
-      // 직원: 오더 조회 탭 숨김
-      const tabs = document.querySelectorAll('.tab-btn');
-      if(tabs[1]) tabs[1].style.display = 'none';
-    }
+    // 직원/관리자 모두 오더 조회 탭 사용 가능
   }
 
   function authHeader() {
