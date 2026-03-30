@@ -26,6 +26,15 @@
     label .req{color:#e53e3e;margin-left:2px;}
     input,textarea,select{padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;transition:border .2s;background:#fafafa;color:#1a202c;}
     input:focus,textarea:focus,select:focus{outline:none;border-color:#667eea;background:#fff;box-shadow:0 0 0 3px rgba(102,126,234,.1);}
+    /* 필수 입력 항목 강조 */
+    .req-field{background:#fffbeb!important;border-color:#f6ad55!important;border-width:2px!important;}
+    .req-field:focus{background:#fff!important;border-color:#667eea!important;}
+    .req-legend{font-size:11px;color:#d97706;background:#fffbeb;border:1px solid #f6ad55;border-radius:6px;padding:5px 10px;display:inline-flex;align-items:center;gap:5px;margin-bottom:14px;}
+    /* 로그인 역할 탭 */
+    .role-tabs{display:flex;gap:8px;margin-bottom:18px;}
+    .role-tab{flex:1;padding:10px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;color:#718096;}
+    .role-tab.active.admin{border-color:#667eea;background:#ebf4ff;color:#667eea;}
+    .role-tab.active.staff{border-color:#38a169;background:#f0fff4;color:#38a169;}
     textarea{resize:vertical;min-height:60px;}
     .btn{padding:10px 22px;border:none;border-radius:10px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:7px;}
     .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;}
@@ -77,8 +86,12 @@
 <div class="modal-overlay show" id="loginModal">
   <div class="login-box">
     <div style="font-size:40px;margin-bottom:12px;">🔐</div>
-    <h2>관리자 로그인</h2>
-    <p>관리자 비밀번호를 입력하세요</p>
+    <h2>로그인</h2>
+    <div class="role-tabs">
+      <button class="role-tab admin active" onclick="setLoginRole('admin',this)">👑 관리자</button>
+      <button class="role-tab staff" onclick="setLoginRole('staff',this)">👤 직원</button>
+    </div>
+    <p id="loginDesc" style="font-size:13px;color:#718096;margin-bottom:16px;">관리자 비밀번호를 입력하세요</p>
     <p class="login-error" id="loginError">비밀번호가 틀렸습니다.</p>
     <input type="password" id="loginPw" placeholder="비밀번호" maxlength="30">
     <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:15px;" onclick="doLogin()">
@@ -108,16 +121,19 @@
 
   <!-- 등록 탭 -->
   <div id="tab-register" class="tab-content active">
+    <div style="margin-bottom:12px;">
+      <span class="req-legend"><i class="fas fa-exclamation-circle"></i> 노란색 항목은 필수 입력 항목입니다</span>
+    </div>
     <div class="card">
       <div class="card-title"><i class="fas fa-info-circle"></i> 배송 기본 정보</div>
       <div class="form-grid">
         <div class="form-group">
           <label>DN 번호 (오더번호) <span class="req">*</span></label>
-          <input type="text" id="order_no" placeholder="예: DN-20240101-001">
+          <input type="text" id="order_no" class="req-field" placeholder="예: DN-20240101-001">
         </div>
         <div class="form-group">
           <label>배송일자 <span class="req">*</span></label>
-          <input type="date" id="delivery_date">
+          <input type="date" id="delivery_date" class="req-field">
         </div>
         <div class="form-group">
           <label>도착 시간</label>
@@ -125,12 +141,12 @@
         </div>
         <div class="form-group">
           <label>수량 <span class="req">*</span></label>
-          <input type="text" id="quantity" placeholder="예: 3박스, 2plt, 1파렛트">
+          <input type="text" id="quantity" class="req-field" placeholder="예: 3박스, 2plt, 1파렛트">
         </div>
         <div class="form-group span2">
           <label>제품명 / 품목 <span class="req">*</span></label>
           <div style="display:flex;gap:8px;">
-            <select id="product_name_select" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;" onchange="onProductSelect(this.value)">
+            <select id="product_name_select" class="req-field" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;" onchange="onProductSelect(this.value)">
               <option value="">-- 선택 --</option>
               <option value="계측기">계측기</option>
               <option value="장비">장비</option>
@@ -148,7 +164,7 @@
       <div class="form-grid">
         <div class="form-group span2">
           <label>고객사명 (배송지) <span class="req">*</span></label>
-          <input type="text" id="customer_company" placeholder="예: ABC 주식회사">
+          <input type="text" id="customer_company" class="req-field" placeholder="예: ABC 주식회사">
         </div>
         <div class="form-group span2">
           <label>배송지 주소</label>
@@ -156,7 +172,7 @@
         </div>
         <div class="form-group">
           <label>수취인 이름 <span class="req">*</span></label>
-          <input type="text" id="receiver_name">
+          <input type="text" id="receiver_name" class="req-field">
         </div>
         <div class="form-group">
           <label>수취인 연락처</label>
@@ -252,6 +268,18 @@
 
 <script>
   let adminToken = sessionStorage.getItem('adminToken') || '';
+  let userRole   = sessionStorage.getItem('userRole') || '';
+  let selectedLoginRole = 'admin';
+
+  function setLoginRole(role, btn) {
+    selectedLoginRole = role;
+    document.querySelectorAll('.role-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('loginDesc').textContent =
+      role === 'admin' ? '관리자 비밀번호를 입력하세요' : '직원 비밀번호를 입력하세요';
+    document.getElementById('loginPw').value = '';
+    document.getElementById('loginError').style.display = 'none';
+  }
 
   async function doLogin() {
     const pw = document.getElementById('loginPw').value;
@@ -264,15 +292,26 @@
       const data = await res.json();
       if(res.ok) {
         adminToken = data.token;
+        userRole   = data.role;
         sessionStorage.setItem('adminToken', adminToken);
+        sessionStorage.setItem('userRole', userRole);
         document.getElementById('loginModal').classList.remove('show');
         document.getElementById('mainWrap').style.display='block';
+        applyRoleUI();
       } else {
         document.getElementById('loginError').style.display='block';
         document.getElementById('loginPw').value='';
       }
     } catch(e) {
       alert('서버 연결 오류');
+    }
+  }
+
+  function applyRoleUI() {
+    if(userRole === 'staff') {
+      // 직원: 오더 조회 탭 숨김
+      const tabs = document.querySelectorAll('.tab-btn');
+      if(tabs[1]) tabs[1].style.display = 'none';
     }
   }
 
@@ -287,9 +326,11 @@
       if(res.ok) {
         document.getElementById('loginModal').classList.remove('show');
         document.getElementById('mainWrap').style.display='block';
+        applyRoleUI();
       } else {
         sessionStorage.removeItem('adminToken');
-        adminToken = '';
+        sessionStorage.removeItem('userRole');
+        adminToken = ''; userRole = '';
       }
     } catch(e) {}
   }
