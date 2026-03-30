@@ -36,6 +36,8 @@
     .btn-blue{background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;}
     .btn-pdf{background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;}
     .btn-pdf:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(245,87,108,.35);}
+    .btn-excel{background:linear-gradient(135deg,#21d07a,#1a9c5b);color:#fff;}
+    .btn-excel:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(33,208,122,.35);}
     .btn-danger{background:#fed7d7;color:#c53030;}
     .btn-sm{padding:6px 12px;font-size:12px;border-radius:7px;}
     .btn:disabled{opacity:.6;cursor:not-allowed;transform:none!important;}
@@ -199,6 +201,7 @@
     <div class="export-btns">
       <button class="btn btn-secondary btn-sm" onclick="printAll()"><i class="fas fa-print"></i> 목록 인쇄</button>
       <button class="btn btn-pdf btn-sm" onclick="exportPDFAll()"><i class="fas fa-file-pdf"></i> 목록 PDF</button>
+      <button class="btn btn-excel btn-sm" onclick="exportExcel()"><i class="fas fa-file-excel"></i> 엑셀 다운로드</button>
     </div>
   </div>
 
@@ -421,6 +424,30 @@
     if(p<1||p>t) return;
     currentPage=p; renderPage();
     window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  // ── 엑셀 다운로드 ──
+  function exportExcel() {
+    if(!filtered.length){ alert('다운로드할 데이터가 없습니다. 먼저 조회해주세요.'); return; }
+    const headers = ['번호','DN번호','배송일자','고객사명','배송지주소','제품명','수량','수취인이름','수취인연락처','기사이름','기사연락처','차량번호','상태','서명일시'];
+    const rows = filtered.map((r,i) => [
+      i+1, r.order_no||'', r.delivery_date||'', r.customer_company||'',
+      r.customer_address||'', r.product_name||'', r.quantity||'',
+      r.receiver_name||'', r.receiver_phone||'', r.driver_name||'',
+      r.driver_phone||'', r.vehicle_no||'',
+      r.status==='signed'?'서명완료':'대기중', r.signed_at||''
+    ]);
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
+      .join('\n');
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().slice(0,10);
+    a.href = url; a.download = `배송인수증_${today}.csv`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 
   // ── 삭제 ──
