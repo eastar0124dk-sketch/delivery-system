@@ -64,6 +64,17 @@
     .action-btns{display:flex;gap:6px;}
     .no-data{text-align:center;padding:40px;color:#a0aec0;}
     .no-data i{font-size:36px;display:block;margin-bottom:10px;}
+    /* 비용 모달 */
+    .cost-modal-box{background:#fff;border-radius:20px;padding:28px;width:100%;max-width:480px;position:relative;}
+    .modal-close-btn{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;border:none;background:#f0f4f8;cursor:pointer;font-size:15px;color:#718096;}
+    .modal-close-btn:hover{background:#e2e8f0;}
+    .cost-section{background:#f7fafc;border-radius:12px;padding:16px;margin-bottom:14px;border-left:4px solid #667eea;}
+    .cost-section.cancel-section{border-left-color:#e53e3e;}
+    .cost-section-title{font-size:13px;font-weight:700;color:#4a5568;margin-bottom:12px;}
+    .cost-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .badge-cancelled{background:#fee2e2;color:#c53030;}
+    .btn-cost{background:linear-gradient(135deg,#f6ad55,#ed8936);color:#fff;}
+    .btn-cancel-order{background:linear-gradient(135deg,#fc8181,#e53e3e);color:#fff;}
     .extra-locations{background:#f7fafc;border-radius:8px;padding:12px;margin-top:8px;}
     .extra-loc-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
     .extra-loc-row:last-child{margin-bottom:0;}
@@ -202,14 +213,6 @@
     <div class="card">
       <div class="card-title"><i class="fas fa-tasks"></i> 작업 내용 및 추가 정보</div>
       <div class="form-grid">
-        <div class="form-group">
-          <label>현장 대기시간 (분)</label>
-          <input type="number" id="wait_time" placeholder="0" min="0">
-        </div>
-        <div class="form-group">
-          <label>현장 수작업 시간 (분)</label>
-          <input type="number" id="work_time" placeholder="0" min="0">
-        </div>
         <div class="form-group span2">
           <label>폐기물 회수</label>
           <select id="waste_collection">
@@ -266,9 +269,56 @@
   </div>
 </div>
 
+<!-- 비용 입력 모달 -->
+<div class="modal-overlay" id="costModal">
+  <div class="cost-modal-box">
+    <button class="modal-close-btn" onclick="closeCostModal()">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#2d3748;margin-bottom:6px;">💰 비용 정보 입력</div>
+    <div style="font-size:13px;color:#718096;margin-bottom:18px;">DN: <strong id="costOrderLabel"></strong></div>
+    <input type="hidden" id="costOrderId">
+
+    <!-- 배송완료 비용 섹션 -->
+    <div class="cost-section" id="costDeliverySection">
+      <div class="cost-section-title"><i class="fas fa-truck"></i> 배송 완료 비용 (운송사 확인 후 입력)</div>
+      <div class="cost-form-grid">
+        <div class="form-group">
+          <label>현장 대기시간 (분)</label>
+          <input type="number" id="cost_wait_time" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>현장 수작업 시간 (분)</label>
+          <input type="number" id="cost_work_time" min="0" placeholder="0">
+        </div>
+        <div class="form-group span2" style="grid-column:span 2;">
+          <label>작업비 (원)</label>
+          <input type="number" id="cost_work_fee" min="0" placeholder="0" style="font-size:16px;font-weight:700;">
+        </div>
+      </div>
+    </div>
+
+    <!-- 배차취소 섹션 -->
+    <div class="cost-section cancel-section" id="costCancelSection">
+      <div class="cost-section-title"><i class="fas fa-ban"></i> 배차 취소 / 회차비</div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>회차비 (원)</label>
+        <input type="number" id="cost_return_fee" min="0" placeholder="0" style="font-size:16px;font-weight:700;">
+      </div>
+      <button class="btn btn-cancel-order btn-sm" id="cancelOrderBtn" onclick="doCancelOrder()">
+        <i class="fas fa-ban"></i> 배차 취소 처리
+      </button>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeCostModal()">닫기</button>
+      <button class="btn btn-primary" onclick="saveCostInfo()"><i class="fas fa-save"></i> 저장</button>
+    </div>
+  </div>
+</div>
+
 <script>
   let adminToken = sessionStorage.getItem('adminToken') || '';
   let userRole   = sessionStorage.getItem('userRole') || '';
+  let currentCostId = null, currentCostStatus = null;
   let selectedLoginRole = 'admin';
 
   function setLoginRole(role, btn) {
@@ -392,8 +442,6 @@
           driver_name: document.getElementById('driver_name').value,
           driver_phone: document.getElementById('driver_phone').value,
           vehicle_no: document.getElementById('vehicle_no').value,
-          wait_time: document.getElementById('wait_time').value,
-          work_time: document.getElementById('work_time').value,
           waste_collection: document.getElementById('waste_collection').value,
           extra_locations: getExtraLocations(),
           notes: document.getElementById('notes').value
@@ -422,7 +470,7 @@
   function resetForm() {
     ['order_no','delivery_date','arrival_time','quantity','product_name',
      'customer_company','customer_address','receiver_name','receiver_phone',
-     'driver_name','driver_phone','vehicle_no','wait_time','work_time','notes'].forEach(id=>{
+     'driver_name','driver_phone','vehicle_no','notes'].forEach(id=>{
       document.getElementById(id).value='';
     });
     document.getElementById('waste_collection').value='';
@@ -449,22 +497,85 @@
   function renderTable(rows) {
     const tbody=document.getElementById('orderTbody');
     if(!rows.length){ tbody.innerHTML='<tr><td colspan="7" class="no-data"><i class="fas fa-inbox"></i>데이터가 없습니다.</td></tr>'; return; }
-    tbody.innerHTML=rows.map(r=>`
-      <tr>
+    tbody.innerHTML=rows.map(r=>{
+      const badgeClass = r.status==='signed'?'badge-signed':r.status==='cancelled'?'badge-cancelled':'badge-draft';
+      const badgeText  = r.status==='signed'?'✅완료':r.status==='cancelled'?'🚫취소':'📋대기';
+      const wf = r.work_fee ? `<br><span style="font-size:11px;color:#d97706;">작업비 ${Number(r.work_fee).toLocaleString()}원</span>` : '';
+      const rf = r.return_fee ? `<br><span style="font-size:11px;color:#e53e3e;">회차비 ${Number(r.return_fee).toLocaleString()}원</span>` : '';
+      return `<tr>
         <td><span class="order-no-badge">${r.order_no}</span></td>
         <td>${r.delivery_date||'-'}</td>
         <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.customer_company||'-'}</td>
         <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.product_name||'-'}</td>
         <td>${maskName(r.receiver_name)}</td>
-        <td><span class="badge ${r.status==='signed'?'badge-signed':'badge-draft'}">${r.status==='signed'?'✅완료':'📋대기'}</span></td>
+        <td><span class="badge ${badgeClass}">${badgeText}</span>${wf}${rf}</td>
         <td>
           <div class="action-btns">
-            <a href="list.html" class="btn btn-sm btn-secondary" title="목록에서 보기"><i class="fas fa-list"></i></a>
+            <button class="btn btn-sm btn-cost" title="비용 입력" onclick="openCostModal('${r.id}','${r.order_no}','${r.status||'draft'}','${r.wait_time||''}','${r.work_time||''}','${r.work_fee||''}','${r.return_fee||''}')"><i class="fas fa-won-sign"></i></button>
             <button class="btn btn-sm btn-danger" onclick="deleteOrder('${r.id}','${r.order_no}')"><i class="fas fa-trash"></i></button>
           </div>
         </td>
-      </tr>
-    `).join('');
+      </tr>`;
+    }).join('');
+  }
+
+  function openCostModal(id, order_no, status, wait_time, work_time, work_fee, return_fee) {
+    currentCostId = id; currentCostStatus = status;
+    document.getElementById('costOrderLabel').textContent = order_no;
+    document.getElementById('costOrderId').value = id;
+    document.getElementById('cost_wait_time').value = wait_time || '';
+    document.getElementById('cost_work_time').value = work_time || '';
+    document.getElementById('cost_work_fee').value = work_fee || '';
+    document.getElementById('cost_return_fee').value = return_fee || '';
+    // 상태에 따라 섹션 표시
+    const delivSec = document.getElementById('costDeliverySection');
+    const cancelSec = document.getElementById('costCancelSection');
+    const cancelBtn = document.getElementById('cancelOrderBtn');
+    if(status === 'signed') {
+      delivSec.style.display = 'block';
+      cancelSec.style.display = 'none';
+    } else if(status === 'cancelled') {
+      delivSec.style.display = 'none';
+      cancelSec.style.display = 'block';
+      cancelBtn.style.display = 'none'; // 이미 취소된 경우 버튼 숨김
+    } else { // draft
+      delivSec.style.display = 'none';
+      cancelSec.style.display = 'block';
+      cancelBtn.style.display = 'inline-flex';
+    }
+    document.getElementById('costModal').classList.add('show');
+  }
+
+  function closeCostModal() {
+    document.getElementById('costModal').classList.remove('show');
+    currentCostId = null; currentCostStatus = null;
+  }
+
+  async function saveCostInfo() {
+    if(!currentCostId) return;
+    const data = {};
+    if(currentCostStatus === 'signed') {
+      data.wait_time = document.getElementById('cost_wait_time').value;
+      data.work_time = document.getElementById('cost_work_time').value;
+      data.work_fee  = document.getElementById('cost_work_fee').value;
+    } else {
+      data.return_fee = document.getElementById('cost_return_fee').value;
+    }
+    try {
+      const res = await fetch(`/api/records/${currentCostId}`,{method:'PATCH',headers:authHeader(),body:JSON.stringify(data)});
+      if(res.ok){ showAlert('✅ 저장되었습니다.','success'); closeCostModal(); loadAllOrders(); }
+      else showAlert('저장 중 오류가 발생했습니다.','error');
+    } catch(e){ showAlert('서버 연결 오류','error'); }
+  }
+
+  async function doCancelOrder() {
+    if(!confirm('배차 취소 처리하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+    const return_fee = document.getElementById('cost_return_fee').value;
+    try {
+      const res = await fetch(`/api/records/${currentCostId}`,{method:'PATCH',headers:authHeader(),body:JSON.stringify({status:'cancelled', return_fee})});
+      if(res.ok){ showAlert('🚫 배차 취소 처리되었습니다.','success'); closeCostModal(); loadAllOrders(); }
+      else showAlert('처리 중 오류가 발생했습니다.','error');
+    } catch(e){ showAlert('서버 연결 오류','error'); }
   }
 
   async function deleteOrder(id, order_no) {
