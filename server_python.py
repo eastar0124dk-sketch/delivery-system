@@ -204,9 +204,9 @@ class Handler(BaseHTTPRequestHandler):
                 'FROM delivery_records WHERE order_no=?', (order_no,))
             return self.send_json({'data': [row] if row else []})
 
-        # 관리자: 목록
+        # 관리자/직원: 목록
         if path == '/api/records':
-            if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
+            if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
             search    = g('search'); dn = g('dn'); company = g('company')
             date_from = g('dateFrom'); date_to = g('dateTo'); status = g('status')
             limit     = int(g('limit','1000') or 1000)
