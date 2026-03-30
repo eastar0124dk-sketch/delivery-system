@@ -343,7 +343,7 @@ if __name__ == '__main__':
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('8.8.8.8', 80)); local_ip = s.getsockname()[0]; s.close()
-    except: pass
+    except Exception: pass
 
     server = ThreadingHTTPServer(('0.0.0.0', PORT), Handler)
     server.allow_reuse_address = True
