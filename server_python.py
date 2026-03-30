@@ -42,6 +42,9 @@ if DATABASE_URL:
             driver_signature TEXT, receiver_signature TEXT, signed_at TEXT,
             status TEXT DEFAULT \'draft\',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        for col in ['work_fee TEXT', 'return_fee TEXT']:
+            try: cur.execute(f"ALTER TABLE delivery_records ADD COLUMN IF NOT EXISTS {col}")
+            except: pass
         c.commit(); c.close()
 
     def db_fetch(sql, params=()):
@@ -98,6 +101,9 @@ else:
             driver_signature TEXT, receiver_signature TEXT, signed_at TEXT,
             status TEXT DEFAULT 'draft',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+        for col_def in ['work_fee TEXT', 'return_fee TEXT']:
+            try: c.execute(f'ALTER TABLE delivery_records ADD COLUMN {col_def}'); c.commit()
+            except: pass
         c.commit(); c.close()
 
     def db_fetch(sql, params=()):
