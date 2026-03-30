@@ -12,10 +12,12 @@ from datetime import datetime
 DATABASE_URL = os.environ.get('DATABASE_URL', '')   # Render/Supabase 클라우드용
 STATIC       = os.path.join(os.path.dirname(__file__), 'public')
 ADMIN_PW     = os.environ.get('ADMIN_PW', 'admin1234')
+STAFF_PW     = os.environ.get('STAFF_PW', 'staff1234')
 COMPANY      = os.environ.get('COMPANY',  '출고 인수증명 시스템')
 PORT         = int(os.environ.get('PORT', 3000))
 
-valid_tokens = set()
+valid_tokens       = set()   # 관리자 토큰
+valid_staff_tokens = set()   # 직원 토큰
 
 # ── DB 레이어 (PostgreSQL 또는 SQLite 자동 선택) ──────────────────────
 if DATABASE_URL:
@@ -137,9 +139,14 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get('Content-Length', 0))
         return json.loads(self.rfile.read(length)) if length else {}
 
-    def token_ok(self):
-        t = self.headers.get('Authorization','').replace('Bearer ','').strip()
-        return t and t in valid_tokens
+    def get_token(self):
+        return self.headers.get('Authorization','').replace('Bearer ','').strip()
+
+    def token_ok(self, admin_only=False):
+        t = self.get_token()
+        if t and t in valid_tokens: return True
+        if not admin_only and t and t in valid_staff_tokens: return True
+        return False
 
     def _serve_static(self, req_path):
         safe = req_path.lstrip('/')
@@ -199,7 +206,7 @@ class Handler(BaseHTTPRequestHandler):
 
         # 관리자: 목록
         if path == '/api/records':
-            if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
+            if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
             search    = g('search'); dn = g('dn'); company = g('company')
             date_from = g('dateFrom'); date_to = g('dateTo'); status = g('status')
             limit     = int(g('limit','1000') or 1000)
@@ -239,7 +246,11 @@ class Handler(BaseHTTPRequestHandler):
             if body.get('password') == ADMIN_PW:
                 t = secrets.token_hex(32)
                 valid_tokens.add(t)
-                return self.send_json({'token': t})
+                return self.send_json({'token': t, 'role': 'admin'})
+            elif body.get('password') == STAFF_PW:
+                t = secrets.token_hex(32)
+                valid_staff_tokens.add(t)
+                return self.send_json({'token': t, 'role': 'staff'})
             return self.send_json({'error':'비밀번호가 틀렸습니다.'}, 401)
 
         # 기사 서명 제출 (공개)
@@ -325,21 +336,4 @@ if __name__ == '__main__':
     local_ip = '127.0.0.1'
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('8.8.8.8', 80)); local_ip = s.getsockname()[0]; s.close()
-    except: pass
-
-    server = ThreadingHTTPServer(('0.0.0.0', PORT), Handler)
-    server.allow_reuse_address = True
-    sep = '=' * 44
-    print(sep)
-    print('  [배송 인수증명 시스템] 가동 중')
-    print(sep)
-    print(f'  PC  : http://localhost:{PORT}')
-    print(f'  LAN : http://{local_ip}:{PORT}')
-    print(f'  DB  : {"PostgreSQL (Cloud)" if DATABASE_URL else "SQLite (Local)"}')
-    print('  Ctrl+C 로 종료')
-    print(sep)
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print('Server stopped.')
+        s.connect(('8.8.8.8', 80)); local_ip = s.getsockname()[0]; s.close
