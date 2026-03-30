@@ -23,7 +23,8 @@ if DATABASE_URL:
     import psycopg2, psycopg2.extras
 
     def _conn():
-        return psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+        return psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor,
+                                sslmode='require')
 
     def init_db():
         c = _conn()
@@ -281,8 +282,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({'error': f"DN번호 [{body.get('order_no')}]이 이미 등록되어 있습니다."}, 400)
 
         self.send_json({'error':'Not found'}, 404)
-      except Exception:
-        try: self.send_response(500); self.end_headers()
+      except Exception as e:
+        try: self.send_json({'error': str(e)}, 500)
         except: pass
 
     def do_PATCH(self):
