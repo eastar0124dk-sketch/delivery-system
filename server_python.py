@@ -294,8 +294,10 @@ class Handler(BaseHTTPRequestHandler):
 
         self.send_json({'error':'Not found'}, 404)
       except Exception as e:
-        try: self.send_json({'error': str(e)}, 500)
-        except: pass
+        try:
+            self.send_json({'error': str(e)}, 500)
+        except Exception:
+            pass
 
     def do_PATCH(self):
       try:
@@ -313,8 +315,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({'success': True})
         self.send_json({'error':'Not found'}, 404)
       except Exception:
-        try: self.send_response(500); self.end_headers()
-        except: pass
+        except Exception:
+            try:
+                self.send_response(500)
+                self.end_headers()
+            except Exception:
+                pass
 
     def do_DELETE(self):
       try:
@@ -336,4 +342,21 @@ if __name__ == '__main__':
     local_ip = '127.0.0.1'
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('8.8.8.8', 80)); local_ip = s.getsockname()[0]; s.close
+        s.connect(('8.8.8.8', 80)); local_ip = s.getsockname()[0]; s.close()
+    except: pass
+
+    server = ThreadingHTTPServer(('0.0.0.0', PORT), Handler)
+    server.allow_reuse_address = True
+    sep = '=' * 44
+    print(sep)
+    print('  [배송 인수증명 시스템] 가동 중')
+    print(sep)
+    print(f'  PC  : http://localhost:{PORT}')
+    print(f'  LAN : http://{local_ip}:{PORT}')
+    print(f'  DB  : {"PostgreSQL (Cloud)" if DATABASE_URL else "SQLite (Local)"}')
+    print('  Ctrl+C 로 종료')
+    print(sep)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print('Server stopped.')
