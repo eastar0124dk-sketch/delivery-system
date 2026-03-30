@@ -315,12 +315,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({'success': True})
         self.send_json({'error':'Not found'}, 404)
       except Exception:
+        try:
+            self.send_response(500)
+            self.end_headers()
         except Exception:
-            try:
-                self.send_response(500)
-                self.end_headers()
-            except Exception:
-                pass
+            pass
 
     def do_DELETE(self):
       try:
@@ -343,7 +342,8 @@ if __name__ == '__main__':
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('8.8.8.8', 80)); local_ip = s.getsockname()[0]; s.close()
-    except Exception: pass
+    except Exception:
+        pass
 
     server = ThreadingHTTPServer(('0.0.0.0', PORT), Handler)
     server.allow_reuse_address = True
