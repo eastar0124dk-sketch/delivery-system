@@ -67,7 +67,7 @@ if DATABASE_URL:
     def db_insert(sql, params=()):
         sql = sql.replace('?','%s')
         if 'RETURNING' not in sql.upper():
-            sql = sql.rstrip(')').rstrip() + ' RETURNING id'
+            sql = sql.strip() + ' RETURNING id'
         c = _conn(); cur = c.cursor(); cur.execute(sql, params)
         row = cur.fetchone()
         c.commit(); c.close()
