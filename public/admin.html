@@ -173,6 +173,20 @@
           <input type="text" id="quantity" class="req-field" placeholder="예: 3박스, 2plt, 1파렛트">
         </div>
         <div class="form-group span2">
+          <label>차량 종류</label>
+          <select id="vehicle_type" style="padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;">
+            <option value="">-- 선택 --</option>
+            <option value="오토바이">🛵 오토바이</option>
+            <option value="다마스">🚐 다마스</option>
+            <option value="1톤">🚚 1톤</option>
+            <option value="2.5톤">🚚 2.5톤</option>
+            <option value="3.5톤">🚚 3.5톤</option>
+            <option value="5톤">🚛 5톤</option>
+            <option value="11톤">🚛 11톤</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group span2">
           <label>제품명 / 품목 <span class="req">*</span></label>
           <div style="display:flex;gap:8px;">
             <select id="product_name_select" class="req-field" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;" onchange="onProductSelect(this.value)">
@@ -457,6 +471,7 @@
           receiver_name,
           receiver_phone: document.getElementById('receiver_phone').value,
           delivery_note: document.getElementById('delivery_note').value,
+          vehicle_type: document.getElementById('vehicle_type').value,
           waste_collection: document.getElementById('waste_collection').value,
           extra_locations: getExtraLocations(),
           notes: document.getElementById('notes').value
@@ -472,6 +487,7 @@
           receiver_name,
           receiver_phone: document.getElementById('receiver_phone').value,
           delivery_note: document.getElementById('delivery_note').value,
+          vehicle_type: document.getElementById('vehicle_type').value,
           notes: document.getElementById('notes').value
         });
         resetForm();
@@ -500,6 +516,7 @@
     document.getElementById('arrival_hour').value='';
     document.getElementById('arrival_min').value='';
     document.getElementById('arrival_time').value='';
+    document.getElementById('vehicle_type').value='';
     document.getElementById('waste_collection').value='';
     document.getElementById('product_name_select').value='';
     document.getElementById('product_name').style.display='none';
@@ -641,6 +658,7 @@
     const addr = d.customer_address ? `\n배송지 주소: ${d.customer_address}` : '';
     const phone = d.receiver_phone ? `\n수취인 연락처: ${d.receiver_phone}` : '';
     const arrival = d.arrival_time ? `\n도착 희망시간: ${d.arrival_time}` : '';
+    const vehicle_type = d.vehicle_type ? `\n차량 종류: ${d.vehicle_type}` : '';
     const delivery_note = d.delivery_note ? `\n⚠️ 배송 요청사항: ${d.delivery_note}` : '';
     const notes = d.notes ? `\n비고: ${d.notes}` : '';
     const msg =
@@ -650,7 +668,7 @@ DN번호: ${d.order_no}
 제품명: ${d.product_name}
 수량: ${d.quantity}
 고객사: ${d.customer_company}${addr}
-수취인: ${d.receiver_name}${phone}${delivery_note}${notes}
+수취인: ${d.receiver_name}${phone}${vehicle_type}${delivery_note}${notes}
 
 * 배송 완료 후 아래 링크에서 서명 부탁드립니다
 https://delivery-system-r6pr.onrender.com`;
