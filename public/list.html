@@ -373,7 +373,7 @@
     tbody.innerHTML=pageData.map((r,i)=>`
       <tr>
         <td style="color:#a0aec0;font-size:12px;">${start+i+1}</td>
-        <td><span class="order-no">${r.order_no}</span></td>
+        <td><span class="order-no" style="cursor:pointer;text-decoration:underline;" onclick="openDetail(${r.id})" title="클릭하여 상세보기">${r.order_no}</span></td>
         <td style="white-space:nowrap;">${r.delivery_date||'-'}</td>
         <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.customer_company||'-'}</td>
         <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.product_name||'-'}</td>
@@ -429,13 +429,13 @@
   // ── 엑셀 다운로드 ──
   function exportExcel() {
     if(!filtered.length){ alert('다운로드할 데이터가 없습니다. 먼저 조회해주세요.'); return; }
-    const headers = ['번호','DN번호','배송일자','고객사명','배송지주소','제품명','수량','수취인이름','수취인연락처','기사이름','기사연락처','차량번호','상태','서명일시'];
+    const headers = ['번호','DN번호','배송일자','고객사명','배송지주소','제품명','수량','수취인이름','수취인연락처','기사이름','기사연락처','차량번호','상태'];
     const rows = filtered.map((r,i) => [
       i+1, r.order_no||'', r.delivery_date||'', r.customer_company||'',
       r.customer_address||'', r.product_name||'', r.quantity||'',
       r.receiver_name||'', r.receiver_phone||'', r.driver_name||'',
       r.driver_phone||'', r.vehicle_no||'',
-      r.status==='signed'?'서명완료':'대기중', r.signed_at||''
+      r.status==='signed'?'서명완료':'대기중'
     ]);
     const csvContent = [headers, ...rows]
       .map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
@@ -476,7 +476,7 @@
     }catch(e){ for(let i=0;i<3;i++) locRows+=`<tr><td>${i+1}.</td><td></td><td></td></tr>`; }
 
     const statusTag=r.status==='signed'?
-      `<div class="status-tag status-signed-tag">✅ 서명 완료 · ${r.signed_at||''}</div>`:
+      `<div class="status-tag status-signed-tag">✅ 서명 완료</div>`:
       `<div class="status-tag status-draft-tag">📋 서명 대기 중</div>`;
 
     const driverSig=r.driver_signature?`<img src="${r.driver_signature}" alt="기사서명">`:`<div class="sig-empty-sm">서명 없음</div>`;
