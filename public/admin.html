@@ -75,6 +75,16 @@
     .badge-cancelled{background:#fee2e2;color:#c53030;}
     .btn-cost{background:linear-gradient(135deg,#f6ad55,#ed8936);color:#fff;}
     .btn-dispatch{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;}
+    .btn-edit{background:linear-gradient(135deg,#43e97b,#38f9d7);color:#1a202c;}
+    /* 수정 모달 */
+    .edit-modal-box{background:#fff;border-radius:20px;padding:28px;width:100%;max-width:560px;position:relative;max-height:90vh;overflow-y:auto;}
+    .edit-modal-box .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .edit-modal-box .form-group{display:flex;flex-direction:column;gap:5px;}
+    .edit-modal-box .form-group.span2{grid-column:span 2;}
+    .edit-modal-box label{font-size:12px;font-weight:600;color:#4a5568;}
+    .edit-modal-box input,.edit-modal-box select,.edit-modal-box textarea{padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;background:#fafafa;}
+    .edit-modal-box input:focus,.edit-modal-box select:focus{outline:none;border-color:#43e97b;background:#fff;}
+    .edit-section-title{font-size:13px;font-weight:700;color:#2d3748;padding:8px 0 10px;border-bottom:2px solid #f0f4f8;margin:14px 0 12px;display:flex;align-items:center;gap:6px;}
     .btn-cancel-order{background:linear-gradient(135deg,#fc8181,#e53e3e);color:#fff;}
     .extra-locations{background:#f7fafc;border-radius:8px;padding:12px;margin-top:8px;}
     .extra-loc-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
@@ -283,6 +293,119 @@
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 오더 수정 모달 -->
+<div class="modal-overlay" id="editModal">
+  <div class="edit-modal-box">
+    <button class="modal-close-btn" onclick="closeEditModal()">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#2d3748;margin-bottom:16px;">✏️ 오더 수정</div>
+    <input type="hidden" id="edit_id">
+
+    <div class="edit-section-title"><i class="fas fa-info-circle" style="color:#43e97b;"></i> 배송 기본 정보</div>
+    <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group">
+        <label>DN 번호 (오더번호) *</label>
+        <input type="text" id="edit_order_no">
+      </div>
+      <div class="form-group">
+        <label>배송일자 *</label>
+        <input type="date" id="edit_delivery_date">
+      </div>
+      <div class="form-group">
+        <label>도착 시간</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <select id="edit_arrival_hour" style="flex:1;padding:9px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;">
+            <option value="">시</option>
+            <option value="00">00시</option><option value="01">01시</option><option value="02">02시</option><option value="03">03시</option>
+            <option value="04">04시</option><option value="05">05시</option><option value="06">06시</option><option value="07">07시</option>
+            <option value="08">08시</option><option value="09">09시</option><option value="10">10시</option><option value="11">11시</option>
+            <option value="12">12시</option><option value="13">13시</option><option value="14">14시</option><option value="15">15시</option>
+            <option value="16">16시</option><option value="17">17시</option><option value="18">18시</option><option value="19">19시</option>
+            <option value="20">20시</option><option value="21">21시</option><option value="22">22시</option><option value="23">23시</option>
+          </select>
+          <span style="color:#a0aec0;">:</span>
+          <select id="edit_arrival_min" style="flex:1;padding:9px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;">
+            <option value="">분</option>
+            <option value="00">00분</option><option value="10">10분</option><option value="20">20분</option>
+            <option value="30">30분</option><option value="40">40분</option><option value="50">50분</option>
+          </select>
+        </div>
+        <input type="hidden" id="edit_arrival_time">
+      </div>
+      <div class="form-group">
+        <label>수량 *</label>
+        <input type="text" id="edit_quantity">
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
+        <label>제품명 / 품목 *</label>
+        <input type="text" id="edit_product_name">
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
+        <label>차량 종류</label>
+        <select id="edit_vehicle_type" style="padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;">
+          <option value="">-- 선택 --</option>
+          <option value="오토바이">🛵 오토바이</option>
+          <option value="다마스">🚐 다마스</option>
+          <option value="1톤">🚚 1톤</option>
+          <option value="2.5톤">🚚 2.5톤</option>
+          <option value="3.5톤">🚚 3.5톤</option>
+          <option value="5톤">🚛 5톤</option>
+          <option value="11톤">🚛 11톤</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="edit-section-title"><i class="fas fa-map-marker-alt" style="color:#43e97b;"></i> 고객사 / 배송지</div>
+    <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group" style="grid-column:span 2;">
+        <label>고객사명 *</label>
+        <input type="text" id="edit_customer_company">
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
+        <label>배송지 주소</label>
+        <input type="text" id="edit_customer_address">
+      </div>
+      <div class="form-group">
+        <label>수취인 이름 *</label>
+        <input type="text" id="edit_receiver_name">
+      </div>
+      <div class="form-group">
+        <label>수취인 연락처</label>
+        <input type="tel" id="edit_receiver_phone">
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
+        <label>배송 요청사항</label>
+        <input type="text" id="edit_delivery_note" placeholder="예: 오전 10시까지 도착 엄수">
+      </div>
+    </div>
+
+    <div class="edit-section-title"><i class="fas fa-tasks" style="color:#43e97b;"></i> 기사 정보</div>
+    <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group">
+        <label>기사 이름</label>
+        <input type="text" id="edit_driver_name">
+      </div>
+      <div class="form-group">
+        <label>기사 연락처</label>
+        <input type="tel" id="edit_driver_phone">
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
+        <label>차량번호</label>
+        <input type="text" id="edit_vehicle_no" placeholder="예: 01가 0001">
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
+        <label>비고</label>
+        <input type="text" id="edit_notes">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeEditModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveEditOrder()"><i class="fas fa-save"></i> 수정 저장</button>
     </div>
   </div>
 </div>
@@ -555,6 +678,7 @@
         <td><span class="badge ${badgeClass}">${badgeText}</span>${wf}${rf}</td>
         <td>
           <div class="action-btns">
+            <button class="btn btn-sm btn-edit" title="수정" onclick='openEditModal(${JSON.stringify(r)})'><i class="fas fa-edit"></i></button>
             <button class="btn btn-sm btn-dispatch" title="배차 요청 메시지" onclick='openDispatchFromRow(${JSON.stringify(r)})'><i class="fas fa-share-alt"></i></button>
             <button class="btn btn-sm btn-cost" title="비용 입력" onclick="openCostModal('${r.id}','${r.order_no}','${r.status||'draft'}','${r.wait_time||''}','${r.work_time||''}','${r.work_fee||''}','${r.return_fee||''}')"><i class="fas fa-won-sign"></i></button>
             <button class="btn btn-sm btn-danger" onclick="deleteOrder('${r.id}','${r.order_no}')"><i class="fas fa-trash"></i></button>
@@ -636,6 +760,74 @@
     el.style.display='flex';
     el.scrollIntoView({behavior:'smooth', block:'center'});
     if(type==='success') setTimeout(()=>el.style.display='none',5000);
+  }
+
+  function openEditModal(r) {
+    document.getElementById('edit_id').value = r.id;
+    document.getElementById('edit_order_no').value = r.order_no || '';
+    document.getElementById('edit_delivery_date').value = r.delivery_date || '';
+    document.getElementById('edit_quantity').value = r.quantity || '';
+    document.getElementById('edit_product_name').value = r.product_name || '';
+    document.getElementById('edit_vehicle_type').value = r.vehicle_type || '';
+    document.getElementById('edit_customer_company').value = r.customer_company || '';
+    document.getElementById('edit_customer_address').value = r.customer_address || '';
+    document.getElementById('edit_receiver_name').value = r.receiver_name || '';
+    document.getElementById('edit_receiver_phone').value = r.receiver_phone || '';
+    document.getElementById('edit_delivery_note').value = r.delivery_note || '';
+    document.getElementById('edit_driver_name').value = r.driver_name || '';
+    document.getElementById('edit_driver_phone').value = r.driver_phone || '';
+    document.getElementById('edit_vehicle_no').value = r.vehicle_no || '';
+    document.getElementById('edit_notes').value = r.notes || '';
+    // 도착시간 분리
+    const at = r.arrival_time || '';
+    const parts = at.split(':');
+    document.getElementById('edit_arrival_hour').value = parts[0] || '';
+    document.getElementById('edit_arrival_min').value = parts[1] || '';
+    document.getElementById('edit_arrival_time').value = at;
+    document.getElementById('editModal').classList.add('show');
+  }
+
+  function closeEditModal() {
+    document.getElementById('editModal').classList.remove('show');
+  }
+
+  async function saveEditOrder() {
+    const id = document.getElementById('edit_id').value;
+    const h = document.getElementById('edit_arrival_hour').value;
+    const m = document.getElementById('edit_arrival_min').value;
+    const arrival_time = (h && m) ? `${h}:${m}` : '';
+    const data = {
+      order_no:          document.getElementById('edit_order_no').value.trim(),
+      delivery_date:     document.getElementById('edit_delivery_date').value,
+      arrival_time,
+      quantity:          document.getElementById('edit_quantity').value.trim(),
+      product_name:      document.getElementById('edit_product_name').value.trim(),
+      vehicle_type:      document.getElementById('edit_vehicle_type').value,
+      customer_company:  document.getElementById('edit_customer_company').value.trim(),
+      customer_address:  document.getElementById('edit_customer_address').value.trim(),
+      receiver_name:     document.getElementById('edit_receiver_name').value.trim(),
+      receiver_phone:    document.getElementById('edit_receiver_phone').value.trim(),
+      delivery_note:     document.getElementById('edit_delivery_note').value.trim(),
+      driver_name:       document.getElementById('edit_driver_name').value.trim(),
+      driver_phone:      document.getElementById('edit_driver_phone').value.trim(),
+      vehicle_no:        document.getElementById('edit_vehicle_no').value.trim(),
+      notes:             document.getElementById('edit_notes').value.trim()
+    };
+    if(!data.order_no || !data.delivery_date || !data.customer_company || !data.receiver_name) {
+      alert('필수 항목(DN번호, 배송일자, 고객사명, 수취인)을 입력해주세요.'); return;
+    }
+    try {
+      const res = await fetch(`/api/records/${id}`, {
+        method: 'PATCH', headers: authHeader(), body: JSON.stringify(data)
+      });
+      if(res.ok) {
+        showAlert('✅ 수정이 완료되었습니다.', 'success');
+        closeEditModal();
+        loadAllOrders();
+      } else {
+        showAlert('수정 중 오류가 발생했습니다.', 'error');
+      }
+    } catch(e) { showAlert('서버 연결 오류', 'error'); }
   }
 
   function openDispatchFromRow(r) {
