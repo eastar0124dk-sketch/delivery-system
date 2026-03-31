@@ -74,6 +74,7 @@
     .cost-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
     .badge-cancelled{background:#fee2e2;color:#c53030;}
     .btn-cost{background:linear-gradient(135deg,#f6ad55,#ed8936);color:#fff;}
+    .btn-dispatch{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;}
     .btn-cancel-order{background:linear-gradient(135deg,#fc8181,#e53e3e);color:#fff;}
     .extra-locations{background:#f7fafc;border-radius:8px;padding:12px;margin-top:8px;}
     .extra-loc-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
@@ -148,7 +149,24 @@
         </div>
         <div class="form-group">
           <label>도착 시간</label>
-          <input type="time" id="arrival_time">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <select id="arrival_hour" style="flex:1;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;">
+              <option value="">시</option>
+              <option value="00">00시</option><option value="01">01시</option><option value="02">02시</option><option value="03">03시</option>
+              <option value="04">04시</option><option value="05">05시</option><option value="06">06시</option><option value="07">07시</option>
+              <option value="08">08시</option><option value="09">09시</option><option value="10">10시</option><option value="11">11시</option>
+              <option value="12">12시</option><option value="13">13시</option><option value="14">14시</option><option value="15">15시</option>
+              <option value="16">16시</option><option value="17">17시</option><option value="18">18시</option><option value="19">19시</option>
+              <option value="20">20시</option><option value="21">21시</option><option value="22">22시</option><option value="23">23시</option>
+            </select>
+            <span style="color:#a0aec0;font-weight:600;">:</span>
+            <select id="arrival_min" style="flex:1;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;">
+              <option value="">분</option>
+              <option value="00">00분</option><option value="10">10분</option><option value="20">20분</option>
+              <option value="30">30분</option><option value="40">40분</option><option value="50">50분</option>
+            </select>
+          </div>
+          <input type="hidden" id="arrival_time">
         </div>
         <div class="form-group">
           <label>수량 <span class="req">*</span></label>
@@ -474,11 +492,14 @@
   }
 
   function resetForm() {
-    ['order_no','delivery_date','arrival_time','quantity','product_name',
+    ['order_no','delivery_date','quantity','product_name',
      'customer_company','customer_address','receiver_name','receiver_phone',
      'delivery_note','notes'].forEach(id=>{
       document.getElementById(id).value='';
     });
+    document.getElementById('arrival_hour').value='';
+    document.getElementById('arrival_min').value='';
+    document.getElementById('arrival_time').value='';
     document.getElementById('waste_collection').value='';
     document.getElementById('product_name_select').value='';
     document.getElementById('product_name').style.display='none';
@@ -517,6 +538,7 @@
         <td><span class="badge ${badgeClass}">${badgeText}</span>${wf}${rf}</td>
         <td>
           <div class="action-btns">
+            <button class="btn btn-sm btn-dispatch" title="배차 요청 메시지" onclick='openDispatchFromRow(${JSON.stringify(r)})'><i class="fas fa-share-alt"></i></button>
             <button class="btn btn-sm btn-cost" title="비용 입력" onclick="openCostModal('${r.id}','${r.order_no}','${r.status||'draft'}','${r.wait_time||''}','${r.work_time||''}','${r.work_fee||''}','${r.return_fee||''}')"><i class="fas fa-won-sign"></i></button>
             <button class="btn btn-sm btn-danger" onclick="deleteOrder('${r.id}','${r.order_no}')"><i class="fas fa-trash"></i></button>
           </div>
@@ -599,6 +621,22 @@
     if(type==='success') setTimeout(()=>el.style.display='none',5000);
   }
 
+  function openDispatchFromRow(r) {
+    showDispatchModal({
+      order_no: r.order_no,
+      delivery_date: r.delivery_date,
+      arrival_time: r.arrival_time,
+      product_name: r.product_name,
+      quantity: r.quantity,
+      customer_company: r.customer_company,
+      customer_address: r.customer_address,
+      receiver_name: r.receiver_name,
+      receiver_phone: r.receiver_phone,
+      delivery_note: r.delivery_note,
+      notes: r.notes
+    });
+  }
+
   function showDispatchModal(d) {
     const addr = d.customer_address ? `\n배송지 주소: ${d.customer_address}` : '';
     const phone = d.receiver_phone ? `\n수취인 연락처: ${d.receiver_phone}` : '';
@@ -628,6 +666,14 @@ https://delivery-system-r6pr.onrender.com`;
     btn.innerHTML = '<i class="fas fa-check"></i> 복사 완료!';
     setTimeout(()=>{ btn.innerHTML = '<i class="fas fa-copy"></i> 메시지 복사'; }, 2000);
   }
+
+  function syncArrivalTime() {
+    const h = document.getElementById('arrival_hour').value;
+    const m = document.getElementById('arrival_min').value;
+    document.getElementById('arrival_time').value = (h && m) ? `${h}:${m}` : '';
+  }
+  document.getElementById('arrival_hour').addEventListener('change', syncArrivalTime);
+  document.getElementById('arrival_min').addEventListener('change', syncArrivalTime);
 
   document.getElementById('loginPw').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
   document.getElementById('delivery_date').value=new Date().toISOString().slice(0,10);
