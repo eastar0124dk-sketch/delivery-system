@@ -670,7 +670,7 @@
       const wf = r.work_fee ? `<br><span style="font-size:11px;color:#d97706;">작업비 ${Number(r.work_fee).toLocaleString()}원</span>` : '';
       const rf = r.return_fee ? `<br><span style="font-size:11px;color:#e53e3e;">회차비 ${Number(r.return_fee).toLocaleString()}원</span>` : '';
       return `<tr>
-        <td><span class="order-no-badge">${r.order_no}</span></td>
+        <td><span class="order-no-badge" style="cursor:pointer;text-decoration:underline;" onclick='openEditModal(${JSON.stringify(r)})' title="클릭하여 수정">${r.order_no}</span></td>
         <td>${r.delivery_date||'-'}</td>
         <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.customer_company||'-'}</td>
         <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.product_name||'-'}</td>
