@@ -213,6 +213,13 @@ class Handler(BaseHTTPRequestHandler):
             if self.token_ok(): return self.send_json({'ok': True})
             return self.send_json({'error':'Unauthorized'}, 401)
 
+        # 텔레그램 테스트 (공개)
+        if path == '/api/test-telegram':
+            if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+                return self.send_json({'error': f'환경변수 없음: TOKEN={bool(TELEGRAM_TOKEN)}, CHAT_ID={bool(TELEGRAM_CHAT_ID)}'})
+            send_telegram('🔔 Render 서버 텔레그램 테스트 메시지입니다!')
+            return self.send_json({'ok': True, 'token_set': bool(TELEGRAM_TOKEN), 'chat_id_set': bool(TELEGRAM_CHAT_ID)})
+
         # 기사 검색 (공개)
         if path == '/api/sign/search':
             order_no = g('order_no').strip()
