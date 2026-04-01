@@ -7,17 +7,31 @@ import json, secrets, re, mimetypes, socket
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
+import urllib.request
 
 # ── 환경변수 ───────────────────────────────────────────────────────────
 DATABASE_URL = os.environ.get('DATABASE_URL', '')   # Render/Supabase 클라우드용
 STATIC       = os.path.join(os.path.dirname(__file__), 'public')
 ADMIN_PW     = os.environ.get('ADMIN_PW', 'admin1234')
 STAFF_PW     = os.environ.get('STAFF_PW', 'staff1234')
-COMPANY      = os.environ.get('COMPANY',  '출고 인수증명 시스템')
-PORT         = int(os.environ.get('PORT', 3000))
+COMPANY          = os.environ.get('COMPANY',  '출고 인수증명 시스템')
+PORT             = int(os.environ.get('PORT', 3000))
+TELEGRAM_TOKEN   = os.environ.get('TELEGRAM_TOKEN', '')
+TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
 
 valid_tokens       = set()   # 관리자 토큰
 valid_staff_tokens = set()   # 직원 토큰
+
+def send_telegram(msg):
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
+    try:
+        data = json.dumps({'chat_id': TELEGRAM_CHAT_ID, 'text': msg, 'parse_mode': 'HTML'}).encode()
+        req = urllib.request.Request(
+            f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage',
+            data=data, headers={'Content-Type': 'application/json'})
+        urllib.request.urlopen(req, timeout=5)
+    except Exception as e:
+        print(f'Telegram 알림 오류: {e}')
 
 # ── DB 레이어 (PostgreSQL 또는 SQLite 자동 선택) ──────────────────────
 if DATABASE_URL:
@@ -275,6 +289,20 @@ class Handler(BaseHTTPRequestHandler):
                 WHERE id=?''',
                 (body.get('driver_name'), body.get('driver_phone'), body.get('vehicle_no'),
                  body.get('receiver_name'), body['driver_signature'], body['receiver_signature'], now, rid))
+            # 텔레그램 알림 전송
+            rec2 = db_fetch('SELECT * FROM delivery_records WHERE id=?', (rid,))
+            if rec2:
+                msg = (
+                    f'📦 <b>서명 완료 알림</b>\n'
+                    f'DN번호: {rec2.get("order_no","")}\n'
+                    f'고객사: {rec2.get("customer_company","")}\n'
+                    f'제품명: {rec2.get("product_name","")}\n'
+                    f'수량: {rec2.get("quantity","")}\n'
+                    f'수취인: {rec2.get("receiver_name","")}\n'
+                    f'기사: {body.get("driver_name","")}\n'
+                    f'완료시각: {now}'
+                )
+                send_telegram(msg)
             return self.send_json({'success': True})
 
         # 오더 등록 (관리자)
