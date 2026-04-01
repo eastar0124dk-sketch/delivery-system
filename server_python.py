@@ -6,7 +6,7 @@ os.environ.setdefault('PYTHONUTF8', '1')
 import json, secrets, re, mimetypes, socket
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-from datetime import datetime
+from datetime import datetime, timedelta
 import urllib.request
 
 # ── 환경변수 ───────────────────────────────────────────────────────────
@@ -299,7 +299,7 @@ class Handler(BaseHTTPRequestHandler):
             if rec['status'] == 'signed': return self.send_json({'error':'이미 서명 완료된 오더입니다.'}, 400)
             if not body.get('driver_signature') or not body.get('receiver_signature'):
                 return self.send_json({'error':'서명 데이터가 없습니다.'}, 400)
-            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            now = (datetime.utcnow() + timedelta(hours=9)).strftime('%Y-%m-%d %H:%M:%S')
             db_exec('''UPDATE delivery_records SET
                 driver_name=?,driver_phone=?,vehicle_no=?,receiver_name=?,
                 driver_signature=?,receiver_signature=?,signed_at=?,status='signed'
