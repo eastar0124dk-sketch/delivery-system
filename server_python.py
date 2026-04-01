@@ -216,9 +216,17 @@ class Handler(BaseHTTPRequestHandler):
         # 텔레그램 테스트 (공개)
         if path == '/api/test-telegram':
             if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-                return self.send_json({'error': f'환경변수 없음: TOKEN={bool(TELEGRAM_TOKEN)}, CHAT_ID={bool(TELEGRAM_CHAT_ID)}'})
-            send_telegram('🔔 Render 서버 텔레그램 테스트 메시지입니다!')
-            return self.send_json({'ok': True, 'token_set': bool(TELEGRAM_TOKEN), 'chat_id_set': bool(TELEGRAM_CHAT_ID)})
+                return self.send_json({'error': f'환경변수 없음'})
+            try:
+                data = json.dumps({'chat_id': TELEGRAM_CHAT_ID, 'text': '🔔 Render 서버 테스트!'}).encode()
+                req = urllib.request.Request(
+                    f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage',
+                    data=data, headers={'Content-Type': 'application/json'})
+                res = urllib.request.urlopen(req, timeout=10)
+                result = json.loads(res.read().decode())
+                return self.send_json({'ok': True, 'result': result})
+            except Exception as e:
+                return self.send_json({'error': str(e)})
 
         # 기사 검색 (공개)
         if path == '/api/sign/search':
