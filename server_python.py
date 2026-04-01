@@ -16,9 +16,10 @@ ADMIN_PW     = os.environ.get('ADMIN_PW', 'admin1234')
 STAFF_PW     = os.environ.get('STAFF_PW', 'staff1234')
 COMPANY          = os.environ.get('COMPANY',  '출고 인수증명 시스템')
 PORT             = int(os.environ.get('PORT', 3000))
-_tg_token        = os.environ.get('TELEGRAM_TOKEN', '')
-TELEGRAM_TOKEN   = _tg_token.split('VALUE:')[-1].strip() if 'VALUE:' in _tg_token else _tg_token.strip()
-TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '').strip()
+_tg_raw = os.environ.get('TELEGRAM_TOKEN', '')
+_tg_match = re.search(r'(\d+:[A-Za-z0-9_-]+)', _tg_raw)
+TELEGRAM_TOKEN   = _tg_match.group(1) if _tg_match else ''
+TELEGRAM_CHAT_ID = re.sub(r'[^0-9-]', '', os.environ.get('TELEGRAM_CHAT_ID', ''))
 
 valid_tokens       = set()   # 관리자 토큰
 valid_staff_tokens = set()   # 직원 토큰
