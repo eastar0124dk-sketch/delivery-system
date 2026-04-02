@@ -156,6 +156,7 @@
             <option value="ACT">ACT</option>
             <option value="기타">기타 (회수/직접입력)</option>
           </select>
+          <input type="text" id="origin_custom" placeholder="출발지 직접 입력" style="display:none;margin-top:6px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;">
         </div>
         <div class="form-group">
           <label>출발지 담당자</label>
@@ -164,7 +165,9 @@
             <option value="민동현">민동현</option>
             <option value="문범영">문범영</option>
             <option value="김상민">김상민</option>
+            <option value="기타">기타 (직접입력)</option>
           </select>
+          <input type="text" id="contact_person_custom" placeholder="담당자 직접 입력" style="display:none;margin-top:6px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;">
         </div>
         <div class="form-group span2">
           <label>출발지 주소</label>
@@ -614,20 +617,33 @@
 
   function onOriginSelect(val) {
     const addrEl = document.getElementById('origin_address');
+    const customEl = document.getElementById('origin_custom');
     if(val === 'ACT') {
       addrEl.value = ACT_ADDRESS;
       addrEl.readOnly = true;
       addrEl.style.background = '#f7fafc';
+      customEl.style.display = 'none';
+      customEl.value = '';
     } else {
       addrEl.value = '';
       addrEl.readOnly = false;
       addrEl.style.background = '#fafafa';
-      addrEl.focus();
+      customEl.style.display = 'block';
+      customEl.focus();
     }
   }
 
   function onContactSelect(val) {
-    document.getElementById('contact_phone').value = CONTACTS[val] || '';
+    const customEl = document.getElementById('contact_person_custom');
+    if(val === '기타') {
+      customEl.style.display = 'block';
+      customEl.focus();
+      document.getElementById('contact_phone').value = '';
+    } else {
+      customEl.style.display = 'none';
+      customEl.value = '';
+      document.getElementById('contact_phone').value = CONTACTS[val] || '';
+    }
   }
 
   function fillActAddress() {
@@ -705,9 +721,13 @@
           waste_collection: document.getElementById('waste_collection').value,
           extra_locations: getExtraLocations(),
           notes: document.getElementById('notes').value,
-          origin: document.getElementById('origin').value,
+          origin: document.getElementById('origin').value === '기타'
+            ? (document.getElementById('origin_custom').value.trim() || '기타')
+            : document.getElementById('origin').value,
           origin_address: document.getElementById('origin_address').value,
-          contact_person: document.getElementById('contact_person').value,
+          contact_person: document.getElementById('contact_person').value === '기타'
+            ? (document.getElementById('contact_person_custom').value.trim() || '기타')
+            : document.getElementById('contact_person').value,
           contact_phone: document.getElementById('contact_phone').value
         })
       });
@@ -760,7 +780,11 @@
     document.getElementById('origin_address').value=ACT_ADDRESS;
     document.getElementById('origin_address').readOnly=true;
     document.getElementById('origin_address').style.background='#f7fafc';
+    document.getElementById('origin_custom').style.display='none';
+    document.getElementById('origin_custom').value='';
     document.getElementById('contact_person').value='';
+    document.getElementById('contact_person_custom').style.display='none';
+    document.getElementById('contact_person_custom').value='';
     document.getElementById('contact_phone').value='';
   }
 
