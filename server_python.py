@@ -58,9 +58,12 @@ if DATABASE_URL:
             driver_signature TEXT, receiver_signature TEXT, signed_at TEXT,
             status TEXT DEFAULT \'draft\',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        for col in ['work_fee TEXT', 'return_fee TEXT', 'delivery_note TEXT', 'vehicle_type TEXT']:
+        for col in ['work_fee TEXT', 'return_fee TEXT', 'delivery_note TEXT', 'vehicle_type TEXT',
+                    'origin TEXT', 'origin_address TEXT', 'contact_person TEXT', 'contact_phone TEXT']:
             try: cur.execute(f"ALTER TABLE delivery_records ADD COLUMN IF NOT EXISTS {col}")
             except: pass
+        cur.execute('''CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY, value TEXT)''')
         c.commit(); c.close()
 
     def db_fetch(sql, params=()):
@@ -117,9 +120,12 @@ else:
             driver_signature TEXT, receiver_signature TEXT, signed_at TEXT,
             status TEXT DEFAULT 'draft',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-        for col_def in ['work_fee TEXT', 'return_fee TEXT', 'delivery_note TEXT', 'vehicle_type TEXT']:
+        for col_def in ['work_fee TEXT', 'return_fee TEXT', 'delivery_note TEXT', 'vehicle_type TEXT',
+                        'origin TEXT', 'origin_address TEXT', 'contact_person TEXT', 'contact_phone TEXT']:
             try: c.execute(f'ALTER TABLE delivery_records ADD COLUMN {col_def}'); c.commit()
             except: pass
+        c.execute('''CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY, value TEXT)''')
         c.commit(); c.close()
 
     def db_fetch(sql, params=()):
@@ -280,11 +286,15 @@ class Handler(BaseHTTPRequestHandler):
 
         # 인증
         if p == '/api/auth':
-            if body.get('password') == ADMIN_PW:
+            pw = body.get('password','')
+            # DB에 저장된 비밀번호 우선, 없으면 환경변수 fallback
+            db_admin = (db_fetch('SELECT value FROM app_settings WHERE key=?', ('admin_pw',)) or {}).get('value') or ADMIN_PW
+            db_staff = (db_fetch('SELECT value FROM app_settings WHERE key=?', ('staff_pw',)) or {}).get('value') or STAFF_PW
+            if pw == db_admin:
                 t = secrets.token_hex(32)
                 valid_tokens.add(t)
                 return self.send_json({'token': t, 'role': 'admin'})
-            elif body.get('password') == STAFF_PW:
+            elif pw == db_staff:
                 t = secrets.token_hex(32)
                 valid_staff_tokens.add(t)
                 return self.send_json({'token': t, 'role': 'staff'})
@@ -331,14 +341,19 @@ class Handler(BaseHTTPRequestHandler):
                         (order_no,delivery_date,arrival_time,product_name,quantity,
                          customer_company,customer_address,receiver_name,receiver_phone,
                          driver_name,driver_phone,vehicle_no,wait_time,work_time,
-                         waste_collection,extra_locations,notes)
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                         waste_collection,extra_locations,notes,
+                         delivery_note,vehicle_type,
+                         origin,origin_address,contact_person,contact_phone)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
                     (body['order_no'], body.get('delivery_date'), body.get('arrival_time'),
                      body.get('product_name'), body.get('quantity'), body.get('customer_company'),
                      body.get('customer_address'), body.get('receiver_name'), body.get('receiver_phone'),
                      body.get('driver_name'), body.get('driver_phone'), body.get('vehicle_no'),
                      body.get('wait_time'), body.get('work_time'), body.get('waste_collection'),
-                     body.get('extra_locations'), body.get('notes')))
+                     body.get('extra_locations'), body.get('notes'),
+                     body.get('delivery_note'), body.get('vehicle_type'),
+                     body.get('origin'), body.get('origin_address'),
+                     body.get('contact_person'), body.get('contact_phone')))
                 return self.send_json({'id': new_id, **body})
             except INTEGRITY_EXC:
                 return self.send_json({'error': f"DN번호 [{body.get('order_no')}]이 이미 등록되어 있습니다."}, 400)
@@ -354,6 +369,20 @@ class Handler(BaseHTTPRequestHandler):
       try:
         p = urlparse(self.path).path.rstrip('/')
         if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
+
+        # 비밀번호 변경 (관리자 전용)
+        if p == '/api/settings/password':
+            if not self.token_ok(admin_only=True):
+                return self.send_json({'error':'관리자만 변경할 수 있습니다.'}, 403)
+            body = self.read_body()
+            if body.get('admin_pw'):
+                db_exec('INSERT INTO app_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                        ('admin_pw', body['admin_pw']))
+            if body.get('staff_pw'):
+                db_exec('INSERT INTO app_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                        ('staff_pw', body['staff_pw']))
+            return self.send_json({'success': True})
+
         m = re.match(r'^/api/records/(\d+)$', p)
         if m:
             body = self.read_body()

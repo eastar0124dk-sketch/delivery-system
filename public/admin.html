@@ -127,9 +127,10 @@
     <a href="index.html"><i class="fas fa-arrow-left"></i></a>
     <h1><i class="fas fa-clipboard-list"></i> 오더 관리</h1>
   </div>
-  <div style="display:flex;gap:14px;">
+  <div style="display:flex;gap:14px;align-items:center;">
     <a href="list.html">조회/출력</a>
     <a href="index.html">홈</a>
+    <a href="#" id="pwChangeBtn" style="display:none;background:rgba(255,255,255,.2);padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;" onclick="document.getElementById('pwModal').classList.add('show');return false;">🔐 비밀번호 변경</a>
   </div>
 </div>
 
@@ -146,6 +147,36 @@
     <div style="margin-bottom:12px;">
       <span class="req-legend"><i class="fas fa-exclamation-circle"></i> 노란색 항목은 필수 입력 항목입니다</span>
     </div>
+    <div class="card">
+      <div class="card-title"><i class="fas fa-warehouse"></i> 출발지 정보</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>출발지</label>
+          <select id="origin" onchange="onOriginSelect(this.value)" style="padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;">
+            <option value="ACT">ACT</option>
+            <option value="기타">기타 (회수/직접입력)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>출발지 담당자</label>
+          <select id="contact_person" onchange="onContactSelect(this.value)" style="padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;">
+            <option value="">-- 선택 --</option>
+            <option value="민동현">민동현</option>
+            <option value="문범영">문범영</option>
+            <option value="김상민">김상민</option>
+          </select>
+        </div>
+        <div class="form-group span2">
+          <label>출발지 주소</label>
+          <input type="text" id="origin_address" placeholder="출발지 주소" value="경기도 김포시 아라육로58번길 35-14 ACT2창고">
+        </div>
+        <div class="form-group">
+          <label>담당자 연락처</label>
+          <input type="tel" id="contact_phone" placeholder="-" readonly style="background:#f7fafc;">
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title"><i class="fas fa-info-circle"></i> 배송 기본 정보</div>
       <div class="form-grid">
@@ -220,7 +251,7 @@
           <input type="text" id="customer_company" class="req-field" placeholder="예: ABC 주식회사">
         </div>
         <div class="form-group span2">
-          <label>배송지 주소</label>
+          <label>배송지 주소 <button type="button" onclick="fillActAddress()" style="margin-left:8px;padding:2px 10px;font-size:11px;font-weight:600;border:none;border-radius:6px;background:#667eea;color:#fff;cursor:pointer;">ACT 자동입력</button></label>
           <input type="text" id="customer_address" placeholder="예: 서울시 강남구 테헤란로 123">
         </div>
         <div class="form-group">
@@ -293,6 +324,32 @@
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 비밀번호 변경 모달 -->
+<div class="modal-overlay" id="pwModal">
+  <div class="cost-modal-box" style="max-width:400px;">
+    <button class="modal-close-btn" onclick="document.getElementById('pwModal').classList.remove('show')">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#2d3748;margin-bottom:18px;">🔐 비밀번호 변경</div>
+    <div class="cost-section" style="margin-bottom:12px;">
+      <div class="cost-section-title"><i class="fas fa-crown" style="color:#667eea;"></i> 관리자 비밀번호</div>
+      <div class="form-group">
+        <label style="font-size:12px;color:#4a5568;">새 비밀번호</label>
+        <input type="password" id="new_admin_pw" placeholder="새 관리자 비밀번호" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;">
+      </div>
+    </div>
+    <div class="cost-section">
+      <div class="cost-section-title"><i class="fas fa-user" style="color:#38a169;"></i> 직원 비밀번호</div>
+      <div class="form-group">
+        <label style="font-size:12px;color:#4a5568;">새 비밀번호</label>
+        <input type="password" id="new_staff_pw" placeholder="새 직원 비밀번호" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="document.getElementById('pwModal').classList.remove('show')">취소</button>
+      <button class="btn btn-primary" onclick="savePasswords()"><i class="fas fa-save"></i> 저장</button>
     </div>
   </div>
 </div>
@@ -512,7 +569,9 @@
   }
 
   function applyRoleUI() {
-    // 직원/관리자 모두 오더 조회 탭 사용 가능
+    // 관리자만 비밀번호 변경 버튼 표시
+    const btn = document.getElementById('pwChangeBtn');
+    if(btn) btn.style.display = userRole === 'admin' ? '' : 'none';
   }
 
   function authHeader() {
@@ -548,6 +607,54 @@
     const locs=[];
     document.querySelectorAll('.loc-input').forEach(i=>{ if(i.value.trim()) locs.push(i.value.trim()); });
     return JSON.stringify(locs);
+  }
+
+  const ACT_ADDRESS = '경기도 김포시 아라육로58번길 35-14 ACT2창고';
+  const CONTACTS = { '민동현': '010-2888-5666', '문범영': '010-7921-7785', '김상민': '010-6775-4066' };
+
+  function onOriginSelect(val) {
+    const addrEl = document.getElementById('origin_address');
+    if(val === 'ACT') {
+      addrEl.value = ACT_ADDRESS;
+      addrEl.readOnly = true;
+      addrEl.style.background = '#f7fafc';
+    } else {
+      addrEl.value = '';
+      addrEl.readOnly = false;
+      addrEl.style.background = '#fafafa';
+      addrEl.focus();
+    }
+  }
+
+  function onContactSelect(val) {
+    document.getElementById('contact_phone').value = CONTACTS[val] || '';
+  }
+
+  function fillActAddress() {
+    document.getElementById('customer_address').value = ACT_ADDRESS;
+  }
+
+  async function savePasswords() {
+    const adminPw = document.getElementById('new_admin_pw').value.trim();
+    const staffPw = document.getElementById('new_staff_pw').value.trim();
+    if(!adminPw && !staffPw) { alert('변경할 비밀번호를 입력해주세요.'); return; }
+    const body = {};
+    if(adminPw) body.admin_pw = adminPw;
+    if(staffPw) body.staff_pw = staffPw;
+    try {
+      const res = await fetch('/api/settings/password', {
+        method:'PATCH', headers: authHeader(), body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if(res.ok) {
+        alert('✅ 비밀번호가 변경되었습니다.\n다음 로그인부터 새 비밀번호를 사용해주세요.');
+        document.getElementById('new_admin_pw').value = '';
+        document.getElementById('new_staff_pw').value = '';
+        document.getElementById('pwModal').classList.remove('show');
+      } else {
+        alert(data.error || '변경 중 오류가 발생했습니다.');
+      }
+    } catch(e) { alert('서버 연결 오류'); }
   }
 
   function onProductSelect(val) {
@@ -597,7 +704,11 @@
           vehicle_type: document.getElementById('vehicle_type').value,
           waste_collection: document.getElementById('waste_collection').value,
           extra_locations: getExtraLocations(),
-          notes: document.getElementById('notes').value
+          notes: document.getElementById('notes').value,
+          origin: document.getElementById('origin').value,
+          origin_address: document.getElementById('origin_address').value,
+          contact_person: document.getElementById('contact_person').value,
+          contact_phone: document.getElementById('contact_phone').value
         })
       });
       const data = await res.json();
@@ -644,6 +755,13 @@
     document.getElementById('product_name_select').value='';
     document.getElementById('product_name').style.display='none';
     document.querySelectorAll('.loc-input').forEach(i=>i.value='');
+    // 출발지 초기화
+    document.getElementById('origin').value='ACT';
+    document.getElementById('origin_address').value=ACT_ADDRESS;
+    document.getElementById('origin_address').readOnly=true;
+    document.getElementById('origin_address').style.background='#f7fafc';
+    document.getElementById('contact_person').value='';
+    document.getElementById('contact_phone').value='';
   }
 
   async function loadAllOrders() {
