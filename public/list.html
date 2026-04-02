@@ -472,8 +472,12 @@
     let locRows='';
     try{
       const arr=JSON.parse(r.extra_locations||'[]');
-      for(let i=0;i<3;i++) locRows+=`<tr><td>${i+1}.</td><td style="text-align:left;">${arr[i]||''}</td><td></td></tr>`;
-    }catch(e){ for(let i=0;i<3;i++) locRows+=`<tr><td>${i+1}.</td><td></td><td></td></tr>`; }
+      locRows=`<tr><td rowspan="3" style="vertical-align:middle;">배송 경유지</td><td>1.</td><td style="text-align:left;">${arr[0]||''}</td></tr>`;
+      for(let i=1;i<3;i++) locRows+=`<tr><td>${i+1}.</td><td style="text-align:left;">${arr[i]||''}</td></tr>`;
+    }catch(e){
+      locRows=`<tr><td rowspan="3" style="vertical-align:middle;">배송 경유지</td><td>1.</td><td></td></tr>`;
+      for(let i=1;i<3;i++) locRows+=`<tr><td>${i+1}.</td><td></td></tr>`;
+    }
 
     const statusTag=r.status==='signed'?
       `<div class="status-tag status-signed-tag">✅ 서명 완료</div>`:
@@ -505,7 +509,6 @@
         <tbody>
           <tr><td>현장 대기</td><td>대기시간</td><td>${r.wait_time?r.wait_time+'분':''}</td></tr>
           <tr><td>현장 수작업</td><td>작업시간</td><td>${r.work_time?r.work_time+'분':''}</td></tr>
-          <tr><td rowspan="4">배송 경유지</td></tr>
           ${locRows}
           <tr><td>폐기물 회수</td><td>회수</td><td>${r.waste_collection||'회수 불필요'}</td></tr>
         </tbody>
