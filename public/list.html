@@ -472,11 +472,9 @@
     let locRows='';
     try{
       const arr=JSON.parse(r.extra_locations||'[]');
-      locRows=`<tr><td rowspan="3" style="vertical-align:middle;">배송 경유지</td><td>1.</td><td style="text-align:left;">${arr[0]||''}</td></tr>`;
-      for(let i=1;i<3;i++) locRows+=`<tr><td>${i+1}.</td><td style="text-align:left;">${arr[i]||''}</td></tr>`;
+      for(let i=0;i<3;i++) locRows+=`<tr><td colspan="2" style="text-align:left;">경유지 ${i+1}.</td><td style="text-align:left;">${arr[i]||''}</td></tr>`;
     }catch(e){
-      locRows=`<tr><td rowspan="3" style="vertical-align:middle;">배송 경유지</td><td>1.</td><td></td></tr>`;
-      for(let i=1;i<3;i++) locRows+=`<tr><td>${i+1}.</td><td></td></tr>`;
+      for(let i=0;i<3;i++) locRows+=`<tr><td colspan="2" style="text-align:left;">경유지 ${i+1}.</td><td></td></tr>`;
     }
 
     const statusTag=r.status==='signed'?
