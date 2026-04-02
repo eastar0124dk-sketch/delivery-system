@@ -497,7 +497,7 @@
         <div class="ii"><span class="l">수취인 :</span><span class="v">${r.receiver_name||'-'}</span></div>
         ${r.customer_address?`<div class="ii" style="grid-column:span 2;"><span class="l">주소 :</span><span class="v">${r.customer_address}</span></div>`:''}
         <div class="ii"><span class="l">도착시간 :</span><span class="v">${r.arrival_time||'-'}</span></div>
-        <div class="ii"><span class="l">수취인 연락처 :</span><span class="v">${r.receiver_phone||'-'}</span></div>
+        <div class="ii"><span class="l">수취인 연락처 :</span><span class="v">${maskPhone(r.receiver_phone)}</span></div>
         <div class="ii" style="grid-column:span 2;"><span class="l">제품명 :</span><span class="v">${r.product_name||'-'}</span></div>
         <div class="ii" style="grid-column:span 2;"><span class="l">비고 :</span><span class="v">${r.notes||'없음'}</span></div>
       </div>
