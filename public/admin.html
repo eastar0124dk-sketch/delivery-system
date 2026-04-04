@@ -251,7 +251,11 @@
       <div class="form-grid">
         <div class="form-group span2">
           <label>고객사명 (배송지) <span class="req">*</span></label>
-          <input type="text" id="customer_company" class="req-field" placeholder="예: ABC 주식회사">
+          <input type="text" id="customer_company" class="req-field" placeholder="예: ABC 주식회사" oninput="onCompanyInput(this.value)">
+          <div id="customerAutoFillHint" style="display:none;background:#ebf8ff;border:1px solid #bee3f8;border-radius:8px;padding:8px 12px;margin-top:6px;align-items:center;justify-content:space-between;gap:8px;">
+            <span style="font-size:12px;color:#2b6cb0;"><i class="fas fa-history"></i> 이전 배송 정보가 있습니다</span>
+            <button type="button" onclick="applyCustomerAutofill()" style="padding:4px 12px;font-size:12px;font-weight:600;border:none;border-radius:6px;background:#4facfe;color:#fff;cursor:pointer;">불러오기</button>
+          </div>
         </div>
         <div class="form-group span2">
           <label>배송지 주소 <button type="button" onclick="fillActAddress()" style="margin-left:8px;padding:2px 10px;font-size:11px;font-weight:600;border:none;border-radius:6px;background:#667eea;color:#fff;cursor:pointer;">ACT 자동입력</button></label>
@@ -733,6 +737,12 @@
       });
       const data = await res.json();
       if(res.ok) {
+        saveCustomerHistory(
+          customer_company,
+          document.getElementById('customer_address').value,
+          receiver_name,
+          document.getElementById('receiver_phone').value
+        );
         showDispatchModal({
           order_no, delivery_date,
           arrival_time: document.getElementById('arrival_time').value,
@@ -1026,6 +1036,37 @@ https://delivery-system-r6pr.onrender.com`;
   }
   document.getElementById('arrival_hour').addEventListener('change', syncArrivalTime);
   document.getElementById('arrival_min').addEventListener('change', syncArrivalTime);
+
+  // ── 배차정보 자동저장/불러오기 ──────────────────────────────────────
+  function saveCustomerHistory(company, address, receiver_name, receiver_phone) {
+    if(!company) return;
+    const hist = JSON.parse(localStorage.getItem('delivery_customer_history') || '{}');
+    hist[company] = { address, receiver_name, receiver_phone };
+    localStorage.setItem('delivery_customer_history', JSON.stringify(hist));
+  }
+
+  function onCompanyInput(val) {
+    const hint = document.getElementById('customerAutoFillHint');
+    const hist = JSON.parse(localStorage.getItem('delivery_customer_history') || '{}');
+    const saved = hist[val.trim()];
+    if(saved) {
+      hint._data = saved;
+      hint.style.display = 'flex';
+    } else {
+      hint.style.display = 'none';
+    }
+  }
+
+  function applyCustomerAutofill() {
+    const hint = document.getElementById('customerAutoFillHint');
+    const data = hint._data;
+    if(!data) return;
+    if(data.address)       document.getElementById('customer_address').value = data.address;
+    if(data.receiver_name) document.getElementById('receiver_name').value    = data.receiver_name;
+    if(data.receiver_phone)document.getElementById('receiver_phone').value   = data.receiver_phone;
+    hint.style.display = 'none';
+    showAlert('✅ 이전 배송 정보를 불러왔습니다. 수령인 정보를 확인 후 수정해주세요.', 'success');
+  }
 
   document.getElementById('loginPw').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
   document.getElementById('delivery_date').value=new Date().toISOString().slice(0,10);
