@@ -472,9 +472,9 @@
     let locRows='';
     try{
       const arr=JSON.parse(r.extra_locations||'[]');
-      for(let i=0;i<3;i++) locRows+=`<tr><td colspan="2" style="text-align:left;">경유지 ${i+1}.</td><td style="text-align:left;">${arr[i]||''}</td></tr>`;
+      for(let i=0;i<2;i++) locRows+=`<tr><td colspan="2" style="text-align:left;">경유지 ${i+1}.</td><td style="text-align:left;">${arr[i]||''}</td></tr>`;
     }catch(e){
-      for(let i=0;i<3;i++) locRows+=`<tr><td colspan="2" style="text-align:left;">경유지 ${i+1}.</td><td></td></tr>`;
+      for(let i=0;i<2;i++) locRows+=`<tr><td colspan="2" style="text-align:left;">경유지 ${i+1}.</td><td></td></tr>`;
     }
 
     const statusTag=r.status==='signed'?
@@ -506,7 +506,7 @@
         <thead><tr><th style="width:34%">작업 내용</th><th style="width:30%">단위</th><th>기타</th></tr></thead>
         <tbody>
           <tr><td>현장 대기</td><td>대기시간</td><td>${r.wait_time?r.wait_time+'분':''}</td></tr>
-          <tr><td>현장 수작업</td><td>작업시간</td><td>${r.work_time?r.work_time+'분':''}</td></tr>
+          <tr><td>작업비</td><td>원</td><td>${r.work_fee?Number(r.work_fee).toLocaleString()+'원':''}</td></tr>
           ${locRows}
           <tr><td>폐기물 회수</td><td>회수</td><td>${r.waste_collection||'회수 불필요'}</td></tr>
         </tbody>

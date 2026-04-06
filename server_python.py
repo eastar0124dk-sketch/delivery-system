@@ -236,15 +236,27 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self.send_json({'error': str(e)})
 
-        # 기사 검색 (공개)
+        # 기사 검색 (공개) — "DN-001" 입력 시 "DN-001 외 N건"도 매칭
         if path == '/api/sign/search':
             order_no = g('order_no').strip()
             if not order_no: return self.send_json({'data': []})
             row = db_fetch(
                 'SELECT id,order_no,delivery_date,product_name,quantity,customer_company,'
                 'customer_address,receiver_name,driver_name,driver_phone,vehicle_no,'
-                'status,extra_locations,wait_time,work_time,notes '
-                'FROM delivery_records WHERE order_no=?', (order_no,))
+                'status,extra_locations,wait_time,work_time,work_fee,notes '
+                'FROM delivery_records WHERE order_no=? OR order_no LIKE ?',
+                (order_no, f'{order_no} 외%'))
+            return self.send_json({'data': [row] if row else []})
+
+        # 운송사 작업내용 검색 (공개)
+        if path == '/api/carrier/search':
+            order_no = g('order_no').strip()
+            if not order_no: return self.send_json({'data': []})
+            row = db_fetch(
+                'SELECT id,order_no,delivery_date,product_name,quantity,customer_company,'
+                'customer_address,receiver_name,wait_time,work_fee,extra_locations,waste_collection '
+                'FROM delivery_records WHERE order_no=? OR order_no LIKE ?',
+                (order_no, f'{order_no} 외%'))
             return self.send_json({'data': [row] if row else []})
 
         # 관리자/직원: 목록
@@ -368,6 +380,22 @@ class Handler(BaseHTTPRequestHandler):
     def do_PATCH(self):
       try:
         p = urlparse(self.path).path.rstrip('/')
+
+        # 운송사 작업내용 저장 (공개 — 인증 불필요)
+        mc = re.match(r'^/api/carrier/(\d+)$', p)
+        if mc:
+            body = self.read_body()
+            allowed = ['wait_time','work_fee','extra_locations','waste_collection']
+            data = {k:v for k,v in body.items() if k in allowed}
+            if not data: return self.send_json({'error':'변경할 항목 없음'}, 400)
+            if DATABASE_URL:
+                sets = ', '.join(f'{k}=%s' for k in data.keys())
+            else:
+                sets = ', '.join(f'{k}=?' for k in data.keys())
+            vals = list(data.values()) + [mc.group(1)]
+            db_exec(f'UPDATE delivery_records SET {sets} WHERE id=?', vals)
+            return self.send_json({'success': True})
+
         if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
 
         # 비밀번호 변경 (관리자 전용)

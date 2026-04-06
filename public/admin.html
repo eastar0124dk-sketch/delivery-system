@@ -185,7 +185,13 @@
       <div class="form-grid">
         <div class="form-group">
           <label>DN 번호 (오더번호) <span class="req">*</span></label>
-          <input type="text" id="order_no" class="req-field" placeholder="예: DN-20240101-001">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="order_no" class="req-field" placeholder="예: DN-20240101-001" style="flex:1;">
+            <span style="font-size:13px;color:#718096;white-space:nowrap;">외</span>
+            <input type="number" id="order_extra" min="1" placeholder="N" style="width:54px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;text-align:center;">
+            <span style="font-size:13px;color:#718096;white-space:nowrap;">건</span>
+          </div>
+          <div style="font-size:11px;color:#a0aec0;margin-top:3px;">복수 건인 경우 건수 입력 (단건은 비워두세요)</div>
         </div>
         <div class="form-group">
           <label>배송일자 <span class="req">*</span></label>
@@ -315,9 +321,18 @@
   <div id="tab-search" class="tab-content">
     <div class="card">
       <div class="card-title"><i class="fas fa-search"></i> 오더 검색</div>
-      <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="DN번호, 고객사, 제품명, 수취인 검색">
-        <button class="btn btn-primary btn-sm" onclick="searchOrders()"><i class="fas fa-search"></i> 조회</button>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:12px;font-weight:600;color:#4a5568;white-space:nowrap;">배송일자</label>
+          <input type="date" id="searchDateFrom" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;background:#fafafa;">
+          <span style="color:#a0aec0;font-weight:600;">~</span>
+          <input type="date" id="searchDateTo" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;background:#fafafa;">
+          <button class="btn btn-secondary btn-sm" onclick="clearSearchDates()">전체기간</button>
+        </div>
+        <div class="search-bar">
+          <input type="text" id="searchInput" placeholder="DN번호, 고객사, 제품명, 수취인 검색">
+          <button class="btn btn-primary btn-sm" onclick="searchOrders()"><i class="fas fa-search"></i> 조회</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -607,7 +622,20 @@
     });
     document.getElementById('tab-register').classList.toggle('active',tab==='register');
     document.getElementById('tab-search').classList.toggle('active',tab==='search');
-    if(tab==='search') loadAllOrders();
+    if(tab==='search'){
+      const today=new Date().toISOString().slice(0,10);
+      if(!document.getElementById('searchDateFrom').value){
+        document.getElementById('searchDateFrom').value=today;
+        document.getElementById('searchDateTo').value=today;
+      }
+      searchOrders();
+    }
+  }
+
+  function clearSearchDates(){
+    document.getElementById('searchDateFrom').value='';
+    document.getElementById('searchDateTo').value='';
+    searchOrders();
   }
 
   function getExtraLocations() {
@@ -691,7 +719,9 @@
   }
 
   async function saveOrder() {
-    const order_no=document.getElementById('order_no').value.trim();
+    const order_no_base=document.getElementById('order_no').value.trim();
+    const order_extra=parseInt(document.getElementById('order_extra').value)||0;
+    const order_no=order_extra>0?`${order_no_base} 외 ${order_extra}건`:order_no_base;
     const delivery_date=document.getElementById('delivery_date').value;
     // 제품명: 드롭다운 선택값 또는 직접입력값
     const selVal = document.getElementById('product_name_select').value;
@@ -772,6 +802,7 @@
   }
 
   function resetForm() {
+    document.getElementById('order_extra').value='';
     ['order_no','delivery_date','quantity','product_name',
      'customer_company','customer_address','receiver_name','receiver_phone',
      'delivery_note','notes'].forEach(id=>{
@@ -805,8 +836,13 @@
 
   async function searchOrders() {
     const q=document.getElementById('searchInput').value.trim();
-    const url=q?`/api/records?search=${encodeURIComponent(q)}&limit=100`:'/api/records?limit=100';
-    const res = await fetch(url,{headers:{'Authorization':`Bearer ${adminToken}`}}).then(r=>r.json());
+    const from=document.getElementById('searchDateFrom').value;
+    const to=document.getElementById('searchDateTo').value;
+    let url='/api/records?limit=500';
+    if(q) url+=`&search=${encodeURIComponent(q)}`;
+    if(from) url+=`&dateFrom=${from}`;
+    if(to) url+=`&dateTo=${to}`;
+    const res=await fetch(url,{headers:{'Authorization':`Bearer ${adminToken}`}}).then(r=>r.json());
     renderTable(res.data||[]);
   }
 

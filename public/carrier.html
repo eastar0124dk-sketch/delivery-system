@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>운송사 작업 입력</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;}
+    .topbar{background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 12px rgba(124,58,237,.4);position:sticky;top:0;z-index:100;}
+    .topbar a{color:#fff;text-decoration:none;opacity:.8;}
+    .topbar h1{font-size:17px;font-weight:700;}
+    .wrap{max-width:600px;margin:0 auto;padding:20px 14px 60px;}
+    .card{background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.07);padding:20px;margin-bottom:16px;}
+    .card-title{font-size:15px;font-weight:700;color:#2d3748;display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:2px solid #f0f4f8;margin-bottom:16px;}
+    .card-title i{color:#7c3aed;}
+    .info-row{display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;}
+    .info-row .lbl{font-size:12px;font-weight:600;color:#718096;min-width:72px;padding-top:2px;}
+    .info-row .val{font-size:14px;font-weight:500;color:#1a202c;flex:1;}
+    .search-section{text-align:center;padding:20px 0;}
+    .search-section .icon-big{font-size:52px;margin-bottom:16px;}
+    .search-section h2{font-size:20px;font-weight:700;color:#2d3748;margin-bottom:6px;}
+    .search-section p{font-size:13px;color:#718096;margin-bottom:24px;}
+    .input-group{display:flex;gap:10px;}
+    .input-group input{flex:1;padding:14px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:16px;font-family:inherit;transition:border .2s;}
+    .input-group input:focus{outline:none;border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.1);}
+    .btn{padding:12px 20px;border:none;border-radius:12px;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px;}
+    .btn-primary{background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff;}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(124,58,237,.35);}
+    .btn-primary:disabled{opacity:.6;transform:none;cursor:not-allowed;}
+    .btn-secondary{background:#e2e8f0;color:#4a5568;}
+    .btn-full{width:100%;justify-content:center;}
+    .form-group{margin-bottom:16px;}
+    .form-group label{font-size:12px;font-weight:600;color:#4a5568;margin-bottom:6px;display:block;}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;transition:border .2s;background:#fafafa;}
+    .form-group input:focus,.form-group select:focus{outline:none;border-color:#7c3aed;background:#fff;}
+    .alert{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:14px;display:none;align-items:center;gap:8px;}
+    .alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
+    .alert-success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;}
+    .complete-box{text-align:center;padding:30px 20px;}
+    .complete-box .check-icon{width:72px;height:72px;background:linear-gradient(135deg,#a78bfa,#7c3aed);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px;color:#fff;}
+    .complete-box h3{font-size:20px;font-weight:700;color:#2d3748;margin-bottom:8px;}
+    .complete-box p{font-size:14px;color:#718096;margin-bottom:20px;}
+    .order-info-box{background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1.5px solid #c4b5fd;border-radius:12px;padding:16px;margin-bottom:4px;}
+    .section-label{font-size:13px;font-weight:700;color:#5b21b6;background:#ede9fe;border-radius:8px;padding:7px 12px;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="index.html"><i class="fas fa-arrow-left"></i></a>
+    <h1><i class="fas fa-clipboard-check"></i> 운송사 작업 입력</h1>
+  </div>
+
+  <div class="wrap">
+    <div id="alertBox" class="alert"></div>
+
+    <!-- DN번호 검색 -->
+    <div id="stepSearch">
+      <div class="card">
+        <div class="search-section">
+          <div class="icon-big">🚛</div>
+          <h2>DN번호 검색</h2>
+          <p>작업 내용을 입력할 DN번호를 입력하세요</p>
+          <div class="input-group">
+            <input type="text" id="searchOrderNo" placeholder="DN번호 입력" maxlength="50" inputmode="text">
+            <button class="btn btn-primary" onclick="searchOrder()"><i class="fas fa-search"></i>검색</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 작업내용 입력 -->
+    <div id="stepWork" style="display:none;">
+      <div class="card order-info-box">
+        <div class="card-title"><i class="fas fa-box"></i>배송 오더 정보</div>
+        <div id="orderInfoContent"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="fas fa-tasks"></i>작업 내용 입력</div>
+
+        <div class="section-label"><i class="fas fa-clock"></i> 현장 대기</div>
+        <div class="form-group">
+          <label>현장 대기 시간</label>
+          <select id="inp_wait_time">
+            <option value="">없음</option>
+            <option value="30">30분</option>
+            <option value="60">60분 (1시간)</option>
+            <option value="90">90분 (1시간 30분)</option>
+            <option value="120">120분 (2시간)</option>
+            <option value="150">150분 (2시간 30분)</option>
+            <option value="180">180분 (3시간)</option>
+            <option value="210">210분 (3시간 30분)</option>
+            <option value="240">240분 (4시간)</option>
+          </select>
+        </div>
+
+        <div class="section-label"><i class="fas fa-won-sign"></i> 작업비</div>
+        <div class="form-group">
+          <label>작업비 (원)</label>
+          <input type="number" id="inp_work_fee" min="0" placeholder="0" style="font-size:16px;font-weight:600;">
+        </div>
+
+        <div class="section-label"><i class="fas fa-map-marker-alt"></i> 경유지</div>
+        <div class="form-group">
+          <label>경유지 1</label>
+          <input type="text" id="inp_loc1" placeholder="경유지 주소 입력">
+        </div>
+        <div class="form-group">
+          <label>경유지 2</label>
+          <input type="text" id="inp_loc2" placeholder="경유지 주소 입력">
+        </div>
+
+        <div class="section-label"><i class="fas fa-recycle"></i> 폐기물 회수</div>
+        <div class="form-group">
+          <label>폐기물 회수 여부</label>
+          <select id="inp_waste">
+            <option value="회수 불필요">회수 불필요</option>
+            <option value="우든 및 파렛트 회수">우든 및 파렛트 회수</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button class="btn btn-secondary btn-full" onclick="goBackSearch()"><i class="fas fa-arrow-left"></i>다시 검색</button>
+          <button class="btn btn-primary btn-full" id="saveBtn" onclick="saveWork()"><i class="fas fa-save"></i>저장</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 완료 -->
+    <div id="stepComplete" style="display:none;">
+      <div class="card">
+        <div class="complete-box">
+          <div class="check-icon"><i class="fas fa-check"></i></div>
+          <h3>작업 내용이 저장되었습니다!</h3>
+          <p id="completeMsg"></p>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-secondary btn-full" onclick="goBackSearch()">다른 DN번호 입력</button>
+            <a href="index.html" class="btn btn-primary btn-full" style="text-decoration:none;">메인으로</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentRecord = null;
+
+    async function searchOrder() {
+      const raw = document.getElementById('searchOrderNo').value.trim();
+      if(!raw){ showAlert('DN번호를 입력해주세요.', 'error'); return; }
+      showAlert('검색 중...', 'info');
+      try {
+        const res = await fetch(`/api/carrier/search?order_no=${encodeURIComponent(raw)}`).then(r=>r.json());
+        const found = (res.data||[])[0];
+        if(!found){ showAlert(`DN번호 [${raw}]를 찾을 수 없습니다.`, 'error'); return; }
+        currentRecord = found;
+        hideAlert();
+        showWorkForm(found);
+      } catch(e) {
+        showAlert('서버 연결 오류가 발생했습니다.', 'error');
+      }
+    }
+
+    function showWorkForm(r) {
+      document.getElementById('stepSearch').style.display = 'none';
+      document.getElementById('stepWork').style.display = 'block';
+      document.getElementById('orderInfoContent').innerHTML = `
+        <div class="info-row"><div class="lbl">DN 번호</div><div class="val" style="font-weight:700;color:#7c3aed;font-size:16px;">${r.order_no}</div></div>
+        <div class="info-row"><div class="lbl">배송일자</div><div class="val">${r.delivery_date||'-'}</div></div>
+        <div class="info-row"><div class="lbl">고객사</div><div class="val">${r.customer_company||'-'}</div></div>
+        <div class="info-row"><div class="lbl">배송지</div><div class="val">${r.customer_address||'-'}</div></div>
+        <div class="info-row"><div class="lbl">수취인</div><div class="val">${r.receiver_name||'-'}</div></div>
+        <div class="info-row"><div class="lbl">수량</div><div class="val" style="font-weight:700;font-size:16px;">${r.quantity||'-'}</div></div>
+      `;
+      // 기존 값 있으면 미리 채우기
+      if(r.wait_time) document.getElementById('inp_wait_time').value = r.wait_time;
+      if(r.work_fee) document.getElementById('inp_work_fee').value = r.work_fee;
+      if(r.waste_collection) document.getElementById('inp_waste').value = r.waste_collection;
+      try {
+        const arr = JSON.parse(r.extra_locations||'[]');
+        if(arr[0]) document.getElementById('inp_loc1').value = arr[0];
+        if(arr[1]) document.getElementById('inp_loc2').value = arr[1];
+      } catch(e){}
+    }
+
+    async function saveWork() {
+      const locs = [];
+      const l1 = document.getElementById('inp_loc1').value.trim();
+      const l2 = document.getElementById('inp_loc2').value.trim();
+      if(l1) locs.push(l1);
+      if(l2) locs.push(l2);
+
+      const btn = document.getElementById('saveBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 저장 중...';
+
+      try {
+        const res = await fetch(`/api/carrier/${currentRecord.id}`, {
+          method: 'PATCH',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            wait_time: document.getElementById('inp_wait_time').value,
+            work_fee: document.getElementById('inp_work_fee').value,
+            waste_collection: document.getElementById('inp_waste').value,
+            extra_locations: JSON.stringify(locs)
+          })
+        });
+        const data = await res.json();
+        if(res.ok) {
+          document.getElementById('stepWork').style.display = 'none';
+          document.getElementById('stepComplete').style.display = 'block';
+          document.getElementById('completeMsg').textContent = `DN번호 [${currentRecord.order_no}] 작업 내용이 저장되었습니다.`;
+        } else {
+          showAlert(data.error||'저장 중 오류가 발생했습니다.', 'error');
+        }
+      } catch(e) {
+        showAlert('서버 연결 오류가 발생했습니다.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i>저장';
+      }
+    }
+
+    function goBackSearch() {
+      currentRecord = null;
+      document.getElementById('stepWork').style.display = 'none';
+      document.getElementById('stepComplete').style.display = 'none';
+      document.getElementById('stepSearch').style.display = 'block';
+      document.getElementById('searchOrderNo').value = '';
+      document.getElementById('inp_wait_time').value = '';
+      document.getElementById('inp_work_fee').value = '';
+      document.getElementById('inp_loc1').value = '';
+      document.getElementById('inp_loc2').value = '';
+      document.getElementById('inp_waste').value = '회수 불필요';
+      hideAlert();
+    }
+
+    function showAlert(msg, type='error') {
+      const el = document.getElementById('alertBox');
+      el.className = `alert alert-${type==='error'?'error':'success'}`;
+      el.innerHTML = `<i class="fas fa-${type==='error'?'exclamation-circle':'check-circle'}"></i> ${msg}`;
+      el.style.display = 'flex';
+      if(type !== 'info') setTimeout(()=>el.style.display='none', 4000);
+    }
+    function hideAlert(){ document.getElementById('alertBox').style.display='none'; }
+
+    document.getElementById('searchOrderNo').addEventListener('keydown', e=>{ if(e.key==='Enter') searchOrder(); });
+  </script>
+</body>
+</html>
