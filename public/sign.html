@@ -142,22 +142,47 @@
         </div>
       </div>
 
-      <!-- STEP 4: 수령자 서명 -->
+      <!-- STEP 4: 수령자 서명 or 사진 -->
       <div id="receiverSignCard" class="card" style="display:none;">
         <div class="card-title"><i class="fas fa-check"></i>수령자(확인검수자) 서명</div>
         <div class="form-group">
           <label>수령자 성함 <span class="required">*</span></label>
-          <input type="text" id="inp_receiver_name_confirm" placeholder="수령자 성명 입력" maxlength="30">
+          <input type="text" id="inp_receiver_name_confirm" placeholder="수령자 성명 입력 (부재 시 '부재'" maxlength="30">
         </div>
-        <p style="font-size:12px;color:#718096;margin-bottom:12px;">아래 박스에 손가락으로 서명하세요</p>
-        <div class="sig-canvas-container" id="receiverSigContainer">
-          <canvas id="receiverCanvas"></canvas>
-          <div id="receiverSigHint" class="sig-hint"><i class="fas fa-pen"></i><span>여기에 서명하세요</span></div>
+
+        <!-- 서명/사진 모드 토글 -->
+        <div style="display:flex;gap:0;margin-bottom:14px;border:2px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+          <button id="modeSignBtn" onclick="setReceiverMode('sign')" style="flex:1;padding:9px;border:none;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">✍️ 서명</button>
+          <button id="modePhotoBtn" onclick="setReceiverMode('photo')" style="flex:1;padding:9px;border:none;background:#f7fafc;color:#718096;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">📷 사진 업로드 (부재)</button>
         </div>
-        <div class="sig-controls">
-          <button class="btn btn-secondary" onclick="clearSig('receiver')" style="flex:1;"><i class="fas fa-redo"></i>지우기</button>
+
+        <!-- 서명 영역 -->
+        <div id="receiverSigArea">
+          <p style="font-size:12px;color:#718096;margin-bottom:12px;">아래 박스에 손가락으로 서명하세요</p>
+          <div class="sig-canvas-container" id="receiverSigContainer">
+            <canvas id="receiverCanvas"></canvas>
+            <div id="receiverSigHint" class="sig-hint"><i class="fas fa-pen"></i><span>여기에 서명하세요</span></div>
+          </div>
+          <div class="sig-controls">
+            <button class="btn btn-secondary" onclick="clearSig('receiver')" style="flex:1;"><i class="fas fa-redo"></i>지우기</button>
+          </div>
         </div>
-        <div style="display:flex;gap:8px;margin-top:12px;">
+
+        <!-- 사진 업로드 영역 -->
+        <div id="receiverPhotoArea" style="display:none;">
+          <p style="font-size:12px;color:#e53e3e;font-weight:600;margin-bottom:10px;">⚠️ 수령인 부재 — 배송 사진을 업로드하세요</p>
+          <label for="photoInput" style="display:block;border:2.5px dashed #e2e8f0;border-radius:12px;padding:24px;text-align:center;cursor:pointer;background:#fafafa;transition:all .2s;" id="photoLabel">
+            <i class="fas fa-camera" style="font-size:36px;color:#a0aec0;display:block;margin-bottom:10px;"></i>
+            <span style="font-size:13px;color:#718096;">사진을 탭하여 선택 또는 촬영</span>
+          </label>
+          <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="onPhotoSelected(this)">
+          <div id="photoPreview" style="display:none;margin-top:10px;text-align:center;">
+            <img id="photoImg" style="max-width:100%;border-radius:10px;border:1.5px solid #e2e8f0;" alt="배송 사진">
+            <button class="btn btn-secondary" style="margin-top:8px;width:100%;justify-content:center;" onclick="clearPhoto()"><i class="fas fa-redo"></i> 다시 찍기</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:14px;">
           <button class="btn btn-outline btn-full" onclick="goBack('receiverSign')"><i class="fas fa-arrow-left"></i>이전</button>
           <button class="btn btn-primary btn-full" id="submitBtn" onclick="submitSignatures()"><i class="fas fa-check"></i>서명 완료 제출</button>
         </div>
@@ -188,6 +213,40 @@
     let currentRecord = null;
     let driverSigned = false;
     let receiverSigned = false;
+    let receiverMode = 'sign';   // 'sign' | 'photo'
+    let photoData = null;        // base64 사진
+
+    function setReceiverMode(mode) {
+      receiverMode = mode;
+      document.getElementById('receiverSigArea').style.display   = mode==='sign'  ? 'block' : 'none';
+      document.getElementById('receiverPhotoArea').style.display = mode==='photo' ? 'block' : 'none';
+      document.getElementById('modeSignBtn').style.background    = mode==='sign'
+        ? 'linear-gradient(135deg,#f093fb,#f5576c)' : '#f7fafc';
+      document.getElementById('modeSignBtn').style.color         = mode==='sign'  ? '#fff' : '#718096';
+      document.getElementById('modePhotoBtn').style.background   = mode==='photo'
+        ? 'linear-gradient(135deg,#f093fb,#f5576c)' : '#f7fafc';
+      document.getElementById('modePhotoBtn').style.color        = mode==='photo' ? '#fff' : '#718096';
+    }
+
+    function onPhotoSelected(input) {
+      const file = input.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        photoData = e.target.result;
+        document.getElementById('photoImg').src = photoData;
+        document.getElementById('photoPreview').style.display = 'block';
+        document.getElementById('photoLabel').style.display   = 'none';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearPhoto() {
+      photoData = null;
+      document.getElementById('photoInput').value = '';
+      document.getElementById('photoPreview').style.display = 'none';
+      document.getElementById('photoLabel').style.display   = 'block';
+    }
 
     // 캔버스 초기화
     function initCanvas(canvasId, containerId, hintId, sigType) {
@@ -333,8 +392,10 @@
 
     async function submitSignatures() {
       const receiverName=document.getElementById('inp_receiver_name_confirm').value.trim();
-      if(!receiverName){ showAlert('수령자 성함을 입력해주세요.','error'); return; }
-      if(!receiverSigned){ showAlert('수령자 서명을 해주세요.','error'); return; }
+      if(!receiverName){ showAlert('수령자 성함을 입력해주세요. (부재 시 "부재" 입력)','error'); return; }
+      if(receiverMode==='sign' && !receiverSigned){ showAlert('수령자 서명을 해주세요.','error'); return; }
+      if(receiverMode==='photo' && !photoData){ showAlert('배송 사진을 업로드해주세요.','error'); return; }
+      const receiverSigData = receiverMode==='sign' ? getSigData('receiver') : photoData;
 
       const btn=document.getElementById('submitBtn');
       btn.disabled=true;
@@ -350,7 +411,7 @@
             vehicle_no: document.getElementById('inp_vehicle_no').value.trim(),
             receiver_name: receiverName,
             driver_signature: getSigData('driver'),
-            receiver_signature: getSigData('receiver')
+            receiver_signature: receiverSigData
           })
         });
         const data=await res.json();
