@@ -144,6 +144,7 @@
   <div class="left">
     <a href="index.html"><i class="fas fa-arrow-left"></i></a>
     <h1><i class="fas fa-search"></i> 조회 · 출력</h1>
+    <span id="clientLabel" style="font-size:11px;background:rgba(0,0,0,.12);padding:3px 10px;border-radius:10px;font-weight:600;"></span>
   </div>
   <a href="admin.html">오더등록</a>
 </div>
@@ -245,6 +246,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
+  // 화주 표시
+  (function(){ const CNAMES={mettler:'메틀러토레도',canon:'캐논메디칼시스템즈'}; const c=localStorage.getItem('selectedClient'); const el=document.getElementById('clientLabel'); if(c&&CNAMES[c]&&el) el.textContent=CNAMES[c]; })();
+
   let adminToken = sessionStorage.getItem('adminToken')||'';
   let allData=[], filtered=[], currentPage=1, showPrivate=false;
   const PER_PAGE=20;
@@ -273,7 +277,7 @@
     if(cfg.companyName) companyName=cfg.companyName;
     await loadAll();
     // 로그인 후 자동으로 전체 목록 표시
-    setQuick('all', document.querySelector('.qd-btn:last-child'));
+    setQuick('today', document.querySelector('.qd-btn'));
   }
 
   function authH(){ return {'Content-Type':'application/json','Authorization':`Bearer ${adminToken}`}; }

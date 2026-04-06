@@ -6,62 +6,150 @@
   <title>배송 인수증명 시스템</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Noto Sans KR',sans-serif; background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460); min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; }
-    .logo { font-size:40px; margin-bottom:10px; }
-    h1 { color:#fff; font-size:24px; font-weight:900; margin-bottom:6px; text-align:center; }
-    .subtitle { color:rgba(255,255,255,0.65); font-size:13px; margin-bottom:40px; text-align:center; }
-    .cards { display:grid; grid-template-columns:1fr 1fr; gap:16px; width:100%; max-width:520px; }
-    @media(max-width:480px){ .cards { grid-template-columns:1fr; } }
-    .card { background:rgba(255,255,255,0.08); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.15); border-radius:20px; padding:28px 24px; text-align:center; text-decoration:none; color:#fff; transition:all 0.25s; }
-    .card:hover { background:rgba(255,255,255,0.15); transform:translateY(-4px); box-shadow:0 12px 30px rgba(0,0,0,0.3); }
-    .card .icon { font-size:36px; margin-bottom:14px; display:block; }
-    .card h2 { font-size:17px; font-weight:700; margin-bottom:6px; }
-    .card p { font-size:12px; color:rgba(255,255,255,0.65); line-height:1.5; }
-    .card.driver { border-color:rgba(248,113,113,0.5); }
-    .card.driver .icon { color:#f87171; }
-    .card.admin-card { border-color:rgba(96,165,250,0.5); }
-    .card.admin-card .icon { color:#60a5fa; }
-    .card.list-card { border-color:rgba(52,211,153,0.5); }
-    .card.list-card .icon { color:#34d399; }
-    .card.view-card { border-color:rgba(251,191,36,0.5); }
-    .card.view-card .icon { color:#fbbf24; }
-    .card.carrier-card { border-color:rgba(167,139,250,0.5); }
-    .card.carrier-card .icon { color:#a78bfa; }
-    .version { color:rgba(255,255,255,0.3); font-size:11px; margin-top:30px; }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Noto Sans KR',sans-serif;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+    .logo{font-size:40px;margin-bottom:10px;}
+    .sys-title{color:#fff;font-size:22px;font-weight:900;margin-bottom:4px;text-align:center;}
+    .sys-sub{color:rgba(255,255,255,.6);font-size:12px;margin-bottom:28px;text-align:center;}
+
+    /* ── 화주 선택 화면 ── */
+    #clientScreen{width:100%;max-width:500px;text-align:center;}
+    .sel-title{color:#fff;font-size:17px;font-weight:700;margin-bottom:4px;}
+    .sel-sub{color:rgba(255,255,255,.55);font-size:12px;margin-bottom:20px;}
+    .client-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:0;}
+    @media(max-width:380px){.client-grid{grid-template-columns:1fr;}}
+    .client-btn{background:rgba(255,255,255,.08);backdrop-filter:blur(10px);border:1.5px solid rgba(255,255,255,.15);border-radius:18px;padding:22px 14px;text-align:center;cursor:pointer;transition:all .25s;color:#fff;font-family:inherit;}
+    .client-btn:hover{background:rgba(255,255,255,.16);transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.3);}
+    .client-btn .c-emoji{font-size:30px;display:block;margin-bottom:10px;}
+    .client-btn .c-name{font-size:14px;font-weight:700;line-height:1.4;}
+
+    /* ── 메뉴 화면 ── */
+    #menuScreen{display:none;width:100%;max-width:520px;}
+    .client-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:6px 16px;margin-bottom:14px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;border-width:0;font-family:inherit;}
+    .client-badge:hover{background:rgba(255,255,255,.22);}
+    .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%;}
+    @media(max-width:480px){.cards{grid-template-columns:1fr;}}
+    .card{background:rgba(255,255,255,.08);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:26px 18px;text-align:center;text-decoration:none;color:#fff;transition:all .25s;}
+    .card:hover{background:rgba(255,255,255,.15);transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.3);}
+    .card .icon{font-size:33px;margin-bottom:12px;display:block;}
+    .card h2{font-size:16px;font-weight:700;margin-bottom:5px;}
+    .card p{font-size:12px;color:rgba(255,255,255,.65);line-height:1.5;}
+    .card.span2{grid-column:span 2;}
+    @media(max-width:480px){.card.span2{grid-column:span 1;}}
+    .version{color:rgba(255,255,255,.3);font-size:11px;margin-top:22px;text-align:center;}
   </style>
 </head>
 <body>
   <div class="logo">📦</div>
-  <h1 id="companyName">배송 인수증명 시스템</h1>
-  <p class="subtitle">디지털 서명 · 실시간 저장 · PDF 출력</p>
-  <div class="cards">
-    <a href="sign.html" class="card driver">
-      <span class="icon"><i class="fas fa-truck"></i></span>
-      <h2>배송기사 서명</h2>
-      <p>DN번호 입력 후<br>기사·수령자 서명</p>
-    </a>
-    <a href="admin.html" class="card admin-card">
-      <span class="icon"><i class="fas fa-clipboard-list"></i></span>
-      <h2>오더 관리</h2>
-      <p>출고 오더 등록 및<br>기본 정보 수정</p>
-    </a>
-    <a href="carrier.html" class="card carrier-card">
-      <span class="icon"><i class="fas fa-clipboard-check"></i></span>
-      <h2>운송사 작업입력</h2>
-      <p>DN번호 입력 후<br>현장 작업내용 등록</p>
-    </a>
-    <a href="list.html" class="card list-card">
-      <span class="icon"><i class="fas fa-search"></i></span>
-      <h2>조회 · 출력</h2>
-      <p>기간 검색 · 건별 조회 · PDF 다운로드</p>
-    </a>
+  <p class="sys-title">배송 인수증명 시스템</p>
+  <p class="sys-sub">디지털 서명 · 실시간 저장 · PDF 출력</p>
+
+  <!-- 화주 선택 화면 -->
+  <div id="clientScreen">
+    <p class="sel-title">화주 선택</p>
+    <p class="sel-sub">작업할 화주를 선택하세요</p>
+    <div class="client-grid" id="clientGrid"></div>
   </div>
-  <p class="version">v1.0</p>
+
+  <!-- 메뉴 화면 -->
+  <div id="menuScreen">
+    <div style="text-align:center;margin-bottom:6px;">
+      <button class="client-badge" onclick="changeClient()">
+        <span id="badgeEmoji"></span>
+        <span id="badgeName"></span>
+        <i class="fas fa-exchange-alt" style="font-size:11px;opacity:.7;"></i>
+      </button>
+    </div>
+    <div class="cards" id="menuCards"></div>
+    <p class="version">v1.0</p>
+  </div>
+
   <script>
-    fetch('/api/config').then(r=>r.json()).then(d=>{
-      if(d.companyName) document.getElementById('companyName').textContent = d.companyName;
-    }).catch(()=>{});
+    /* ════════════════════════════════════════
+       화주 설정 — 화주 추가 시 여기에만 추가
+       menus 배열로 각 화주별 노출 메뉴 제어 가능
+    ════════════════════════════════════════ */
+    const CLIENTS = [
+      {
+        id: 'mettler',
+        name: '메틀러토레도',
+        emoji: '⚖️',
+        borderColor: 'rgba(96,165,250,.55)',
+        menus: ['sign','admin','carrier','list']
+      },
+      {
+        id: 'canon',
+        name: '캐논메디칼시스템즈',
+        emoji: '🏥',
+        borderColor: 'rgba(248,113,113,.55)',
+        menus: ['sign','admin','carrier','list']
+      }
+      /* 새 화주 추가 예시:
+      ,{
+        id: 'newclient',
+        name: '새 화주명',
+        emoji: '🏢',
+        borderColor: 'rgba(52,211,153,.55)',
+        menus: ['sign','admin','list']   // carrier 불필요하면 제거
+      } */
+    ];
+
+    /* 메뉴 정의 — 순서/내용 변경 가능 */
+    const MENUS = {
+      sign:    { href:'sign.html',    cls:'',            icon:'fas fa-truck',          iconColor:'#f87171', h2:'배송기사 서명',    p:'DN번호 입력 후<br>기사·수령자 서명' },
+      admin:   { href:'admin.html',   cls:'',            icon:'fas fa-clipboard-list', iconColor:'#60a5fa', h2:'오더 관리',        p:'출고 오더 등록 및<br>기본 정보 수정' },
+      carrier: { href:'carrier.html', cls:'',            icon:'fas fa-clipboard-check',iconColor:'#a78bfa', h2:'운송사 작업입력',  p:'DN번호 입력 후<br>현장 작업내용 등록' },
+      list:    { href:'list.html',    cls:'',            icon:'fas fa-search',         iconColor:'#34d399', h2:'조회 · 출력',      p:'기간 검색 · 건별 조회 · PDF' }
+    };
+
+    /* ── 렌더링 ── */
+    function renderClientGrid() {
+      document.getElementById('clientGrid').innerHTML = CLIENTS.map(c =>
+        `<button class="client-btn" onclick="selectClient('${c.id}')" style="border-color:${c.borderColor};">
+           <span class="c-emoji">${c.emoji}</span>
+           <span class="c-name">${c.name}</span>
+         </button>`
+      ).join('');
+    }
+
+    function renderMenu(id) {
+      const c = CLIENTS.find(c => c.id === id);
+      if (!c) { changeClient(); return; }
+      document.getElementById('badgeEmoji').textContent = c.emoji;
+      document.getElementById('badgeName').textContent  = c.name;
+      const cards = c.menus.map((key, i) => {
+        const m = MENUS[key];
+        /* 마지막 메뉴가 홀수 위치면 span2 처리 */
+        const isLast  = i === c.menus.length - 1;
+        const isOdd   = c.menus.length % 2 !== 0;
+        const spanCls = (isLast && isOdd) ? ' span2' : '';
+        return `<a href="${m.href}" class="card${spanCls}">
+          <span class="icon" style="color:${m.iconColor};"><i class="${m.icon}"></i></span>
+          <h2>${m.h2}</h2><p>${m.p}</p>
+        </a>`;
+      }).join('');
+      document.getElementById('menuCards').innerHTML = cards;
+    }
+
+    function selectClient(id) {
+      localStorage.setItem('selectedClient', id);
+      document.getElementById('clientScreen').style.display = 'none';
+      document.getElementById('menuScreen').style.display   = 'block';
+      renderMenu(id);
+    }
+
+    function changeClient() {
+      localStorage.removeItem('selectedClient');
+      document.getElementById('menuScreen').style.display   = 'none';
+      document.getElementById('clientScreen').style.display = 'block';
+    }
+
+    /* ── 초기화 ── */
+    renderClientGrid();
+    const saved = localStorage.getItem('selectedClient');
+    if (saved && CLIENTS.find(c => c.id === saved)) {
+      selectClient(saved);
+    }
   </script>
 </body>
 </html>

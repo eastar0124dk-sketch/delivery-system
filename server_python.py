@@ -236,7 +236,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self.send_json({'error': str(e)})
 
-        # 기사 검색 (공개) — "DN-001" 입력 시 "DN-001 외 N건"도 매칭
+        # 기사 검색 (공개) — 앞 번호 일부 입력만으로도 매칭
         if path == '/api/sign/search':
             order_no = g('order_no').strip()
             if not order_no: return self.send_json({'data': []})
@@ -244,19 +244,19 @@ class Handler(BaseHTTPRequestHandler):
                 'SELECT id,order_no,delivery_date,product_name,quantity,customer_company,'
                 'customer_address,receiver_name,driver_name,driver_phone,vehicle_no,'
                 'status,extra_locations,wait_time,work_time,work_fee,notes '
-                'FROM delivery_records WHERE order_no=? OR order_no LIKE ?',
-                (order_no, f'{order_no} 외%'))
+                'FROM delivery_records WHERE order_no=? OR order_no LIKE ? OR order_no LIKE ?',
+                (order_no, f'{order_no} 외%', f'%{order_no}%'))
             return self.send_json({'data': [row] if row else []})
 
-        # 운송사 작업내용 검색 (공개)
+        # 운송사 작업내용 검색 (공개) — 부분 번호 입력 매칭
         if path == '/api/carrier/search':
             order_no = g('order_no').strip()
             if not order_no: return self.send_json({'data': []})
             row = db_fetch(
                 'SELECT id,order_no,delivery_date,product_name,quantity,customer_company,'
                 'customer_address,receiver_name,wait_time,work_fee,extra_locations,waste_collection '
-                'FROM delivery_records WHERE order_no=? OR order_no LIKE ?',
-                (order_no, f'{order_no} 외%'))
+                'FROM delivery_records WHERE order_no=? OR order_no LIKE ? OR order_no LIKE ?',
+                (order_no, f'{order_no} 외%', f'%{order_no}%'))
             return self.send_json({'data': [row] if row else []})
 
         # 관리자/직원: 목록

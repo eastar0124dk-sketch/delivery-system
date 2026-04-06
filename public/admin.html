@@ -126,6 +126,7 @@
   <div class="left">
     <a href="index.html"><i class="fas fa-arrow-left"></i></a>
     <h1><i class="fas fa-clipboard-list"></i> 오더 관리</h1>
+    <span id="clientLabel" style="font-size:11px;background:rgba(255,255,255,.18);padding:3px 10px;border-radius:10px;font-weight:600;"></span>
   </div>
   <div style="display:flex;gap:14px;align-items:center;">
     <a href="list.html">조회/출력</a>
@@ -549,6 +550,9 @@
 </div>
 
 <script>
+  // 화주 표시
+  (function(){ const CNAMES={mettler:'메틀러토레도',canon:'캐논메디칼시스템즈'}; const c=localStorage.getItem('selectedClient'); const el=document.getElementById('clientLabel'); if(c&&CNAMES[c]&&el) el.textContent=CNAMES[c]; })();
+
   let adminToken = sessionStorage.getItem('adminToken') || '';
   let userRole   = sessionStorage.getItem('userRole') || '';
   let currentCostId = null, currentCostStatus = null;
