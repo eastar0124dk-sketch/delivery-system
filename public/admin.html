@@ -927,14 +927,24 @@
         );
         showDispatchModal({
           order_no, delivery_date,
-          arrival_time: document.getElementById('arrival_time').value,
+          arrival_time:    document.getElementById('arrival_time').value,
+          transport_type:  document.getElementById('transport_type').value,
+          origin:          document.getElementById('origin').value === '기타'
+                             ? (document.getElementById('origin_custom').value.trim() || '기타')
+                             : document.getElementById('origin').value,
+          origin_address:  document.getElementById('origin_address').value,
+          contact_person:  document.getElementById('contact_person').value === '기타'
+                             ? (document.getElementById('contact_person_custom').value.trim() || '')
+                             : document.getElementById('contact_person').value,
+          contact_phone:   document.getElementById('contact_phone').value,
           product_name, quantity, customer_company,
           customer_address: document.getElementById('customer_address').value,
+          dest_sigun:      document.getElementById('dest_sigun').value,
           receiver_name,
-          receiver_phone: document.getElementById('receiver_phone').value,
-          delivery_note: document.getElementById('delivery_note').value,
-          vehicle_type: document.getElementById('vehicle_type').value,
-          notes: document.getElementById('notes').value
+          receiver_phone:  document.getElementById('receiver_phone').value,
+          delivery_note:   document.getElementById('delivery_note').value,
+          vehicle_type:    document.getElementById('vehicle_type').value,
+          notes:           document.getElementById('notes').value
         });
         resetForm();
       } else if(res.status === 401) {
@@ -1190,35 +1200,55 @@
 
   function openDispatchFromRow(r) {
     showDispatchModal({
-      order_no: r.order_no,
-      delivery_date: r.delivery_date,
-      arrival_time: r.arrival_time,
-      product_name: r.product_name,
-      quantity: r.quantity,
+      order_no:        r.order_no,
+      delivery_date:   r.delivery_date,
+      arrival_time:    r.arrival_time,
+      transport_type:  r.transport_type,
+      origin:          r.origin,
+      origin_address:  r.origin_address,
+      contact_person:  r.contact_person,
+      contact_phone:   r.contact_phone,
+      product_name:    r.product_name,
+      quantity:        r.quantity,
       customer_company: r.customer_company,
       customer_address: r.customer_address,
-      receiver_name: r.receiver_name,
-      receiver_phone: r.receiver_phone,
-      delivery_note: r.delivery_note,
-      notes: r.notes
+      dest_sigun:      r.dest_sigun,
+      receiver_name:   r.receiver_name,
+      receiver_phone:  r.receiver_phone,
+      delivery_note:   r.delivery_note,
+      vehicle_type:    r.vehicle_type,
+      notes:           r.notes
     });
   }
 
   function showDispatchModal(d) {
-    const addr = d.customer_address ? `\n배송지 주소: ${d.customer_address}` : '';
-    const phone = d.receiver_phone ? `\n수취인 연락처: ${d.receiver_phone}` : '';
-    const arrival = d.arrival_time ? `\n도착 희망시간: ${d.arrival_time}` : '';
-    const vehicle_type = d.vehicle_type ? `\n차량 종류: ${d.vehicle_type}` : '';
-    const delivery_note = d.delivery_note ? `\n⚠️ 배송 요청사항: ${d.delivery_note}` : '';
-    const notes = d.notes ? `\n비고: ${d.notes}` : '';
+    const arrival      = d.arrival_time    ? `\n도착 희망시간: ${d.arrival_time}` : '';
+    const transport    = d.transport_type  ? `\n내용: ${d.transport_type}` : '';
+    const vehicle_type = d.vehicle_type    ? `\n차량 종류: ${d.vehicle_type}` : '';
+
+    // 출발지
+    const originLabel  = d.origin === 'ACT' ? 'ACT (경기도 김포시)' : (d.origin || '');
+    const originAddr   = (d.origin_address && d.origin !== 'ACT')
+                           ? `\n출발지 주소: ${d.origin_address}` : '';
+    const contactLine  = d.contact_person  ? `\n출발지 담당자: ${d.contact_person}${d.contact_phone ? ' / ' + d.contact_phone : ''}` : '';
+
+    // 도착지
+    const destSigun    = d.dest_sigun      ? ` (${d.dest_sigun})` : '';
+    const addr         = d.customer_address ? `\n배송지 주소: ${d.customer_address}` : '';
+    const phone        = d.receiver_phone  ? `\n수취인 연락처: ${d.receiver_phone}` : '';
+    const delivery_note = d.delivery_note  ? `\n⚠️ 배송 요청사항: ${d.delivery_note}` : '';
+    const notes        = d.notes           ? `\n비고: ${d.notes}` : '';
+
     const msg =
 `[배차 요청]
 DN번호: ${d.order_no}
-배송일자: ${d.delivery_date}${arrival}
+배송일자: ${d.delivery_date}${arrival}${transport}${vehicle_type}
 제품명: ${d.product_name}
 수량: ${d.quantity}
-고객사: ${d.customer_company}${addr}
-수취인: ${d.receiver_name}${phone}${vehicle_type}${delivery_note}${notes}
+
+▶ 출발지: ${originLabel}${originAddr}${contactLine}
+▶ 도착지: ${d.customer_company}${destSigun}${addr}
+수취인: ${d.receiver_name}${phone}${delivery_note}${notes}
 
 * 배송 완료 후 아래 링크에서 서명 부탁드립니다
 https://delivery-system-r6pr.onrender.com`;
