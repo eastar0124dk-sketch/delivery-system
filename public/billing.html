@@ -251,8 +251,19 @@
 
     <!-- 액션 바 -->
     <div class="action-bar">
-      <div class="result-info">조회 결과 <span id="resultCount">0</span>건</div>
+      <div class="result-info">조회 결과 <span id="resultCount">0</span>건
+        <span id="rateMatchInfo" style="font-size:11px;color:#718096;margin-left:8px;"></span>
+      </div>
       <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-sm" style="background:linear-gradient(135deg,#f6ad55,#ed8936);color:#fff;" onclick="autoCalcAll()" title="운임표 기준으로 기본운임 자동계산">
+          <i class="fas fa-calculator"></i> 운임 자동계산
+        </button>
+        <button class="btn btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;" onclick="saveBillingData()">
+          <i class="fas fa-save"></i> 저장
+        </button>
+        <button class="btn btn-sm" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;" onclick="loadBillingData()">
+          <i class="fas fa-folder-open"></i> 불러오기
+        </button>
         <button class="btn btn-blue btn-sm" onclick="window.print()"><i class="fas fa-print"></i> 인쇄</button>
         <button class="btn btn-green btn-sm" onclick="exportExcel()"><i class="fas fa-file-excel"></i> 엑셀 다운로드</button>
       </div>
@@ -295,6 +306,7 @@
 </div><!-- /mainWrap -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="rates.js"></script>
 <script>
   // 화주 표시
   (function(){
@@ -386,11 +398,125 @@
   }
   function fmtInput(el){ el.value=(parseInt(el.value.replace(/[^0-9]/g,''))||0).toLocaleString(); }
 
-  // ── 주소에서 구/군 추출 ──
+  // ── 운임표 조회 (도착지 시군 + 차종) ──
+  function lookupRate(district, vehicleType){
+    if(!district||!vehicleType||typeof RATE_TABLE==='undefined') return null;
+    const d=district.trim();
+    const vt=vehicleType.trim();
+    // 1차: 정확히 sigun 일치
+    for(const key in RATE_TABLE){
+      const e=RATE_TABLE[key];
+      if(e.sigun===d){
+        const c=e.carrier[vt], k=e.client[vt];
+        if(c!=null||k!=null) return {carrier:c||0,client:k||0,matched:e.sigun,sido:e.sido};
+      }
+    }
+    // 2차: 시/구/군/도 제거 후 포함 매칭
+    const clean=d.replace(/[시도구군읍면동로길]/g,'');
+    for(const key in RATE_TABLE){
+      const e=RATE_TABLE[key];
+      const sc=e.sigun.replace(/[시도구군읍면동]/g,'');
+      if(clean&&sc&&(clean.includes(sc)||sc.includes(clean))){
+        const c=e.carrier[vt], k=e.client[vt];
+        if(c!=null||k!=null) return {carrier:c||0,client:k||0,matched:e.sigun,sido:e.sido};
+      }
+    }
+    return null;
+  }
+
+  // ── 한 행 운임 자동계산 ──
+  function autoCalcRow(i){
+    const r=billingRows[i];
+    const found=lookupRate(r.district, r.vehicle_type);
+    if(found){
+      r.carrier_base=found.carrier;
+      r.client_base=found.client;
+      r.rate_matched=true;
+      r.rate_info=`${found.sido} ${found.matched}`;
+    } else {
+      r.rate_matched=false;
+      r.rate_info='';
+    }
+    return found;
+  }
+
+  // ── 전체 행 운임 자동계산 ──
+  function autoCalcAll(){
+    let matched=0;
+    billingRows.forEach((_,i)=>{ if(autoCalcRow(i)) matched++; });
+    renderBillingTable();
+    updateSummary();
+    const info=`운임 자동계산: ${matched}/${billingRows.length}건 매칭`;
+    document.getElementById('rateMatchInfo').textContent=info;
+    document.getElementById('rateMatchInfo').style.color=matched===billingRows.length?'#059669':'#d97706';
+  }
+
+  // ── 저장 ──
+  function saveBillingData(){
+    const from=document.getElementById('dateFrom').value;
+    const to=document.getElementById('dateTo').value;
+    const key=`billing_save_${from}_${to}`;
+    const payload={
+      from, to,
+      billMonth:     document.getElementById('billMonth').value,
+      clientName:    document.getElementById('billClientDisp').value,
+      carrierName:   document.getElementById('carrierName').value,
+      rows:          billingRows,
+      savedAt:       new Date().toLocaleString('ko-KR')
+    };
+    localStorage.setItem(key, JSON.stringify(payload));
+    localStorage.setItem('billing_last_key', key);
+    alert(`저장 완료!\n키: ${key}\n저장 시각: ${payload.savedAt}`);
+  }
+
+  // ── 불러오기 ──
+  function loadBillingData(){
+    const lastKey=localStorage.getItem('billing_last_key');
+    // 저장된 목록 표시
+    const keys=Object.keys(localStorage).filter(k=>k.startsWith('billing_save_')).sort().reverse();
+    if(!keys.length){ alert('저장된 청구서 데이터가 없습니다.'); return; }
+
+    const list=keys.map((k,i)=>{
+      try{
+        const d=JSON.parse(localStorage.getItem(k));
+        return `${i+1}. ${d.from}~${d.to}  ${d.clientName||''}  (저장: ${d.savedAt||''})\n   → 키: ${k}`;
+      }catch{return `${i+1}. ${k}`;}
+    }).join('\n');
+
+    const sel=prompt(`불러올 청구서를 선택하세요 (번호 입력):\n\n${list}`);
+    if(!sel) return;
+    const idx=parseInt(sel)-1;
+    if(isNaN(idx)||idx<0||idx>=keys.length){ alert('잘못된 선택입니다.'); return; }
+
+    try{
+      const d=JSON.parse(localStorage.getItem(keys[idx]));
+      billingRows=d.rows||[];
+      document.getElementById('dateFrom').value=d.from||'';
+      document.getElementById('dateTo').value=d.to||'';
+      document.getElementById('billMonth').value=d.billMonth||'';
+      document.getElementById('billClientDisp').value=d.clientName||'';
+      document.getElementById('carrierName').value=d.carrierName||'';
+      document.getElementById('billTitleMain').textContent=(d.clientName||'화주')+' 월별 운송비 청구서';
+      document.getElementById('initGuide').style.display='none';
+      document.getElementById('billingSection').style.display='block';
+      document.getElementById('resultCount').textContent=billingRows.length;
+      renderBillingTable();
+      updateSummary();
+      alert(`불러오기 완료: ${d.from}~${d.to} (${billingRows.length}건)`);
+    }catch(e){ alert('불러오기 실패: 데이터가 손상되었습니다.'); }
+  }
+
+  // ── 주소에서 구/군/시 추출 ──
   function extractDistrict(addr){
     if(!addr) return '';
-    const m=addr.match(/([가-힣]+[구군])/);
-    return m?m[1]:'';
+    // 시군구 패턴: 성남시, 분당구, 수원시, 강릉 등
+    const m=addr.match(/([가-힣]{2,6}[시군구])/);
+    // 시도 제거 후 첫 번째 지역명 반환
+    if(m){
+      const exclude=['경기도','강원도','충청남도','충청북도','경상남도','경상북도','전라남도','전라북도','서울특별시','인천광역시','대전광역시','대구광역시','부산광역시','광주광역시','울산광역시','경기','강원','충남','충북','경남','경북','전남','전북'];
+      if(!exclude.includes(m[1])) return m[1].replace(/도$/,'');
+    }
+    return '';
   }
 
   // ── 데이터 조회 ──
@@ -399,50 +525,66 @@
     const to=document.getElementById('dateTo').value;
     if(!from||!to){ alert('청구 기간을 설정해 주세요.'); return; }
 
-    // 단가 최신화
-    document.querySelectorAll('#rateTbody tr').forEach(tr=>{
-      const vt=tr.dataset.vehicle;
-      rates[vt]={carrier:parseInt(tr.querySelector('.inp-c').value.replace(/,/g,''))||0, client:parseInt(tr.querySelector('.inp-k').value.replace(/,/g,''))||0};
-    });
-
     const res=await fetch(`/api/records?limit=2000&dateFrom=${from}&dateTo=${to}`,{headers:authH()}).then(r=>r.json()).catch(()=>({data:[]}));
     const data=res.data||[];
 
     billingRows=data.map((r,i)=>{
       const vt=r.vehicle_type||'';
-      const rateC=(rates[vt]||{}).carrier||0;
-      const rateK=(rates[vt]||{}).client||0;
+      const dist=r.customer_address ? extractSigun(r.customer_address) : '';
       const addC=parseInt(r.work_fee)||0;
+      // 운임표에서 기본운임 자동조회
+      const found=lookupRate(dist, vt);
       return {
         no:i+1, id:r.id,
         delivery_date: r.delivery_date||'',
         order_no:      r.order_no||'',
-        origin:        r.origin||'',          // 출발지 코드
-        origin_name:   r.origin_address||'',  // 출발지 상호
-        district:      extractDistrict(r.customer_address||''), // 도착지 구/군
-        dest_name:     r.customer_company||'',// 도착지 상호
-        content:       r.product_name||'',    // 내용
+        origin:        r.origin||'',
+        origin_name:   r.origin_address||'',
+        district:      dist,
+        dest_name:     r.customer_company||'',
+        content:       r.product_name||'',
         vehicle_type:  vt,
-        carrier_base:  rateC,
+        carrier_base:  found?found.carrier:0,
         carrier_add:   addC,
-        client_base:   rateK,
-        client_add:    addC,  // 기본값: 운송사 추가와 동일
+        client_base:   found?found.client:0,
+        client_add:    addC,
         quantity:      r.quantity||'',
-        note:          ''
+        note:          '',
+        rate_matched:  !!found,
+        rate_info:     found?`${found.sido} ${found.matched}`:''
       };
     });
 
     renderBillingTable();
     updateSummary();
 
-    // 청구서 헤더 자동 채우기
+    // 매칭 결과 표시
+    const matched=billingRows.filter(r=>r.rate_matched).length;
+    const info=`운임표 자동조회: ${matched}/${billingRows.length}건 매칭`;
+    document.getElementById('rateMatchInfo').textContent=info;
+    document.getElementById('rateMatchInfo').style.color=matched===billingRows.length?'#059669':'#d97706';
+
     const cn=document.getElementById('clientName').value;
     document.getElementById('billTitleMain').textContent=(cn||'화주')+' 월별 운송비 청구서';
     document.getElementById('billClientDisp').value=cn||'';
-
     document.getElementById('initGuide').style.display='none';
     document.getElementById('billingSection').style.display='block';
     document.getElementById('resultCount').textContent=billingRows.length;
+  }
+
+  // ── 시군 추출 (운임표 키 매칭용) ──
+  function extractSigun(addr){
+    if(!addr) return '';
+    // "경기도 성남시 분당구" → "성남" or "분당" 등 시군구 추출
+    const parts=addr.split(/[\s,]+/);
+    const regions=['도','시','군','구'];
+    for(const p of parts){
+      if(p.length>=2 && /[가-힣]/.test(p)){
+        const clean=p.replace(/[도시군구특별광역자치]+$/,'');
+        if(clean.length>=2) return p; // 원본 형태 유지
+      }
+    }
+    return '';
   }
 
   // ── 테이블 렌더 ──
@@ -452,16 +594,22 @@
       const cTot=r.carrier_base+r.carrier_add;
       const kTot=r.client_base+r.client_add;
       const diff=kTot-cTot;
-      return `<tr>
+      // 운임 매칭 상태 표시
+      const matchDot=r.rate_matched
+        ? `<span title="${r.rate_info}" style="color:#059669;font-size:10px;">✔</span>`
+        : `<span title="운임표 미매칭 - 직접 입력" style="color:#d97706;font-size:10px;">⚠</span>`;
+      return `<tr id="brow${i}">
         <td>${r.no}</td>
         <td>${r.delivery_date}</td>
         <td style="font-weight:700;color:#4facfe;white-space:nowrap;text-align:left;padding-left:6px;">${r.order_no}</td>
         <td><input value="${r.origin}" onchange="upd(${i},'origin',this.value)"></td>
-        <td style="text-align:left;"><input value="${r.origin_name}" onchange="upd(${i},'origin_name',this.value)"></td>
-        <td><input value="${r.district}" onchange="upd(${i},'district',this.value)"></td>
+        <td style="text-align:left;"><input value="${r.origin_name||''}" onchange="upd(${i},'origin_name',this.value)"></td>
+        <td title="${r.rate_info||''}">
+          ${matchDot}<input value="${r.district}" onchange="updDistrict(${i},this.value)" style="width:calc(100% - 14px);">
+        </td>
         <td style="text-align:left;"><input value="${r.dest_name}" onchange="upd(${i},'dest_name',this.value)"></td>
         <td><input value="${r.content}" onchange="upd(${i},'content',this.value)"></td>
-        <td><input value="${r.vehicle_type}" onchange="upd(${i},'vehicle_type',this.value)"></td>
+        <td><input value="${r.vehicle_type}" onchange="updVehicle(${i},this.value)"></td>
         <td class="td-carrier"><input class="num-inp" type="text" value="${r.carrier_base.toLocaleString()}" onchange="updFee(${i},'carrier_base',this.value)"></td>
         <td class="td-carrier"><input class="num-inp" type="text" value="${r.carrier_add.toLocaleString()}"  onchange="updFee(${i},'carrier_add',this.value)"></td>
         <td class="td-client"><input  class="num-inp" type="text" value="${r.client_base.toLocaleString()}"  onchange="updFee(${i},'client_base',this.value)"></td>
@@ -473,6 +621,52 @@
         <td><input value="${r.note}" onchange="upd(${i},'note',this.value)"></td>
       </tr>`;
     }).join('')+makeTotalRow();
+  }
+
+  // 도착지 변경 → 운임 자동조회
+  function updDistrict(i, val){
+    billingRows[i].district=val;
+    const found=autoCalcRow(i);
+    if(found){
+      // 운임 입력값 갱신
+      const tr=document.getElementById('brow'+i);
+      if(tr){
+        const inputs=tr.querySelectorAll('.num-inp');
+        inputs[0].value=billingRows[i].carrier_base.toLocaleString();
+        inputs[2].value=billingRows[i].client_base.toLocaleString();
+      }
+      refreshRowTotals(i);
+    }
+  }
+
+  // 차종 변경 → 운임 자동조회
+  function updVehicle(i, val){
+    billingRows[i].vehicle_type=val;
+    const found=autoCalcRow(i);
+    if(found){
+      const tr=document.getElementById('brow'+i);
+      if(tr){
+        const inputs=tr.querySelectorAll('.num-inp');
+        inputs[0].value=billingRows[i].carrier_base.toLocaleString();
+        inputs[2].value=billingRows[i].client_base.toLocaleString();
+      }
+      refreshRowTotals(i);
+    }
+  }
+
+  // 합계 셀 갱신
+  function refreshRowTotals(i){
+    const r=billingRows[i];
+    const cTot=r.carrier_base+r.carrier_add;
+    const kTot=r.client_base+r.client_add;
+    const diff=kTot-cTot;
+    document.getElementById('cTot'+i).textContent=cTot.toLocaleString();
+    document.getElementById('kTot'+i).textContent=kTot.toLocaleString();
+    const de=document.getElementById('diff'+i);
+    de.textContent=diff.toLocaleString();
+    de.style.color=diff>=0?'#2f855a':'#c53030';
+    document.querySelector('.total-row').outerHTML=makeTotalRow();
+    updateSummary();
   }
 
   function makeTotalRow(){
@@ -496,18 +690,7 @@
 
   function updFee(i,field,val){
     billingRows[i][field]=parseInt(val.replace(/[^0-9]/g,''))||0;
-    const r=billingRows[i];
-    const cTot=r.carrier_base+r.carrier_add;
-    const kTot=r.client_base+r.client_add;
-    const diff=kTot-cTot;
-    document.getElementById('cTot'+i).textContent=cTot.toLocaleString();
-    document.getElementById('kTot'+i).textContent=kTot.toLocaleString();
-    const de=document.getElementById('diff'+i);
-    de.textContent=diff.toLocaleString();
-    de.style.color=diff>=0?'#2f855a':'#c53030';
-    // 합계행 재생성
-    document.querySelector('.total-row').outerHTML=makeTotalRow();
-    updateSummary();
+    refreshRowTotals(i);
   }
 
   function updateSummary(){
