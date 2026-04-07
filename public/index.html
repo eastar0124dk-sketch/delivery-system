@@ -231,14 +231,6 @@
         html += makeCards(c.staffMenus);
         html += '</div>';
 
-        html += makeSectionLabel('🔵 관리자 전용 메뉴');
-        html += '<div class="cards">';
-        html += `<div class="login-card admin-card span2" onclick="openLogin('admin')">
-                   <span class="icon"><i class="fas fa-user-shield"></i></span>
-                   <h2>관리자 로그인</h2>
-                   <p>오더관리 · 조회출력 · 운송청구서 접근</p>
-                 </div>`;
-        html += '</div>';
 
       } else if (role === 'admin') {
         /* ────────────────────────────────────────
