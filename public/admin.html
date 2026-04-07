@@ -198,7 +198,7 @@
           <select id="transport_type" class="req-field" onchange="onTransportTypeChange(this.value)">
             <option value="">-- 선택 --</option>
             <option value="출고">📦 출고</option>
-            <option value="회수">🔄 회수</option>
+            <option value="입고">🔄 입고</option>
             <option value="이동">🚛 이동</option>
             <option value="기타">📋 기타</option>
           </select>
@@ -422,7 +422,7 @@
         <select id="edit_transport_type" style="padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;">
           <option value="">-- 선택 --</option>
           <option value="출고">📦 출고</option>
-          <option value="회수">🔄 회수</option>
+          <option value="입고">🔄 입고</option>
           <option value="이동">🚛 이동</option>
           <option value="기타">📋 기타</option>
         </select>
@@ -760,8 +760,8 @@
     const addrEl       = document.getElementById('customer_address');
     const companyEl    = document.getElementById('customer_company');
 
-    if(val === '회수') {
-      // 도착지 = 김포 ACT 자동 입력
+    if(val === '입고') {
+      // 입고: 도착지 = 김포 ACT 자동 입력
       destSidoEl.value = '경기도';
       populateSigun('dest_sigun', '경기도', '김포');
       addrEl.value = ACT_ADDRESS;

@@ -279,7 +279,7 @@
             <th class="th-base" rowspan="2" style="min-width:120px;">DN No.</th>
             <th class="th-base" rowspan="2" style="min-width:72px;">출발지</th>
             <th class="th-base" rowspan="2" style="min-width:100px;">출발지 상호</th>
-            <th class="th-base" rowspan="2" style="min-width:80px;">도착지<br>(구/군)</th>
+            <th class="th-base" rowspan="2" style="min-width:80px;">도착지</th>
             <th class="th-base" rowspan="2" style="min-width:110px;">도착지 상호</th>
             <th class="th-base" rowspan="2" style="min-width:90px;">내용</th>
             <th class="th-base" rowspan="2" style="min-width:60px;">차종</th>
@@ -545,18 +545,31 @@
 
       // ── 출발지 / 도착지 표시 ──────────────────────────────────────
       let originDisplay='', originNameDisplay='', destNameDisplay='';
-      if(tt==='회수'){
-        // 회수: 출발지=픽업 시군구, 도착지=김포/ACT
-        originDisplay=billingDistrict||r.origin||'';
+      if(tt==='회수'||tt==='입고'){
+        // 회수(입고): 출발지=픽업 시군구, 도착지=김포/ACT
+        originDisplay=billingDistrict||r.origin_sigun||extractSigun(r.origin_address||'')||r.origin||'';
         originNameDisplay=r.customer_company||'';
         destNameDisplay='ACT';
       } else {
         // 출고/이동/기타
-        originDisplay=r.origin||'';
-        // 출발지가 ACT(김포)면 → 출발지 상호=ACT
-        originNameDisplay=(r.origin==='ACT')?'ACT':(r.origin_address||'');
+        // 출발지 상호=ACT이면 → 출발지(구/군)=김포 고정
+        const isActOrigin=(r.origin==='ACT'||(r.origin||'').toUpperCase()==='ACT');
+        originNameDisplay=isActOrigin?'ACT':(r.origin_address||r.origin||'');
+        originDisplay=isActOrigin?'김포':(r.origin_sigun||extractSigun(r.origin_address||'')||r.origin||'');
         destNameDisplay=r.customer_company||'';
       }
+
+      // ── 내용 자동결정: 출발지상호=ACT→출고 / 도착지상호=ACT→입고 / 둘다아니면→이동
+      let contentDisplay='';
+      if(originNameDisplay==='ACT'){
+        contentDisplay='출고';
+      } else if(destNameDisplay==='ACT'){
+        contentDisplay='입고';
+      } else {
+        contentDisplay='이동';
+      }
+      // DB에 기타가 저장된 경우 유지
+      if(tt&&tt!=='출고'&&tt!=='회수'&&tt!=='이동'&&tt!=='입고') contentDisplay=tt;
 
       const found=lookupRate(billingDistrict, vt);
       return {
@@ -567,7 +580,7 @@
         origin_name:   originNameDisplay,
         district:      billingDistrict,
         dest_name:     destNameDisplay,
-        content:       tt||r.product_name||'',
+        content:       contentDisplay,
         vehicle_type:  vt,
         carrier_base:  found?found.carrier:0,
         carrier_add:   addC,
@@ -597,19 +610,22 @@
     document.getElementById('resultCount').textContent=billingRows.length;
   }
 
-  // ── 시군 추출 (운임표 키 매칭용) ──
+  // ── 시군구 추출 (시도 제외, 시/군/구 단위 반환) ──
+  // 예) "경기도 광명시 학온동" → "광명시"
+  // 예) "서울특별시 종로구 청진동" → "종로구"
   function extractSigun(addr){
     if(!addr) return '';
-    // "경기도 성남시 분당구" → "성남" or "분당" 등 시군구 추출
-    const parts=addr.split(/[\s,]+/);
-    const regions=['도','시','군','구'];
-    for(const p of parts){
-      if(p.length>=2 && /[가-힣]/.test(p)){
-        const clean=p.replace(/[도시군구특별광역자치]+$/,'');
-        if(clean.length>=2) return p; // 원본 형태 유지
-      }
+    const parts=addr.trim().split(/[\s,]+/).filter(Boolean);
+    if(!parts.length) return '';
+    // 시도 판별: 도/특별시/광역시/특별자치시 로 끝나는 첫 파트 skip
+    let start=0;
+    if(/도$|특별시$|광역시$|특별자치시$|특별자치도$/.test(parts[0])) start=1;
+    // 시/군/구 로 끝나는 파트 반환 (suffix 포함)
+    for(let i=start;i<parts.length;i++){
+      if(/[시군구]$/.test(parts[i])&&parts[i].length>=2) return parts[i];
     }
-    return '';
+    // fallback: 두 번째 파트 반환
+    return parts[start]||parts[0]||'';
   }
 
   // ── 테이블 렌더 ──
@@ -738,7 +754,7 @@
 
     // ── 청구서작성 시트 ──
     const h1=['','','','','','','','','','운송사 운임','','화주 청구 운임','','','','','',''];
-    const h2=['No.','차량사용일','DN No.','출발지','출발지 상호','도착지(구/군)','도착지 상호','내용','차종','기본운임','추가비용','기본운임','추가비용','운송사 합계','화주 합계','차액(화주-운송)','Q\'ty','비고'];
+    const h2=['No.','차량사용일','DN No.','출발지','출발지 상호','도착지','도착지 상호','내용','차종','기본운임','추가비용','기본운임','추가비용','운송사 합계','화주 합계','차액(화주-운송)','Q\'ty','비고'];
     const rows=billingRows.map((r,i)=>[
       i+1, r.delivery_date, r.order_no, r.origin, r.origin_name,
       r.district, r.dest_name, r.content, r.vehicle_type,
