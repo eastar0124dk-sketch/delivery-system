@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>운송 청구서</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;}
+    .topbar{background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(240,147,251,.4);position:sticky;top:0;z-index:200;}
+    .topbar .left{display:flex;align-items:center;gap:10px;}
+    .topbar a{color:#fff;text-decoration:none;opacity:.85;font-size:13px;font-weight:600;}
+    .topbar h1{font-size:17px;font-weight:700;}
+    .wrap{max-width:1200px;margin:0 auto;padding:20px 14px 60px;}
+    .card{background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.07);padding:20px;margin-bottom:16px;}
+    .card-title{font-size:14px;font-weight:700;color:#2d3748;display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:2px solid #f0f4f8;margin-bottom:16px;}
+    .card-title i{color:#f5576c;}
+    .btn{padding:9px 18px;border:none;border-radius:9px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
+    .btn-primary{background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(245,87,108,.35);}
+    .btn-secondary{background:#e2e8f0;color:#4a5568;}
+    .btn-green{background:linear-gradient(135deg,#21d07a,#1a9c5b);color:#fff;}
+    .btn-green:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(33,208,122,.35);}
+    .btn-blue{background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;}
+    .btn-sm{padding:6px 12px;font-size:12px;border-radius:7px;}
+    /* 로그인 */
+    .login-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;}
+    .login-overlay.show{display:flex;}
+    .login-box{background:#fff;border-radius:20px;padding:36px 32px;width:100%;max-width:360px;text-align:center;}
+    .login-box h2{font-size:20px;font-weight:700;margin-bottom:6px;color:#2d3748;}
+    .login-box p{font-size:13px;color:#718096;margin-bottom:24px;}
+    .login-box input{width:100%;padding:13px 16px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:15px;font-family:inherit;margin-bottom:12px;text-align:center;letter-spacing:3px;}
+    .login-box input:focus{outline:none;border-color:#f5576c;}
+    .login-error{color:#e53e3e;font-size:13px;margin-bottom:10px;display:none;}
+    /* 검색 패널 */
+    .filter-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
+    .fg{display:flex;flex-direction:column;gap:5px;}
+    .fg label{font-size:11px;font-weight:600;color:#718096;}
+    .fg input,.fg select{padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;font-family:inherit;background:#fafafa;}
+    .fg input:focus,.fg select:focus{outline:none;border-color:#f5576c;background:#fff;}
+    /* 단가 설정 */
+    .rate-table{width:100%;border-collapse:collapse;font-size:13px;}
+    .rate-table th{background:#f7fafc;color:#4a5568;font-weight:600;padding:8px 10px;border:1px solid #e2e8f0;text-align:center;}
+    .rate-table td{padding:6px 8px;border:1px solid #e2e8f0;text-align:center;}
+    .rate-table input{width:100%;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;text-align:right;font-family:inherit;}
+    .rate-table input:focus{outline:none;border-color:#f5576c;}
+    /* 청구 테이블 */
+    .billing-wrap{overflow-x:auto;}
+    .billing-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1100px;}
+    .billing-table th{background:#2d3748;color:#fff;padding:8px 6px;border:1px solid #4a5568;text-align:center;white-space:nowrap;}
+    .billing-table th.carrier-hd{background:#553c9a;}
+    .billing-table th.client-hd{background:#1a6635;}
+    .billing-table td{padding:5px 6px;border:1px solid #e2e8f0;text-align:center;vertical-align:middle;}
+    .billing-table td.carrier-cell{background:#f8f4ff;}
+    .billing-table td.client-cell{background:#f0fff4;}
+    .billing-table td.diff-cell{background:#fffbeb;}
+    .billing-table tr:hover td{filter:brightness(.97);}
+    .billing-table td input,.billing-table td select{width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:12px;text-align:center;font-family:inherit;background:transparent;}
+    .billing-table td input:focus,.billing-table td select:focus{outline:none;border-color:#f5576c;background:#fff;}
+    .billing-table .total-row td{background:#2d3748;color:#fff;font-weight:700;}
+    .billing-table .total-row td.carrier-cell{background:#553c9a;}
+    .billing-table .total-row td.client-cell{background:#1a6635;}
+    .billing-table .total-row td.diff-cell{background:#744210;}
+    /* 요약 */
+    .summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+    @media(max-width:600px){.summary-grid{grid-template-columns:1fr;}}
+    .sum-card{border-radius:12px;padding:16px;text-align:center;}
+    .sum-card.carrier{background:linear-gradient(135deg,#553c9a,#6b46c1);color:#fff;}
+    .sum-card.client{background:linear-gradient(135deg,#1a6635,#2f855a);color:#fff;}
+    .sum-card.diff{background:linear-gradient(135deg,#744210,#d97706);color:#fff;}
+    .sum-card .num{font-size:22px;font-weight:900;margin-bottom:3px;}
+    .sum-card .lbl{font-size:11px;opacity:.8;}
+    /* 헤더 그룹 */
+    .grp-carrier{color:#9f7aea;font-weight:700;}
+    .grp-client{color:#68d391;font-weight:700;}
+    .no-data{text-align:center;padding:40px;color:#a0aec0;}
+    .no-data i{font-size:36px;display:block;margin-bottom:8px;}
+    .action-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .result-info{font-size:13px;color:#4a5568;font-weight:600;}
+    .result-info span{color:#f5576c;font-size:16px;font-weight:900;}
+    /* 인쇄 */
+    @media print{
+      .topbar,.filter-card,.rate-card,.action-bar,.login-overlay{display:none!important;}
+      .wrap{padding:0;}
+      .card{box-shadow:none;border:1px solid #ccc;}
+    }
+  </style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div class="login-overlay show" id="loginModal">
+  <div class="login-box">
+    <div style="font-size:40px;margin-bottom:12px;">💰</div>
+    <h2>관리자 로그인</h2>
+    <p>운송청구 메뉴는 관리자 전용입니다</p>
+    <p class="login-error" id="loginError">비밀번호가 틀렸습니다.</p>
+    <input type="password" id="loginPw" placeholder="비밀번호" maxlength="30" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:15px;" onclick="doLogin()">
+      <i class="fas fa-sign-in-alt"></i> 로그인
+    </button>
+  </div>
+</div>
+
+<div class="topbar">
+  <div class="left">
+    <a href="index.html"><i class="fas fa-arrow-left"></i></a>
+    <h1><i class="fas fa-file-invoice-dollar"></i> 운송 청구서</h1>
+    <span id="clientLabel" style="font-size:11px;background:rgba(255,255,255,.2);padding:3px 10px;border-radius:10px;font-weight:600;"></span>
+  </div>
+  <a href="admin.html">오더관리</a>
+</div>
+
+<div class="wrap" id="mainWrap" style="display:none;">
+
+  <!-- 기간 및 청구 정보 -->
+  <div class="card filter-card">
+    <div class="card-title"><i class="fas fa-calendar-alt"></i> 청구 기간 설정</div>
+    <div class="filter-row">
+      <div class="fg">
+        <label>청구 기간 (시작)</label>
+        <input type="date" id="dateFrom">
+      </div>
+      <div style="padding-top:22px;color:#a0aec0;font-size:13px;">~</div>
+      <div class="fg">
+        <label>청구 기간 (종료)</label>
+        <input type="date" id="dateTo">
+      </div>
+      <div class="fg">
+        <label>청구처</label>
+        <input type="text" id="clientName" placeholder="예: 메틀러토레도" style="min-width:160px;">
+      </div>
+      <div class="fg">
+        <label>운송업체</label>
+        <input type="text" id="carrierName" placeholder="예: (주)한진물류" style="min-width:150px;">
+      </div>
+      <div style="padding-top:22px;">
+        <button class="btn btn-primary" onclick="loadBilling()"><i class="fas fa-search"></i> 데이터 조회</button>
+      </div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+      <span style="font-size:11px;color:#718096;align-self:center;">빠른 선택:</span>
+      <button class="btn btn-secondary btn-sm" onclick="setQuick('thismonth')">이번달</button>
+      <button class="btn btn-secondary btn-sm" onclick="setQuick('lastmonth')">지난달</button>
+      <button class="btn btn-secondary btn-sm" onclick="setQuick('week')">이번주</button>
+    </div>
+  </div>
+
+  <!-- 차종별 운임 단가 설정 -->
+  <div class="card rate-card">
+    <div class="card-title" style="cursor:pointer;" onclick="toggleRatePanel()">
+      <i class="fas fa-cog"></i> 차종별 운임 단가 설정
+      <span style="margin-left:auto;font-size:11px;color:#a0aec0;" id="rateToggleHint">▼ 펼치기</span>
+    </div>
+    <div id="ratePanel" style="display:none;">
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">차종별 기본 운임을 설정하면 조회 시 자동 적용됩니다. 개별 행에서 수동 수정도 가능합니다.</p>
+      <table class="rate-table" id="rateTable">
+        <thead>
+          <tr>
+            <th style="width:120px;">차종</th>
+            <th class="grp-carrier" style="width:130px;">기본운임 (운송사)</th>
+            <th class="grp-client" style="width:130px;">기본운임 (화주청구)</th>
+            <th style="width:80px;">관리</th>
+          </tr>
+        </thead>
+        <tbody id="rateTbody"></tbody>
+      </table>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+        <input type="text" id="newVehicle" placeholder="차종 입력 (예: 1톤)" style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;width:160px;">
+        <button class="btn btn-secondary btn-sm" onclick="addRateRow()"><i class="fas fa-plus"></i> 차종 추가</button>
+        <button class="btn btn-primary btn-sm" onclick="saveRates()"><i class="fas fa-save"></i> 단가 저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 요약 통계 -->
+  <div id="summarySection" style="display:none;margin-bottom:16px;">
+    <div class="summary-grid">
+      <div class="sum-card carrier">
+        <div class="num" id="sumCarrier">0</div>
+        <div class="lbl">운송사 합계 (원)</div>
+      </div>
+      <div class="sum-card client">
+        <div class="num" id="sumClient">0</div>
+        <div class="lbl">화주 청구 합계 (원)</div>
+      </div>
+      <div class="sum-card diff">
+        <div class="num" id="sumDiff">0</div>
+        <div class="lbl">차액 (화주 - 운송사)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 액션 바 -->
+  <div id="actionBar" style="display:none;" class="card" style="padding:12px 20px;">
+    <div class="action-bar" style="padding:0;">
+      <div class="result-info">조회 결과 <span id="resultCount">0</span>건</div>
+      <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-blue btn-sm" onclick="window.print()"><i class="fas fa-print"></i> 인쇄</button>
+        <button class="btn btn-green btn-sm" onclick="exportExcel()"><i class="fas fa-file-excel"></i> 엑셀 다운로드</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 청구 테이블 -->
+  <div class="card" id="billingCard" style="display:none;">
+    <div class="card-title"><i class="fas fa-table"></i> 청구서 내역</div>
+    <div class="billing-wrap">
+      <table class="billing-table">
+        <thead>
+          <tr>
+            <th rowspan="2">No.</th>
+            <th rowspan="2">배송일자</th>
+            <th rowspan="2">DN No.</th>
+            <th rowspan="2">방향</th>
+            <th rowspan="2">출발지</th>
+            <th rowspan="2">운송업체</th>
+            <th rowspan="2">차종</th>
+            <th rowspan="2">수량</th>
+            <th colspan="3" class="carrier-hd">운송사 작업비</th>
+            <th colspan="3" class="client-hd">화주 청구금액</th>
+            <th rowspan="2" class="diff-cell" style="background:#744210;">차액</th>
+            <th rowspan="2">비고</th>
+          </tr>
+          <tr>
+            <th class="carrier-hd">기본운임</th>
+            <th class="carrier-hd">추가운임</th>
+            <th class="carrier-hd">합계</th>
+            <th class="client-hd">기본</th>
+            <th class="client-hd">추가</th>
+            <th class="client-hd">합계</th>
+          </tr>
+        </thead>
+        <tbody id="billingTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 초기 안내 -->
+  <div class="card" id="initGuide">
+    <div class="no-data">
+      <i class="fas fa-file-invoice-dollar"></i>
+      <p><strong>청구 기간을 설정하고 데이터를 조회하세요</strong></p>
+      <p style="font-size:12px;margin-top:8px;color:#a0aec0;">배송 완료 데이터를 기반으로 운송청구서를 작성합니다</p>
+    </div>
+  </div>
+</div>
+
+<!-- SheetJS CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+  // 화주 표시
+  (function(){
+    const CNAMES={mettler:'메틀러토레도',canon:'캐논메디칼시스템즈'};
+    const c=localStorage.getItem('selectedClient');
+    const el=document.getElementById('clientLabel');
+    if(c&&CNAMES[c]&&el) el.textContent=CNAMES[c];
+    // 청구처 기본값
+    const cn=document.getElementById('clientName');
+    if(cn&&c&&CNAMES[c]) cn.value=CNAMES[c];
+  })();
+
+  let adminToken = sessionStorage.getItem('adminToken')||'';
+  let billingRows = [];   // 현재 표시 중인 청구 행 데이터
+  let rates = {};         // { 차종: { carrier: 숫자, client: 숫자 } }
+
+  // ── 로그인 ──
+  async function doLogin() {
+    const pw = document.getElementById('loginPw').value;
+    const res = await fetch('/api/auth', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw})});
+    const data = await res.json();
+    if(res.ok) {
+      adminToken = data.token;
+      sessionStorage.setItem('adminToken', adminToken);
+      document.getElementById('loginModal').classList.remove('show');
+      initApp();
+    } else {
+      document.getElementById('loginError').style.display='block';
+      document.getElementById('loginPw').value='';
+    }
+  }
+
+  async function checkAuth() {
+    if(!adminToken) return;
+    const res = await fetch('/api/auth/check', {headers:{'Authorization':`Bearer ${adminToken}`}});
+    if(res.ok) { document.getElementById('loginModal').classList.remove('show'); initApp(); }
+    else { sessionStorage.removeItem('adminToken'); adminToken=''; }
+  }
+
+  function authH() { return {'Content-Type':'application/json','Authorization':`Bearer ${adminToken}`}; }
+
+  function initApp() {
+    document.getElementById('mainWrap').style.display='block';
+    loadRates();
+    renderRateTable();
+    // 이번달 기본값
+    setQuick('thismonth');
+  }
+
+  // ── 빠른 날짜 ──
+  function setQuick(type) {
+    const today = new Date(), fmt = d => d.toISOString().slice(0,10);
+    let from, to = fmt(today);
+    if(type==='thismonth') {
+      from = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
+      to   = fmt(new Date(today.getFullYear(), today.getMonth()+1, 0));
+    } else if(type==='lastmonth') {
+      from = fmt(new Date(today.getFullYear(), today.getMonth()-1, 1));
+      to   = fmt(new Date(today.getFullYear(), today.getMonth(), 0));
+    } else if(type==='week') {
+      const d = new Date(today); d.setDate(d.getDate()-d.getDay()+(d.getDay()===0?-6:1));
+      from = fmt(d);
+    }
+    document.getElementById('dateFrom').value = from;
+    document.getElementById('dateTo').value   = to;
+  }
+
+  // ── 단가 설정 ──
+  function loadRates() {
+    try { rates = JSON.parse(localStorage.getItem('billingRates')||'{}'); }
+    catch(e) { rates = {}; }
+    // 기본 차종 초기화
+    const defaults = {'1톤':{carrier:0,client:0},'2.5톤':{carrier:0,client:0},'5톤':{carrier:0,client:0},'11톤':{carrier:0,client:0},'25톤':{carrier:0,client:0}};
+    for(const k in defaults) { if(!rates[k]) rates[k] = defaults[k]; }
+  }
+
+  function saveRates() {
+    // 테이블에서 현재 값 수집
+    document.querySelectorAll('#rateTbody tr').forEach(tr => {
+      const vt = tr.dataset.vehicle;
+      const carrier = parseInt(tr.querySelector('.inp-carrier').value.replace(/,/g,''))||0;
+      const client  = parseInt(tr.querySelector('.inp-client').value.replace(/,/g,''))||0;
+      rates[vt] = {carrier, client};
+    });
+    localStorage.setItem('billingRates', JSON.stringify(rates));
+    alert('단가가 저장되었습니다.');
+  }
+
+  function addRateRow() {
+    const vt = document.getElementById('newVehicle').value.trim();
+    if(!vt) return;
+    if(rates[vt]) { alert('이미 존재하는 차종입니다.'); return; }
+    rates[vt] = {carrier:0, client:0};
+    document.getElementById('newVehicle').value = '';
+    renderRateTable();
+  }
+
+  function removeRateRow(vt) {
+    delete rates[vt];
+    renderRateTable();
+  }
+
+  function renderRateTable() {
+    const tbody = document.getElementById('rateTbody');
+    tbody.innerHTML = Object.keys(rates).map(vt => `
+      <tr data-vehicle="${vt}">
+        <td><strong>${vt}</strong></td>
+        <td><input class="inp-carrier" type="text" value="${(rates[vt].carrier||0).toLocaleString()}" onchange="fmtInput(this)"></td>
+        <td><input class="inp-client" type="text" value="${(rates[vt].client||0).toLocaleString()}" onchange="fmtInput(this)"></td>
+        <td><button class="btn btn-sm" style="background:#fed7d7;color:#c53030;" onclick="removeRateRow('${vt}')"><i class="fas fa-minus"></i></button></td>
+      </tr>
+    `).join('');
+  }
+
+  function toggleRatePanel() {
+    const p = document.getElementById('ratePanel');
+    const h = document.getElementById('rateToggleHint');
+    if(p.style.display==='none') { p.style.display='block'; h.textContent='▲ 접기'; }
+    else { p.style.display='none'; h.textContent='▼ 펼치기'; }
+  }
+
+  function fmtInput(el) {
+    const v = parseInt(el.value.replace(/[^0-9]/g,''))||0;
+    el.value = v.toLocaleString();
+  }
+
+  // ── 데이터 조회 ──
+  async function loadBilling() {
+    const from = document.getElementById('dateFrom').value;
+    const to   = document.getElementById('dateTo').value;
+    if(!from||!to) { alert('청구 기간을 설정해 주세요.'); return; }
+
+    // 단가 최신화
+    document.querySelectorAll('#rateTbody tr').forEach(tr => {
+      const vt = tr.dataset.vehicle;
+      const carrier = parseInt(tr.querySelector('.inp-carrier').value.replace(/,/g,''))||0;
+      const client  = parseInt(tr.querySelector('.inp-client').value.replace(/,/g,''))||0;
+      rates[vt] = {carrier, client};
+    });
+
+    const url = `/api/records?limit=2000&dateFrom=${from}&dateTo=${to}`;
+    const res = await fetch(url, {headers:authH()}).then(r=>r.json()).catch(()=>({data:[]}));
+    const data = res.data||[];
+
+    // billingRows 구성
+    billingRows = data.map((r, i) => {
+      const vt   = r.vehicle_type||'';
+      const rateC= (rates[vt]||{}).carrier||0;
+      const rateK= (rates[vt]||{}).client||0;
+      const addC = parseInt(r.work_fee)||0;
+      const addK = parseInt(r.work_fee)||0;
+      return {
+        no: i+1,
+        id: r.id,
+        delivery_date: r.delivery_date||'',
+        order_no: r.order_no||'',
+        direction: '배송',
+        origin: r.origin||'',
+        carrier: r.driver_name||'',
+        vehicle_type: vt,
+        quantity: r.quantity||'',
+        carrier_base: rateC,
+        carrier_add: addC,
+        client_base: rateK,
+        client_add: addK,
+        note: ''
+      };
+    });
+
+    renderBillingTable();
+    updateSummary();
+
+    document.getElementById('initGuide').style.display='none';
+    document.getElementById('billingCard').style.display='block';
+    document.getElementById('summarySection').style.display='block';
+    document.getElementById('actionBar').style.display='block';
+    document.getElementById('resultCount').textContent=billingRows.length;
+  }
+
+  // ── 청구 테이블 렌더 ──
+  function renderBillingTable() {
+    const tbody = document.getElementById('billingTbody');
+    tbody.innerHTML = billingRows.map((r, i) => {
+      const cTotal = r.carrier_base + r.carrier_add;
+      const kTotal = r.client_base  + r.client_add;
+      const diff   = kTotal - cTotal;
+      return `
+        <tr>
+          <td>${r.no}</td>
+          <td>${r.delivery_date}</td>
+          <td style="font-weight:700;color:#4facfe;white-space:nowrap;">${r.order_no}</td>
+          <td>
+            <select onchange="updateRow(${i},'direction',this.value)" style="width:70px;">
+              <option value="배송" ${r.direction==='배송'?'selected':''}>배송</option>
+              <option value="회수" ${r.direction==='회수'?'selected':''}>회수</option>
+              <option value="이동" ${r.direction==='이동'?'selected':''}>이동</option>
+            </select>
+          </td>
+          <td style="text-align:left;min-width:100px;"><input value="${r.origin}" onchange="updateRow(${i},'origin',this.value)"></td>
+          <td style="min-width:90px;"><input value="${r.carrier}" onchange="updateRow(${i},'carrier',this.value)"></td>
+          <td style="min-width:70px;"><input value="${r.vehicle_type}" onchange="updateRow(${i},'vehicle_type',this.value)"></td>
+          <td>${r.quantity}</td>
+          <td class="carrier-cell"><input type="text" value="${r.carrier_base.toLocaleString()}" onchange="updateFee(${i},'carrier_base',this.value)" style="width:90px;text-align:right;"></td>
+          <td class="carrier-cell"><input type="text" value="${r.carrier_add.toLocaleString()}" onchange="updateFee(${i},'carrier_add',this.value)" style="width:80px;text-align:right;"></td>
+          <td class="carrier-cell" style="font-weight:700;">${cTotal.toLocaleString()}</td>
+          <td class="client-cell"><input type="text" value="${r.client_base.toLocaleString()}" onchange="updateFee(${i},'client_base',this.value)" style="width:90px;text-align:right;"></td>
+          <td class="client-cell"><input type="text" value="${r.client_add.toLocaleString()}" onchange="updateFee(${i},'client_add',this.value)" style="width:80px;text-align:right;"></td>
+          <td class="client-cell" style="font-weight:700;">${kTotal.toLocaleString()}</td>
+          <td class="diff-cell" style="font-weight:700;color:${diff>=0?'#2f855a':'#c53030'};">${diff.toLocaleString()}</td>
+          <td><input value="${r.note}" onchange="updateRow(${i},'note',this.value)" style="min-width:80px;"></td>
+        </tr>`;
+    }).join('') + totalRow();
+  }
+
+  function totalRow() {
+    let cBase=0, cAdd=0, cTot=0, kBase=0, kAdd=0, kTot=0, diff=0;
+    billingRows.forEach(r => {
+      cBase += r.carrier_base; cAdd += r.carrier_add; cTot += r.carrier_base+r.carrier_add;
+      kBase += r.client_base;  kAdd += r.client_add;  kTot += r.client_base+r.client_add;
+      diff  += (r.client_base+r.client_add)-(r.carrier_base+r.carrier_add);
+    });
+    return `<tr class="total-row">
+      <td colspan="8" style="text-align:right;background:#2d3748;">합 계</td>
+      <td class="carrier-cell">${cBase.toLocaleString()}</td>
+      <td class="carrier-cell">${cAdd.toLocaleString()}</td>
+      <td class="carrier-cell">${cTot.toLocaleString()}</td>
+      <td class="client-cell">${kBase.toLocaleString()}</td>
+      <td class="client-cell">${kAdd.toLocaleString()}</td>
+      <td class="client-cell">${kTot.toLocaleString()}</td>
+      <td class="diff-cell">${diff.toLocaleString()}</td>
+      <td style="background:#2d3748;"></td>
+    </tr>`;
+  }
+
+  function updateRow(i, field, val) {
+    billingRows[i][field] = val;
+  }
+
+  function updateFee(i, field, val) {
+    billingRows[i][field] = parseInt(val.replace(/[^0-9]/g,''))||0;
+    updateSummary();
+    // 합계 셀 실시간 갱신
+    const row = document.querySelectorAll('#billingTbody tr')[i];
+    if(!row) return;
+    const r = billingRows[i];
+    const cTot = r.carrier_base + r.carrier_add;
+    const kTot = r.client_base  + r.client_add;
+    const diff = kTot - cTot;
+    row.cells[10].textContent = cTot.toLocaleString();
+    row.cells[13].textContent = kTot.toLocaleString();
+    row.cells[14].textContent = diff.toLocaleString();
+    row.cells[14].style.color = diff>=0?'#2f855a':'#c53030';
+    // 합계 행 재렌더
+    const lastRow = document.querySelector('#billingTbody tr:last-child');
+    if(lastRow) lastRow.outerHTML = totalRow();
+  }
+
+  function updateSummary() {
+    let cTot=0, kTot=0;
+    billingRows.forEach(r => {
+      cTot += r.carrier_base + r.carrier_add;
+      kTot += r.client_base  + r.client_add;
+    });
+    document.getElementById('sumCarrier').textContent = cTot.toLocaleString()+'원';
+    document.getElementById('sumClient').textContent  = kTot.toLocaleString()+'원';
+    document.getElementById('sumDiff').textContent    = (kTot-cTot).toLocaleString()+'원';
+  }
+
+  // ── 엑셀 다운로드 ──
+  function exportExcel() {
+    const from = document.getElementById('dateFrom').value;
+    const to   = document.getElementById('dateTo').value;
+    const clientNm = document.getElementById('clientName').value||'화주';
+    const carrierNm = document.getElementById('carrierName').value||'운송사';
+
+    const wb = XLSX.utils.book_new();
+
+    // ─ 청구서작성 시트 ─
+    const header1 = ['', '', '', '', '', '', '', '',
+      '운송사 작업비', '', '', '화주 청구금액', '', '', '', ''];
+    const header2 = ['No.', '배송일자', 'DN No.', '방향', '출발지', '운송업체', '차종', '수량',
+      '기본운임', '추가운임', '합계', '기본', '추가', '합계', '차액', '비고'];
+
+    const rows = billingRows.map((r,i) => [
+      i+1,
+      r.delivery_date,
+      r.order_no,
+      r.direction,
+      r.origin,
+      r.carrier,
+      r.vehicle_type,
+      r.quantity,
+      r.carrier_base,
+      r.carrier_add,
+      r.carrier_base+r.carrier_add,
+      r.client_base,
+      r.client_add,
+      r.client_base+r.client_add,
+      (r.client_base+r.client_add)-(r.carrier_base+r.carrier_add),
+      r.note
+    ]);
+
+    // 합계 행
+    const totC = billingRows.reduce((s,r)=>s+r.carrier_base+r.carrier_add,0);
+    const totK = billingRows.reduce((s,r)=>s+r.client_base+r.client_add,0);
+    const totBase= billingRows.reduce((s,r)=>s+r.carrier_base,0);
+    const totAdd = billingRows.reduce((s,r)=>s+r.carrier_add,0);
+    const totKBase=billingRows.reduce((s,r)=>s+r.client_base,0);
+    const totKAdd= billingRows.reduce((s,r)=>s+r.client_add,0);
+    rows.push(['합계','','','','','','','', totBase, totAdd, totC, totKBase, totKAdd, totK, totK-totC,'']);
+
+    const sheetData = [
+      [`청구 기간: ${from} ~ ${to}    청구처: ${clientNm}    운송업체: ${carrierNm}`],
+      [],
+      header1,
+      header2,
+      ...rows
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+    // 컬럼 너비
+    ws['!cols'] = [
+      {wch:5},{wch:12},{wch:18},{wch:6},{wch:16},{wch:16},{wch:8},{wch:6},
+      {wch:12},{wch:10},{wch:12},{wch:12},{wch:10},{wch:12},{wch:12},{wch:14}
+    ];
+
+    // 병합 셀
+    ws['!merges'] = [
+      {s:{r:2,c:8},e:{r:2,c:10}},  // 운송사 작업비
+      {s:{r:2,c:11},e:{r:2,c:13}}, // 화주 청구금액
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, '청구서작성');
+
+    // ─ 명세표 시트 (간단) ─
+    const ws2Data = [
+      [`운송비 명세표  (${from} ~ ${to})`],
+      [],
+      ['No.', 'DN No.', '배송일자', '출발지', '차종', '운송사합계', '화주청구', '차액', '비고'],
+      ...billingRows.map((r,i)=>[
+        i+1, r.order_no, r.delivery_date, r.origin, r.vehicle_type,
+        r.carrier_base+r.carrier_add,
+        r.client_base+r.client_add,
+        (r.client_base+r.client_add)-(r.carrier_base+r.carrier_add),
+        r.note
+      ]),
+      ['합계','','','','', totC, totK, totK-totC,'']
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+    ws2['!cols'] = [{wch:5},{wch:18},{wch:12},{wch:16},{wch:8},{wch:12},{wch:12},{wch:12},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws2, '명세표');
+
+    const fname = `운송청구서_${clientNm}_${from}_${to}.xlsx`;
+    XLSX.writeFile(wb, fname);
+  }
+
+  // ── 초기화 ──
+  checkAuth();
+</script>
+</body>
+</html>

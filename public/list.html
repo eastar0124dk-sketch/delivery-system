@@ -286,14 +286,14 @@
   async function loadAll() {
     const res=await fetch('/api/records?limit=2000',{headers:authH()}).then(r=>r.json());
     allData=(res.data||[]);
-    updateStats();
   }
 
-  function updateStats(){
-    const s=allData.filter(d=>d.status==='signed').length;
-    document.getElementById('totalCount').textContent=allData.length;
+  function updateStats(data){
+    const arr=data||allData;
+    const s=arr.filter(d=>d.status==='signed').length;
+    document.getElementById('totalCount').textContent=arr.length;
     document.getElementById('signedCount').textContent=s;
-    document.getElementById('draftCount').textContent=allData.length-s;
+    document.getElementById('draftCount').textContent=arr.length-s;
   }
 
   // ── 빠른 날짜 ──
@@ -329,6 +329,7 @@
       return true;
     });
     currentPage=1;
+    updateStats(filtered);
     document.getElementById('initGuide').style.display='none';
     document.getElementById('resultHeader').style.display='flex';
     document.getElementById('mainCard').style.display='block';
@@ -346,6 +347,7 @@
     document.getElementById('resultHeader').style.display='none';
     document.getElementById('mainCard').style.display='none';
     document.getElementById('initGuide').style.display='block';
+    updateStats(allData);
   }
 
   // ── 개인정보 마스킹 ──

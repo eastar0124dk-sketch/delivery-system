@@ -12,21 +12,52 @@
     .sys-title{color:#fff;font-size:22px;font-weight:900;margin-bottom:4px;text-align:center;}
     .sys-sub{color:rgba(255,255,255,.6);font-size:12px;margin-bottom:28px;text-align:center;}
 
-    /* ── 화주 선택 화면 ── */
-    #clientScreen{width:100%;max-width:500px;text-align:center;}
-    .sel-title{color:#fff;font-size:17px;font-weight:700;margin-bottom:4px;}
-    .sel-sub{color:rgba(255,255,255,.55);font-size:12px;margin-bottom:20px;}
-    .client-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:0;}
+    /* ── 공통 화면 ── */
+    .screen{width:100%;max-width:480px;display:none;}
+    #clientScreen{display:block;}
+
+    /* ── 화주 선택 ── */
+    .sel-title{color:#fff;font-size:17px;font-weight:700;margin-bottom:4px;text-align:center;}
+    .sel-sub{color:rgba(255,255,255,.55);font-size:12px;margin-bottom:20px;text-align:center;}
+    .client-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
     @media(max-width:380px){.client-grid{grid-template-columns:1fr;}}
     .client-btn{background:rgba(255,255,255,.08);backdrop-filter:blur(10px);border:1.5px solid rgba(255,255,255,.15);border-radius:18px;padding:22px 14px;text-align:center;cursor:pointer;transition:all .25s;color:#fff;font-family:inherit;}
     .client-btn:hover{background:rgba(255,255,255,.16);transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.3);}
     .client-btn .c-emoji{font-size:30px;display:block;margin-bottom:10px;}
     .client-btn .c-name{font-size:14px;font-weight:700;line-height:1.4;}
 
+    /* ── 로그인 화면 ── */
+    .login-card{background:rgba(255,255,255,.07);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.18);border-radius:24px;padding:32px 28px;text-align:center;}
+    .login-client{display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.1);border-radius:20px;padding:7px 18px;margin-bottom:22px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit;width:auto;display:inline-flex;}
+    .login-client:hover{background:rgba(255,255,255,.18);}
+    /* 역할 탭 */
+    .role-tabs{display:flex;gap:10px;margin-bottom:22px;}
+    .role-tab{flex:1;padding:13px 10px;border-radius:14px;border:2px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:all .22s;display:flex;flex-direction:column;align-items:center;gap:6px;}
+    .role-tab i{font-size:22px;}
+    .role-tab:hover{background:rgba(255,255,255,.13);}
+    .role-tab.active.staff{border-color:#34d399;background:rgba(52,211,153,.18);color:#34d399;}
+    .role-tab.active.admin{border-color:#60a5fa;background:rgba(96,165,250,.18);color:#60a5fa;}
+    /* 비밀번호 입력 */
+    .pw-wrap{margin-bottom:14px;}
+    .pw-label{color:rgba(255,255,255,.65);font-size:12px;font-weight:600;margin-bottom:8px;text-align:left;display:block;}
+    .pw-input{width:100%;padding:13px 16px;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.2);border-radius:12px;font-size:16px;color:#fff;font-family:inherit;text-align:center;letter-spacing:4px;outline:none;transition:border .2s;}
+    .pw-input::placeholder{letter-spacing:0;color:rgba(255,255,255,.35);font-size:13px;}
+    .pw-input:focus{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.15);}
+    .login-error{color:#fc8181;font-size:12px;margin-bottom:10px;display:none;text-align:center;}
+    .login-btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+    .login-btn.staff{background:linear-gradient(135deg,#34d399,#059669);color:#fff;}
+    .login-btn.admin{background:linear-gradient(135deg,#60a5fa,#3b82f6);color:#fff;}
+    .login-btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.3);}
+
     /* ── 메뉴 화면 ── */
-    #menuScreen{display:none;width:100%;max-width:520px;}
-    .client-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:6px 16px;margin-bottom:14px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;border-width:0;font-family:inherit;}
-    .client-badge:hover{background:rgba(255,255,255,.22);}
+    #menuScreen{max-width:520px;}
+    .user-bar{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+    .client-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:20px;padding:5px 14px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;border:none;font-family:inherit;}
+    .client-badge:hover{background:rgba(255,255,255,.2);}
+    .role-badge{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;border:none;font-family:inherit;cursor:pointer;}
+    .role-badge.staff{background:rgba(52,211,153,.2);color:#34d399;border:1px solid rgba(52,211,153,.35);}
+    .role-badge.admin{background:rgba(96,165,250,.2);color:#60a5fa;border:1px solid rgba(96,165,250,.35);}
+    .role-badge:hover{opacity:.8;}
     .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%;}
     @media(max-width:480px){.cards{grid-template-columns:1fr;}}
     .card{background:rgba(255,255,255,.08);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:26px 18px;text-align:center;text-decoration:none;color:#fff;transition:all .25s;}
@@ -44,20 +75,62 @@
   <p class="sys-title">배송 인수증명 시스템</p>
   <p class="sys-sub">디지털 서명 · 실시간 저장 · PDF 출력</p>
 
-  <!-- 화주 선택 화면 -->
-  <div id="clientScreen">
+  <!-- ① 화주 선택 화면 -->
+  <div class="screen" id="clientScreen">
     <p class="sel-title">화주 선택</p>
     <p class="sel-sub">작업할 화주를 선택하세요</p>
     <div class="client-grid" id="clientGrid"></div>
   </div>
 
-  <!-- 메뉴 화면 -->
-  <div id="menuScreen">
-    <div style="text-align:center;margin-bottom:6px;">
-      <button class="client-badge" onclick="changeClient()">
+  <!-- ② 로그인 화면 -->
+  <div class="screen" id="loginScreen">
+    <div class="login-card">
+      <div style="text-align:center;margin-bottom:18px;">
+        <button class="login-client" onclick="backToClient()">
+          <span id="loginEmoji"></span>
+          <span id="loginClientName"></span>
+          <i class="fas fa-exchange-alt" style="font-size:10px;opacity:.6;"></i>
+        </button>
+      </div>
+      <p style="color:rgba(255,255,255,.8);font-size:15px;font-weight:700;margin-bottom:18px;">로그인</p>
+
+      <!-- 역할 선택 탭 -->
+      <div class="role-tabs">
+        <button class="role-tab staff active" id="tabStaff" onclick="selectRole('staff')">
+          <i class="fas fa-hard-hat"></i>
+          직원
+        </button>
+        <button class="role-tab admin" id="tabAdmin" onclick="selectRole('admin')">
+          <i class="fas fa-user-shield"></i>
+          관리자
+        </button>
+      </div>
+
+      <!-- 비밀번호 -->
+      <div class="pw-wrap">
+        <span class="pw-label" id="pwLabel">직원 비밀번호</span>
+        <input type="password" class="pw-input" id="pwInput" placeholder="비밀번호 입력" maxlength="30"
+               onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <p class="login-error" id="loginError">비밀번호가 틀렸습니다.</p>
+      <button class="login-btn staff" id="loginBtn" onclick="doLogin()">
+        <i class="fas fa-sign-in-alt"></i> 로그인
+      </button>
+    </div>
+  </div>
+
+  <!-- ③ 메뉴 화면 -->
+  <div class="screen" id="menuScreen">
+    <div class="user-bar">
+      <button class="client-badge" onclick="backToClient()">
         <span id="badgeEmoji"></span>
         <span id="badgeName"></span>
-        <i class="fas fa-exchange-alt" style="font-size:11px;opacity:.7;"></i>
+        <i class="fas fa-exchange-alt" style="font-size:10px;opacity:.6;"></i>
+      </button>
+      <button class="role-badge" id="roleBadge" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i>
+        <span id="roleBadgeLabel"></span>
+        <span style="font-size:10px;opacity:.65;">(로그아웃)</span>
       </button>
     </div>
     <div class="cards" id="menuCards"></div>
@@ -67,7 +140,8 @@
   <script>
     /* ════════════════════════════════════════
        화주 설정 — 화주 추가 시 여기에만 추가
-       menus 배열로 각 화주별 노출 메뉴 제어 가능
+       staffMenus: 직원 로그인 시 표시
+       adminMenus: 관리자 로그인 시 표시
     ════════════════════════════════════════ */
     const CLIENTS = [
       {
@@ -75,14 +149,16 @@
         name: '메틀러토레도',
         emoji: '⚖️',
         borderColor: 'rgba(96,165,250,.55)',
-        menus: ['sign','admin','carrier','list']
+        staffMenus: ['sign', 'carrier'],
+        adminMenus: ['sign', 'admin', 'carrier', 'list', 'billing']
       },
       {
         id: 'canon',
         name: '캐논메디칼시스템즈',
         emoji: '🏥',
         borderColor: 'rgba(248,113,113,.55)',
-        menus: ['sign','admin','carrier','list']
+        staffMenus: ['sign', 'carrier'],
+        adminMenus: ['sign', 'admin', 'carrier', 'list', 'billing']
       }
       /* 새 화주 추가 예시:
       ,{
@@ -90,19 +166,25 @@
         name: '새 화주명',
         emoji: '🏢',
         borderColor: 'rgba(52,211,153,.55)',
-        menus: ['sign','admin','list']   // carrier 불필요하면 제거
+        staffMenus: ['sign','carrier'],
+        adminMenus: ['sign','admin','carrier','list','billing']
       } */
     ];
 
-    /* 메뉴 정의 — 순서/내용 변경 가능 */
+    /* 메뉴 정의 */
     const MENUS = {
-      sign:    { href:'sign.html',    cls:'',            icon:'fas fa-truck',          iconColor:'#f87171', h2:'배송기사 서명',    p:'DN번호 입력 후<br>기사·수령자 서명' },
-      admin:   { href:'admin.html',   cls:'',            icon:'fas fa-clipboard-list', iconColor:'#60a5fa', h2:'오더 관리',        p:'출고 오더 등록 및<br>기본 정보 수정' },
-      carrier: { href:'carrier.html', cls:'',            icon:'fas fa-clipboard-check',iconColor:'#a78bfa', h2:'운송사 작업입력',  p:'DN번호 입력 후<br>현장 작업내용 등록' },
-      list:    { href:'list.html',    cls:'',            icon:'fas fa-search',         iconColor:'#34d399', h2:'조회 · 출력',      p:'기간 검색 · 건별 조회 · PDF' }
+      sign:    { href:'sign.html',    icon:'fas fa-truck',               iconColor:'#f87171', h2:'배송기사 서명',    p:'DN번호 입력 후<br>기사·수령자 서명' },
+      admin:   { href:'admin.html',   icon:'fas fa-clipboard-list',      iconColor:'#60a5fa', h2:'오더 관리',        p:'출고 오더 등록 및<br>기본 정보 수정' },
+      carrier: { href:'carrier.html', icon:'fas fa-clipboard-check',     iconColor:'#a78bfa', h2:'운송사 작업입력',  p:'DN번호 입력 후<br>현장 작업내용 등록' },
+      list:    { href:'list.html',    icon:'fas fa-search',              iconColor:'#34d399', h2:'조회 · 출력',      p:'기간 검색 · 건별 조회 · PDF' },
+      billing: { href:'billing.html', icon:'fas fa-file-invoice-dollar', iconColor:'#f093fb', h2:'운송 청구서',      p:'기간별 운송비 집계<br>엑셀 청구서 출력' }
     };
 
-    /* ── 렌더링 ── */
+    /* ── 상태 ── */
+    let selectedRole = 'staff';  // 'staff' | 'admin'
+    let selectedClientId = null;
+
+    /* ── 화주 선택 화면 ── */
     function renderClientGrid() {
       document.getElementById('clientGrid').innerHTML = CLIENTS.map(c =>
         `<button class="client-btn" onclick="selectClient('${c.id}')" style="border-color:${c.borderColor};">
@@ -112,16 +194,92 @@
       ).join('');
     }
 
-    function renderMenu(id) {
+    function selectClient(id) {
+      selectedClientId = id;
       const c = CLIENTS.find(c => c.id === id);
-      if (!c) { changeClient(); return; }
+      // 로그인 화면 세팅
+      document.getElementById('loginEmoji').textContent    = c.emoji;
+      document.getElementById('loginClientName').textContent = c.name;
+      selectRole('staff');  // 기본값 직원
+      showScreen('loginScreen');
+    }
+
+    /* ── 역할 탭 ── */
+    function selectRole(role) {
+      selectedRole = role;
+      document.getElementById('tabStaff').className = 'role-tab staff' + (role==='staff'?' active':'');
+      document.getElementById('tabAdmin').className = 'role-tab admin' + (role==='admin'?' active':'');
+      document.getElementById('pwLabel').textContent = role==='staff' ? '직원 비밀번호' : '관리자 비밀번호';
+      document.getElementById('loginBtn').className = `login-btn ${role}`;
+      document.getElementById('loginBtn').innerHTML = `<i class="fas fa-sign-in-alt"></i> ${role==='staff'?'직원':'관리자'} 로그인`;
+      document.getElementById('pwInput').value = '';
+      document.getElementById('loginError').style.display = 'none';
+    }
+
+    /* ── 로그인 ── */
+    async function doLogin() {
+      const pw = document.getElementById('pwInput').value;
+      if(!pw) return;
+      document.getElementById('loginBtn').disabled = true;
+      document.getElementById('loginBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 확인 중...';
+
+      try {
+        const res  = await fetch('/api/auth', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw})});
+        const data = await res.json();
+
+        if(res.ok) {
+          const serverRole = data.role; // 'admin' or 'staff'
+          // 직원 탭 선택 시 admin PW 입력해도 OK (admin이 staff로 로그인 가능)
+          // admin 탭 선택 시 staff PW → 거부
+          if(selectedRole === 'admin' && serverRole !== 'admin') {
+            showLoginError('관리자 비밀번호가 틀렸습니다.');
+            return;
+          }
+          // 토큰 저장
+          if(serverRole === 'admin') {
+            sessionStorage.setItem('adminToken', data.token);
+            sessionStorage.removeItem('staffToken');
+          } else {
+            sessionStorage.setItem('staffToken', data.token);
+            sessionStorage.removeItem('adminToken');
+          }
+          sessionStorage.setItem('userRole', selectedRole === 'admin' ? 'admin' : 'staff');
+          localStorage.setItem('selectedClient', selectedClientId);
+          showMenu(selectedClientId, selectedRole);
+        } else {
+          showLoginError('비밀번호가 틀렸습니다.');
+        }
+      } catch(e) {
+        showLoginError('서버 연결 오류가 발생했습니다.');
+      }
+    }
+
+    function showLoginError(msg) {
+      const err = document.getElementById('loginError');
+      err.textContent = msg;
+      err.style.display = 'block';
+      document.getElementById('loginBtn').disabled = false;
+      selectRole(selectedRole); // 버튼 텍스트 복원
+    }
+
+    /* ── 메뉴 화면 ── */
+    function showMenu(clientId, role) {
+      const c = CLIENTS.find(c => c.id === clientId);
+      if(!c) { backToClient(); return; }
+      const menuKeys = role === 'admin' ? c.adminMenus : c.staffMenus;
+
       document.getElementById('badgeEmoji').textContent = c.emoji;
       document.getElementById('badgeName').textContent  = c.name;
-      const cards = c.menus.map((key, i) => {
+
+      const rb = document.getElementById('roleBadge');
+      const rl = document.getElementById('roleBadgeLabel');
+      rb.className = `role-badge ${role}`;
+      rl.textContent = role === 'admin' ? '관리자' : '직원';
+
+      const cards = menuKeys.map((key, i) => {
         const m = MENUS[key];
-        /* 마지막 메뉴가 홀수 위치면 span2 처리 */
-        const isLast  = i === c.menus.length - 1;
-        const isOdd   = c.menus.length % 2 !== 0;
+        const isLast = i === menuKeys.length - 1;
+        const isOdd  = menuKeys.length % 2 !== 0;
         const spanCls = (isLast && isOdd) ? ' span2' : '';
         return `<a href="${m.href}" class="card${spanCls}">
           <span class="icon" style="color:${m.iconColor};"><i class="${m.icon}"></i></span>
@@ -129,27 +287,65 @@
         </a>`;
       }).join('');
       document.getElementById('menuCards').innerHTML = cards;
+      showScreen('menuScreen');
     }
 
-    function selectClient(id) {
-      localStorage.setItem('selectedClient', id);
-      document.getElementById('clientScreen').style.display = 'none';
-      document.getElementById('menuScreen').style.display   = 'block';
-      renderMenu(id);
-    }
-
-    function changeClient() {
+    /* ── 뒤로 / 로그아웃 ── */
+    function backToClient() {
+      sessionStorage.removeItem('adminToken');
+      sessionStorage.removeItem('staffToken');
+      sessionStorage.removeItem('userRole');
       localStorage.removeItem('selectedClient');
-      document.getElementById('menuScreen').style.display   = 'none';
-      document.getElementById('clientScreen').style.display = 'block';
+      selectedClientId = null;
+      showScreen('clientScreen');
+    }
+
+    function logout() {
+      if(!confirm('로그아웃 하시겠습니까?')) return;
+      sessionStorage.removeItem('adminToken');
+      sessionStorage.removeItem('staffToken');
+      sessionStorage.removeItem('userRole');
+      // 같은 화주로 로그인 화면 다시 표시
+      if(selectedClientId) {
+        selectClient(selectedClientId);
+      } else {
+        backToClient();
+      }
+    }
+
+    /* ── 화면 전환 ── */
+    function showScreen(id) {
+      ['clientScreen','loginScreen','menuScreen'].forEach(s => {
+        document.getElementById(s).style.display = s===id ? 'block' : 'none';
+      });
     }
 
     /* ── 초기화 ── */
     renderClientGrid();
-    const saved = localStorage.getItem('selectedClient');
-    if (saved && CLIENTS.find(c => c.id === saved)) {
-      selectClient(saved);
-    }
+
+    // 이미 로그인 상태 복원
+    (function restoreSession() {
+      const savedClient = localStorage.getItem('selectedClient');
+      const savedRole   = sessionStorage.getItem('userRole');
+      const savedAdmin  = sessionStorage.getItem('adminToken');
+      const savedStaff  = sessionStorage.getItem('staffToken');
+
+      if(savedClient && savedRole && (savedAdmin||savedStaff)) {
+        selectedClientId = savedClient;
+        const c = CLIENTS.find(c => c.id === savedClient);
+        if(c) {
+          // auth check
+          const token = savedAdmin||savedStaff;
+          fetch('/api/auth/check', {headers:{'Authorization':`Bearer ${token}`}})
+            .then(r => {
+              if(r.ok) { showMenu(savedClient, savedRole); }
+              else     { backToClient(); }
+            }).catch(() => backToClient());
+          return;
+        }
+      }
+      showScreen('clientScreen');
+    })();
   </script>
 </body>
 </html>
