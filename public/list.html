@@ -249,7 +249,8 @@
   // 화주 표시
   (function(){ const CNAMES={mettler:'메틀러토레도',canon:'캐논메디칼시스템즈'}; const c=localStorage.getItem('selectedClient'); const el=document.getElementById('clientLabel'); if(c&&CNAMES[c]&&el) el.textContent=CNAMES[c]; })();
 
-  let adminToken = sessionStorage.getItem('adminToken')||'';
+  // index.html에서 로그인한 토큰(admin or staff) 모두 수용
+  let adminToken = sessionStorage.getItem('adminToken') || sessionStorage.getItem('staffToken') || '';
   let allData=[], filtered=[], currentPage=1, showPrivate=false;
   const PER_PAGE=20;
   let currentModalRecord=null;
