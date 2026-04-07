@@ -267,9 +267,23 @@
 
   async function checkAuth() {
     if(!adminToken) return;
-    const res=await fetch('/api/auth/check',{headers:{'Authorization':`Bearer ${adminToken}`}});
-    if(res.ok){ document.getElementById('loginModal').classList.remove('show'); initApp(); }
-    else{ sessionStorage.removeItem('adminToken'); adminToken=''; }
+    // 토큰 있으면 즉시 모달 숨기고 앱 시작 (낙관적 인증)
+    document.getElementById('loginModal').classList.remove('show');
+    initApp();
+    // 백그라운드 토큰 유효성 검증
+    try {
+      const res=await fetch('/api/auth/check',{headers:{'Authorization':`Bearer ${adminToken}`}});
+      if(!res.ok){
+        sessionStorage.removeItem('adminToken');
+        sessionStorage.removeItem('staffToken');
+        sessionStorage.removeItem('userRole');
+        adminToken='';
+        document.getElementById('mainWrap').style.display='none';
+        document.getElementById('loginModal').classList.add('show');
+      }
+    } catch(e) {
+      // 네트워크 오류 시 낙관적으로 허용 유지
+    }
   }
 
   async function initApp() {

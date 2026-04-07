@@ -660,18 +660,25 @@
 
   async function checkAuth() {
     if(!adminToken) return;
+    // 토큰이 있으면 즉시 모달 숨기고 화면 표시 (낙관적 인증)
+    document.getElementById('loginModal').classList.remove('show');
+    document.getElementById('mainWrap').style.display = 'block';
+    applyRoleUI();
+    // 백그라운드에서 토큰 유효성 검증
     try {
       const res = await fetch('/api/auth/check', { headers:{'Authorization':`Bearer ${adminToken}`} });
-      if(res.ok) {
-        document.getElementById('loginModal').classList.remove('show');
-        document.getElementById('mainWrap').style.display='block';
-        applyRoleUI();
-      } else {
+      if(!res.ok) {
+        // 토큰 무효 → 모든 토큰 제거 후 로그인 재요청
         sessionStorage.removeItem('adminToken');
+        sessionStorage.removeItem('staffToken');
         sessionStorage.removeItem('userRole');
         adminToken = ''; userRole = '';
+        document.getElementById('mainWrap').style.display = 'none';
+        document.getElementById('loginModal').classList.add('show');
       }
-    } catch(e) {}
+    } catch(e) {
+      // 네트워크 오류 시 낙관적으로 허용 유지
+    }
   }
 
   function switchTab(tab) {
