@@ -530,19 +530,44 @@
 
     billingRows=data.map((r,i)=>{
       const vt=r.vehicle_type||'';
-      const dist=r.customer_address ? extractSigun(r.customer_address) : '';
+      const tt=r.transport_type||'';
       const addC=parseInt(r.work_fee)||0;
-      // 운임표에서 기본운임 자동조회
-      const found=lookupRate(dist, vt);
+
+      // ── 운임 기준 시군구 결정 ──────────────────────────────────────
+      // 회수: 픽업 위치(출발지 시군구) = 운임 기준
+      // 출고/이동/기타: 도착지 시군구 = 운임 기준
+      let billingDistrict='';
+      if(tt==='회수'){
+        billingDistrict=r.origin_sigun||extractSigun(r.origin_address||'');
+      } else {
+        billingDistrict=r.dest_sigun||extractSigun(r.customer_address||'');
+      }
+
+      // ── 출발지 / 도착지 표시 ──────────────────────────────────────
+      let originDisplay='', originNameDisplay='', destNameDisplay='';
+      if(tt==='회수'){
+        // 회수: 출발지=픽업 시군구, 도착지=김포/ACT
+        originDisplay=billingDistrict||r.origin||'';
+        originNameDisplay=r.customer_company||'';
+        destNameDisplay='ACT';
+      } else {
+        // 출고/이동/기타
+        originDisplay=r.origin||'';
+        // 출발지가 ACT(김포)면 → 출발지 상호=ACT
+        originNameDisplay=(r.origin==='ACT')?'ACT':(r.origin_address||'');
+        destNameDisplay=r.customer_company||'';
+      }
+
+      const found=lookupRate(billingDistrict, vt);
       return {
         no:i+1, id:r.id,
         delivery_date: r.delivery_date||'',
         order_no:      r.order_no||'',
-        origin:        r.origin||'',
-        origin_name:   r.origin_address||'',
-        district:      dist,
-        dest_name:     r.customer_company||'',
-        content:       r.product_name||'',
+        origin:        originDisplay,
+        origin_name:   originNameDisplay,
+        district:      billingDistrict,
+        dest_name:     destNameDisplay,
+        content:       tt||r.product_name||'',
         vehicle_type:  vt,
         carrier_base:  found?found.carrier:0,
         carrier_add:   addC,

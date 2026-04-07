@@ -59,7 +59,9 @@ if DATABASE_URL:
             status TEXT DEFAULT \'draft\',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         for col in ['work_fee TEXT', 'return_fee TEXT', 'delivery_note TEXT', 'vehicle_type TEXT',
-                    'origin TEXT', 'origin_address TEXT', 'contact_person TEXT', 'contact_phone TEXT']:
+                    'origin TEXT', 'origin_address TEXT', 'contact_person TEXT', 'contact_phone TEXT',
+                    'transport_type TEXT', 'dest_sido TEXT', 'dest_sigun TEXT',
+                    'origin_sido TEXT', 'origin_sigun TEXT']:
             try: cur.execute(f"ALTER TABLE delivery_records ADD COLUMN IF NOT EXISTS {col}")
             except: pass
         cur.execute('''CREATE TABLE IF NOT EXISTS app_settings (
@@ -121,7 +123,9 @@ else:
             status TEXT DEFAULT 'draft',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
         for col_def in ['work_fee TEXT', 'return_fee TEXT', 'delivery_note TEXT', 'vehicle_type TEXT',
-                        'origin TEXT', 'origin_address TEXT', 'contact_person TEXT', 'contact_phone TEXT']:
+                        'origin TEXT', 'origin_address TEXT', 'contact_person TEXT', 'contact_phone TEXT',
+                        'transport_type TEXT', 'dest_sido TEXT', 'dest_sigun TEXT',
+                        'origin_sido TEXT', 'origin_sigun TEXT']:
             try: c.execute(f'ALTER TABLE delivery_records ADD COLUMN {col_def}'); c.commit()
             except: pass
         c.execute('''CREATE TABLE IF NOT EXISTS app_settings (

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>오더 관리 - 관리자</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="rates.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;}
@@ -158,6 +159,14 @@
             <option value="기타">기타 (회수/직접입력)</option>
           </select>
           <input type="text" id="origin_custom" placeholder="출발지 직접 입력" style="display:none;margin-top:6px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;">
+          <div id="origin_sido_group" style="display:none;margin-top:6px;display:none;gap:8px;">
+            <select id="origin_sido" onchange="onOriginSidoChange(this.value)" style="padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;margin-bottom:6px;">
+              <option value="">-- 출발지 시도 --</option>
+            </select>
+            <select id="origin_sigun" style="padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;">
+              <option value="">-- 출발지 시군구 --</option>
+            </select>
+          </div>
         </div>
         <div class="form-group">
           <label>출발지 담당자</label>
@@ -184,6 +193,16 @@
     <div class="card">
       <div class="card-title"><i class="fas fa-info-circle"></i> 배송 기본 정보</div>
       <div class="form-grid">
+        <div class="form-group">
+          <label>내용 <span class="req">*</span></label>
+          <select id="transport_type" class="req-field" onchange="onTransportTypeChange(this.value)">
+            <option value="">-- 선택 --</option>
+            <option value="출고">📦 출고</option>
+            <option value="회수">🔄 회수</option>
+            <option value="이동">🚛 이동</option>
+            <option value="기타">📋 기타</option>
+          </select>
+        </div>
         <div class="form-group">
           <label>DN 번호 (오더번호) <span class="req">*</span></label>
           <div style="display:flex;gap:6px;align-items:center;">
@@ -256,6 +275,18 @@
     <div class="card">
       <div class="card-title"><i class="fas fa-map-marker-alt"></i> 고객사 / 배송지</div>
       <div class="form-grid">
+        <div class="form-group">
+          <label>도착지 시도</label>
+          <select id="dest_sido" onchange="onDestSidoChange(this.value)" style="padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;">
+            <option value="">-- 시도 선택 --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>도착지 시군구 <span style="font-size:10px;color:#667eea;font-weight:600;">★ 운임 기준</span></label>
+          <select id="dest_sigun" onchange="onDestSigunChange(this.value)" style="padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;">
+            <option value="">-- 시군구 선택 --</option>
+          </select>
+        </div>
         <div class="form-group span2">
           <label>고객사명 (배송지) <span class="req">*</span></label>
           <input type="text" id="customer_company" class="req-field" placeholder="예: ABC 주식회사" oninput="onCompanyInput(this.value)">
@@ -387,6 +418,16 @@
     <div class="edit-section-title"><i class="fas fa-info-circle" style="color:#43e97b;"></i> 배송 기본 정보</div>
     <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="form-group">
+        <label>내용</label>
+        <select id="edit_transport_type" style="padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;">
+          <option value="">-- 선택 --</option>
+          <option value="출고">📦 출고</option>
+          <option value="회수">🔄 회수</option>
+          <option value="이동">🚛 이동</option>
+          <option value="기타">📋 기타</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>DN 번호 (오더번호) *</label>
         <input type="text" id="edit_order_no">
       </div>
@@ -441,6 +482,18 @@
 
     <div class="edit-section-title"><i class="fas fa-map-marker-alt" style="color:#43e97b;"></i> 고객사 / 배송지</div>
     <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group">
+        <label>도착지 시도</label>
+        <select id="edit_dest_sido" onchange="onEditDestSidoChange(this.value)" style="padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;">
+          <option value="">-- 시도 선택 --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>도착지 시군구</label>
+        <select id="edit_dest_sigun" style="padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;">
+          <option value="">-- 시군구 선택 --</option>
+        </select>
+      </div>
       <div class="form-group" style="grid-column:span 2;">
         <label>고객사명 *</label>
         <input type="text" id="edit_customer_company">
@@ -651,20 +704,101 @@
   const ACT_ADDRESS = '경기도 김포시 아라육로58번길 35-14 ACT2창고';
   const CONTACTS = { '민동현': '010-2888-5666', '문범영': '010-7921-7785', '김상민': '010-6775-4066' };
 
+  // ── 시도/시군구 드롭다운 헬퍼 ─────────────────────────────────────────
+  function buildSidoList() {
+    if(typeof RATE_TABLE === 'undefined') return [];
+    const sidos = new Set();
+    Object.values(RATE_TABLE).forEach(e => sidos.add(e.sido));
+    return Array.from(sidos).sort();
+  }
+
+  function buildSigunList(sido) {
+    if(typeof RATE_TABLE === 'undefined') return [];
+    return Object.values(RATE_TABLE)
+      .filter(e => e.sido === sido)
+      .map(e => e.sigun)
+      .sort();
+  }
+
+  function populateSido(selectId) {
+    const sel = document.getElementById(selectId);
+    if(!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">-- 시도 선택 --</option>';
+    buildSidoList().forEach(s => {
+      sel.innerHTML += `<option value="${s}"${s===cur?' selected':''}>${s}</option>`;
+    });
+  }
+
+  function populateSigun(selectId, sido, curVal) {
+    const sel = document.getElementById(selectId);
+    if(!sel) return;
+    sel.innerHTML = '<option value="">-- 시군구 선택 --</option>';
+    buildSigunList(sido).forEach(s => {
+      sel.innerHTML += `<option value="${s}"${s===curVal?' selected':''}>${s}</option>`;
+    });
+  }
+
+  function onDestSidoChange(sido) {
+    populateSigun('dest_sigun', sido, '');
+  }
+
+  function onDestSigunChange(val) { /* 선택 완료 */ }
+
+  function onOriginSidoChange(sido) {
+    populateSigun('origin_sigun', sido, '');
+  }
+
+  function onEditDestSidoChange(sido) {
+    populateSigun('edit_dest_sigun', sido, '');
+  }
+
+  // ── 내용(transport_type) 변경 로직 ──────────────────────────────────
+  function onTransportTypeChange(val) {
+    const destSidoEl   = document.getElementById('dest_sido');
+    const destSigunEl  = document.getElementById('dest_sigun');
+    const addrEl       = document.getElementById('customer_address');
+    const companyEl    = document.getElementById('customer_company');
+
+    if(val === '회수') {
+      // 도착지 = 김포 ACT 자동 입력
+      destSidoEl.value = '경기도';
+      populateSigun('dest_sigun', '경기도', '김포');
+      addrEl.value = ACT_ADDRESS;
+      companyEl.value = 'ACT';
+      addrEl.readOnly = true;
+      addrEl.style.background = '#f7fafc';
+    } else {
+      if(addrEl.readOnly && addrEl.value === ACT_ADDRESS && companyEl.value === 'ACT') {
+        addrEl.value = '';
+        companyEl.value = '';
+        addrEl.readOnly = false;
+        addrEl.style.background = '#fafafa';
+      } else {
+        addrEl.readOnly = false;
+        addrEl.style.background = '#fafafa';
+      }
+    }
+  }
+
   function onOriginSelect(val) {
     const addrEl = document.getElementById('origin_address');
     const customEl = document.getElementById('origin_custom');
+    const sidoGroup = document.getElementById('origin_sido_group');
     if(val === 'ACT') {
       addrEl.value = ACT_ADDRESS;
       addrEl.readOnly = true;
       addrEl.style.background = '#f7fafc';
       customEl.style.display = 'none';
       customEl.value = '';
+      sidoGroup.style.display = 'none';
     } else {
       addrEl.value = '';
       addrEl.readOnly = false;
       addrEl.style.background = '#fafafa';
       customEl.style.display = 'block';
+      sidoGroup.style.display = 'block';
+      populateSido('origin_sido');
       customEl.focus();
     }
   }
@@ -736,6 +870,7 @@
     const customer_company=document.getElementById('customer_company').value.trim();
     const receiver_name=document.getElementById('receiver_name').value.trim();
 
+    const transport_type = document.getElementById('transport_type').value;
     if(!order_no||!delivery_date||!product_name||!quantity||!customer_company||!receiver_name){
       showAlert('필수 항목(*)을 모두 입력해주세요.','error'); return;
     }
@@ -766,7 +901,12 @@
           contact_person: document.getElementById('contact_person').value === '기타'
             ? (document.getElementById('contact_person_custom').value.trim() || '기타')
             : document.getElementById('contact_person').value,
-          contact_phone: document.getElementById('contact_phone').value
+          contact_phone: document.getElementById('contact_phone').value,
+          transport_type,
+          dest_sido:   document.getElementById('dest_sido').value,
+          dest_sigun:  document.getElementById('dest_sigun').value,
+          origin_sido:  document.getElementById('origin_sido') ? document.getElementById('origin_sido').value : '',
+          origin_sigun: document.getElementById('origin_sigun') ? document.getElementById('origin_sigun').value : ''
         })
       });
       const data = await res.json();
@@ -831,6 +971,14 @@
     document.getElementById('contact_person_custom').style.display='none';
     document.getElementById('contact_person_custom').value='';
     document.getElementById('contact_phone').value='';
+    document.getElementById('transport_type').value='';
+    document.getElementById('dest_sido').value='';
+    document.getElementById('dest_sigun').innerHTML='<option value="">-- 시군구 선택 --</option>';
+    document.getElementById('origin_sido').value='';
+    document.getElementById('origin_sigun').innerHTML='<option value="">-- 출발지 시군구 --</option>';
+    document.getElementById('origin_sido_group').style.display='none';
+    document.getElementById('customer_address').readOnly=false;
+    document.getElementById('customer_address').style.background='#fafafa';
   }
 
   async function loadAllOrders() {
@@ -976,6 +1124,13 @@
     document.getElementById('edit_arrival_hour').value = parts[0] || '';
     document.getElementById('edit_arrival_min').value = parts[1] || '';
     document.getElementById('edit_arrival_time').value = at;
+    // 내용 & 시도/시군구
+    document.getElementById('edit_transport_type').value = r.transport_type || '';
+    populateSido('edit_dest_sido');
+    if(r.dest_sido) {
+      document.getElementById('edit_dest_sido').value = r.dest_sido;
+      populateSigun('edit_dest_sigun', r.dest_sido, r.dest_sigun || '');
+    }
     document.getElementById('editModal').classList.add('show');
   }
 
@@ -1003,7 +1158,10 @@
       driver_name:       document.getElementById('edit_driver_name').value.trim(),
       driver_phone:      document.getElementById('edit_driver_phone').value.trim(),
       vehicle_no:        document.getElementById('edit_vehicle_no').value.trim(),
-      notes:             document.getElementById('edit_notes').value.trim()
+      notes:             document.getElementById('edit_notes').value.trim(),
+      transport_type:    document.getElementById('edit_transport_type').value,
+      dest_sido:         document.getElementById('edit_dest_sido').value,
+      dest_sigun:        document.getElementById('edit_dest_sigun').value
     };
     if(!data.order_no || !data.delivery_date || !data.customer_company || !data.receiver_name) {
       alert('필수 항목(DN번호, 배송일자, 고객사명, 수취인)을 입력해주세요.'); return;
@@ -1111,6 +1269,13 @@ https://delivery-system-r6pr.onrender.com`;
   document.getElementById('loginPw').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
   document.getElementById('delivery_date').value=new Date().toISOString().slice(0,10);
   checkAuth();
+
+  // 시도 드롭다운 초기화
+  window.addEventListener('load', function() {
+    populateSido('dest_sido');
+    populateSido('origin_sido');
+    populateSido('edit_dest_sido');
+  });
 </script>
 </body>
 </html>
