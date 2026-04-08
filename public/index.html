@@ -139,7 +139,12 @@
         staffMenus:  ['order_register', 'order_search', 'history'],
         adminMenus:  ['admin', 'list', 'billing']
       },
-      /* 새 화주 추가 시 여기에 객체 추가 */
+      {
+        id: 'canon', name: '캐논메디칼시스템즈', emoji: '📷',
+        borderColor: 'rgba(251,146,60,.55)',
+        comingSoon: true,
+        publicMenus: [], staffMenus: [], adminMenus: []
+      },
     ];
 
     const MENUS = {
@@ -195,6 +200,17 @@
 
       let html = '';
 
+      // 준비중 화주 처리
+      if (c.comingSoon) {
+        html += `<div style="text-align:center;padding:40px 20px;">
+          <div style="font-size:48px;margin-bottom:16px;">🚧</div>
+          <div style="color:#fff;font-size:18px;font-weight:700;margin-bottom:8px;">${c.name}</div>
+          <div style="color:rgba(255,255,255,.5);font-size:13px;line-height:1.6;">메뉴 준비 중입니다.<br>추후 업데이트 예정입니다.</div>
+        </div>`;
+        document.getElementById('menuBody').innerHTML = html;
+        return;
+      }
+
       if (!role) {
         /* ────────────────────────────────────────
            미로그인: 공개 메뉴 + 로그인 카드
@@ -234,9 +250,14 @@
 
       } else if (role === 'admin') {
         /* ────────────────────────────────────────
-           관리자 로그인: 관리자 메뉴만
-           (sign/carrier 숨김)
+           관리자 로그인: 공개 메뉴 + 관리자 메뉴
         ──────────────────────────────────────── */
+        if (c.publicMenus.length) {
+          html += makeSectionLabel('🚚 로그인 없이 사용 가능');
+          html += '<div class="cards">';
+          html += makeCards(c.publicMenus);
+          html += '</div>';
+        }
         html += makeSectionLabel('🔵 관리자 메뉴');
         html += '<div style="text-align:center;margin-bottom:10px;">';
         html += `<button class="role-badge admin" onclick="logout()"><i class="fas fa-sign-out-alt"></i> 관리자 로그인 중 · 로그아웃</button>`;
