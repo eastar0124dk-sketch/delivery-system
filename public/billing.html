@@ -258,6 +258,9 @@
         <button class="btn btn-sm" style="background:linear-gradient(135deg,#f6ad55,#ed8936);color:#fff;" onclick="autoCalcAll()" title="운임표 기준으로 기본운임 자동계산">
           <i class="fas fa-calculator"></i> 운임 자동계산
         </button>
+        <button class="btn btn-sm" style="background:linear-gradient(135deg,#21d07a,#1a9c5b);color:#fff;" onclick="addBillingRow()">
+          <i class="fas fa-plus"></i> 행 추가
+        </button>
         <button class="btn btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;" onclick="saveBillingData()">
           <i class="fas fa-save"></i> 저장
         </button>
@@ -341,7 +344,7 @@
   function initApp(){
     document.getElementById('mainWrap').style.display='block';
     loadRates(); renderRateTable();
-    setQuick('thismonth');
+    setQuick('today');
     // 청구서 타이틀 자동
     const cn=document.getElementById('clientName').value;
     const el=document.getElementById('billTitleMain');
@@ -351,14 +354,30 @@
   // ── 빠른 날짜 ──
   function setQuick(type){
     const today=new Date(), fmt=d=>d.toISOString().slice(0,10);
-    let from,to=fmt(today);
-    if(type==='thismonth'){ from=fmt(new Date(today.getFullYear(),today.getMonth(),1)); to=fmt(new Date(today.getFullYear(),today.getMonth()+1,0)); }
-    else if(type==='lastmonth'){ from=fmt(new Date(today.getFullYear(),today.getMonth()-1,1)); to=fmt(new Date(today.getFullYear(),today.getMonth(),0)); }
-    else if(type==='week'){ const d=new Date(today);d.setDate(d.getDate()-d.getDay()+(d.getDay()===0?-6:1));from=fmt(d); }
+    let from=fmt(today), to=fmt(today);
+
+    if(type==='today'){
+      // 오늘~오늘 (기본값)
+      from=fmt(today); to=fmt(today);
+    } else if(type==='week'){
+      // 이번주 일요일~토요일
+      const sun=new Date(today); sun.setDate(today.getDate()-today.getDay());
+      const sat=new Date(today); sat.setDate(today.getDate()-today.getDay()+6);
+      from=fmt(sun); to=fmt(sat);
+    } else if(type==='lastmonth'){
+      // 지난달 1일~지난달 말일
+      from=fmt(new Date(today.getFullYear(),today.getMonth()-1,1));
+      to=fmt(new Date(today.getFullYear(),today.getMonth(),0));
+    } else if(type==='thismonth'){
+      // 이번달 1일~오늘
+      from=fmt(new Date(today.getFullYear(),today.getMonth(),1));
+      to=fmt(today);
+    }
+
     document.getElementById('dateFrom').value=from;
     document.getElementById('dateTo').value=to;
     // 청구 연월 자동 세팅
-    const m=new Date(from||today);
+    const m=new Date(from);
     document.getElementById('billMonth').value=m.getFullYear()+'년 '+(m.getMonth()+1).toString().padStart(2,'0')+'월';
   }
 
@@ -451,8 +470,43 @@
     document.getElementById('rateMatchInfo').style.color=matched===billingRows.length?'#059669':'#d97706';
   }
 
+  // ── 행 추가 ──
+  function addBillingRow(){
+    const no = billingRows.length + 1;
+    billingRows.push({
+      no, id:null,
+      delivery_date:'', order_no:'', origin:'', origin_name:'',
+      district:'', dest_name:'', content:'', vehicle_type:'',
+      carrier_base:0, carrier_add:0, client_base:0, client_add:0,
+      quantity:'', note:'', rate_matched:false, rate_info:''
+    });
+    renderBillingTable();
+    updateSummary();
+    // 새 행으로 스크롤
+    const rows = document.getElementById('billingTbody').querySelectorAll('tr');
+    if(rows.length > 1) rows[rows.length-2].scrollIntoView({behavior:'smooth', block:'center'});
+  }
+
+  // ── 저장 전 DOM 값 동기화 ──
+  function syncDOMtoBillingRows(){
+    const tbody = document.getElementById('billingTbody');
+    if(!tbody) return;
+    billingRows.forEach((r,i)=>{
+      const tr = document.getElementById('brow'+i);
+      if(!tr) return;
+      const inputs = tr.querySelectorAll('input');
+      // num-inp 순서: carrier_base(0), carrier_add(1), client_base(2), client_add(3)
+      const numInps = tr.querySelectorAll('.num-inp');
+      if(numInps[0]) r.carrier_base = parseInt(numInps[0].value.replace(/[^0-9-]/g,''))||0;
+      if(numInps[1]) r.carrier_add  = parseInt(numInps[1].value.replace(/[^0-9-]/g,''))||0;
+      if(numInps[2]) r.client_base  = parseInt(numInps[2].value.replace(/[^0-9-]/g,''))||0;
+      if(numInps[3]) r.client_add   = parseInt(numInps[3].value.replace(/[^0-9-]/g,''))||0;
+    });
+  }
+
   // ── 저장 ──
   function saveBillingData(){
+    syncDOMtoBillingRows(); // DOM 최신값 반영
     const from=document.getElementById('dateFrom').value;
     const to=document.getElementById('dateTo').value;
     const key=`billing_save_${from}_${to}`;
