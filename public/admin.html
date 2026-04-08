@@ -65,6 +65,20 @@
     .action-btns{display:flex;gap:6px;}
     .no-data{text-align:center;padding:40px;color:#a0aec0;}
     .no-data i{font-size:36px;display:block;margin-bottom:10px;}
+    /* ── 출발지 / 도착지 색상 구분 ── */
+    .card-origin{border-left:5px solid #38a169;}
+    .card-origin .card-title{color:#276749;}
+    .card-origin .card-title i{color:#38a169;}
+    .card-dest{border-left:5px solid #dd6b20;}
+    .card-dest .card-title{color:#9c4221;}
+    .card-dest .card-title i{color:#dd6b20;}
+    .card-info{border-left:5px solid #667eea;}
+    .card-info .card-title i{color:#667eea;}
+    /* 섹션 구분 화살표 */
+    .section-arrow{text-align:center;padding:4px 0;color:#a0aec0;font-size:20px;line-height:1;}
+    /* 출발지 배지 */
+    .origin-badge{display:inline-flex;align-items:center;gap:5px;background:#f0fff4;border:1.5px solid #9ae6b4;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#276749;margin-bottom:8px;}
+    .dest-badge{display:inline-flex;align-items:center;gap:5px;background:#fffaf0;border:1.5px solid #fbd38d;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#9c4221;margin-bottom:8px;}
     /* 비용 모달 */
     .cost-modal-box{background:#fff;border-radius:20px;padding:28px;width:100%;max-width:480px;position:relative;}
     .modal-close-btn{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;border:none;background:#f0f4f8;cursor:pointer;font-size:15px;color:#718096;}
@@ -149,7 +163,7 @@
     <div style="margin-bottom:12px;">
       <span class="req-legend"><i class="fas fa-exclamation-circle"></i> 노란색 항목은 필수 입력 항목입니다</span>
     </div>
-    <div class="card">
+    <div class="card card-origin">
       <div class="card-title"><i class="fas fa-warehouse"></i> 출발지 정보</div>
       <div class="form-grid">
         <div class="form-group">
@@ -190,7 +204,8 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="section-arrow"><i class="fas fa-arrow-down"></i></div>
+    <div class="card card-info">
       <div class="card-title"><i class="fas fa-info-circle"></i> 배송 기본 정보</div>
       <div class="form-grid">
         <div class="form-group">
@@ -272,8 +287,9 @@
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title"><i class="fas fa-map-marker-alt"></i> 고객사 / 배송지</div>
+    <div class="section-arrow"><i class="fas fa-arrow-down"></i></div>
+    <div class="card card-dest">
+      <div class="card-title"><i class="fas fa-map-marker-alt"></i> 도착지 정보</div>
       <div class="form-grid">
         <div class="form-group">
           <label>도착지 시도</label>
