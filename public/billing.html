@@ -647,6 +647,32 @@
       };
     });
 
+    // ── 저장된 수정값 복원 ──────────────────────────────────────────
+    // 같은 기간에 저장된 데이터가 있으면 order_no 기준으로 운임값 자동 병합
+    const savedKey=`billing_save_${from}_${to}`;
+    try{
+      const savedRaw=localStorage.getItem(savedKey);
+      if(savedRaw){
+        const savedData=JSON.parse(savedRaw);
+        const savedRows=savedData.rows||[];
+        // DB 행: order_no 매칭으로 저장된 운임/비고 복원
+        billingRows.forEach(row=>{
+          const sv=savedRows.find(s=>s.order_no&&s.order_no===row.order_no);
+          if(sv){
+            row.carrier_base=sv.carrier_base??row.carrier_base;
+            row.carrier_add =sv.carrier_add ??row.carrier_add;
+            row.client_base =sv.client_base ??row.client_base;
+            row.client_add  =sv.client_add  ??row.client_add;
+            row.note        =sv.note        ||row.note;
+          }
+        });
+        // 수동 추가 행(id=null) 복원
+        savedRows.filter(s=>s.id===null).forEach(s=>{
+          billingRows.push({...s, no:billingRows.length+1});
+        });
+      }
+    }catch(e){}
+
     renderBillingTable();
     updateSummary();
 
