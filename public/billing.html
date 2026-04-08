@@ -352,8 +352,15 @@
   }
 
   // ── 빠른 날짜 ──
+  // toISOString()은 UTC 변환으로 한국(UTC+9) 날짜가 하루 밀릴 수 있어 로컬 포맷 사용
+  function fmtLocal(d){
+    const y=d.getFullYear();
+    const m=String(d.getMonth()+1).padStart(2,'0');
+    const day=String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
   function setQuick(type){
-    const today=new Date(), fmt=d=>d.toISOString().slice(0,10);
+    const today=new Date(), fmt=fmtLocal;
     let from=fmt(today), to=fmt(today);
 
     if(type==='today'){
