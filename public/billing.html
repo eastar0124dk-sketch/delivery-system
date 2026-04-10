@@ -283,9 +283,9 @@
             <th class="th-base" rowspan="2" style="width:34px;">No.</th>
             <th class="th-base" rowspan="2" style="min-width:88px;">차량사용일</th>
             <th class="th-base" rowspan="2" style="min-width:120px;">DN No.</th>
-            <th class="th-base" rowspan="2" style="min-width:72px;">출발지</th>
+            <th class="th-base" rowspan="2" style="min-width:72px;">출발지<br>시군구</th>
             <th class="th-base" rowspan="2" style="min-width:100px;">출발지 상호</th>
-            <th class="th-base" rowspan="2" style="min-width:80px;">도착지</th>
+            <th class="th-base" rowspan="2" style="min-width:80px;">도착지<br>시군구</th>
             <th class="th-base" rowspan="2" style="min-width:110px;">도착지 상호</th>
             <th class="th-base" rowspan="2" style="min-width:90px;">내용</th>
             <th class="th-base" rowspan="2" style="min-width:60px;">차종</th>
@@ -295,6 +295,7 @@
             <th class="th-sum-client" rowspan="2" style="min-width:80px;">화주<br>합계</th>
             <th class="th-diff" rowspan="2" style="min-width:80px;">차액<br>(화주-운송)</th>
             <th class="th-qty" rowspan="2" style="min-width:50px;">Q'ty</th>
+            <th class="th-base" rowspan="2" style="min-width:60px;color:#059669;">수익률</th>
             <th class="th-base" rowspan="2" style="min-width:80px;">비고</th>
           </tr>
           <tr>
@@ -782,6 +783,7 @@
         <td class="td-sum-k" id="kTot${i}">${kTot.toLocaleString()}</td>
         <td class="td-diff" id="diff${i}" style="color:${diff>=0?'#2f855a':'#c53030'};">${diff.toLocaleString()}</td>
         <td>${r.quantity}</td>
+        <td id="margin${i}" style="font-weight:600;color:${diff>=0?'#059669':'#c53030'};">${kTot>0?(diff/kTot*100).toFixed(1)+'%':'-'}</td>
         <td><input value="${r.note}" onchange="upd(${i},'note',this.value)"></td>
       </tr>`;
     }).join('')+makeTotalRow();
@@ -829,6 +831,9 @@
     const de=document.getElementById('diff'+i);
     de.textContent=diff.toLocaleString();
     de.style.color=diff>=0?'#2f855a':'#c53030';
+    // 수익률 갱신
+    const me=document.getElementById('margin'+i);
+    if(me){ me.textContent=kTot>0?(diff/kTot*100).toFixed(1)+'%':'-'; me.style.color=diff>=0?'#059669':'#c53030'; }
     document.querySelector('.total-row').outerHTML=makeTotalRow();
     updateSummary();
   }
@@ -836,6 +841,7 @@
   function makeTotalRow(){
     let cB=0,cA=0,cT=0,kB=0,kA=0,kT=0,df=0;
     billingRows.forEach(r=>{ cB+=r.carrier_base;cA+=r.carrier_add;cT+=r.carrier_base+r.carrier_add; kB+=r.client_base;kA+=r.client_add;kT+=r.client_base+r.client_add; df+=(r.client_base+r.client_add)-(r.carrier_base+r.carrier_add); });
+    const totalMargin=kT>0?(df/kT*100).toFixed(1)+'%':'-';
     return `<tr class="total-row">
       <td colspan="9" class="td-base-tot" style="text-align:right;padding-right:10px;">합 계</td>
       <td class="td-carrier">${cB.toLocaleString()}</td>
@@ -846,6 +852,7 @@
       <td class="td-sum-k">${kT.toLocaleString()}</td>
       <td class="td-diff">${df.toLocaleString()}</td>
       <td class="td-qty"></td>
+      <td class="td-base-tot" style="font-weight:700;color:${df>=0?'#059669':'#c53030'};">${totalMargin}</td>
       <td class="td-base-tot"></td>
     </tr>`;
   }
@@ -876,20 +883,24 @@
     const wb=XLSX.utils.book_new();
 
     // ── 청구서작성 시트 ──
-    const h1=['','','','','','','','','','운송사 운임','','화주 청구 운임','','','','','',''];
-    const h2=['No.','차량사용일','DN No.','출발지','출발지 상호','도착지','도착지 상호','내용','차종','기본운임','추가비용','기본운임','추가비용','운송사 합계','화주 합계','차액(화주-운송)','Q\'ty','비고'];
-    const rows=billingRows.map((r,i)=>[
-      i+1, r.delivery_date, r.order_no, r.origin, r.origin_name,
-      r.district, r.dest_name, r.content, r.vehicle_type,
-      r.carrier_base, r.carrier_add, r.client_base, r.client_add,
-      r.carrier_base+r.carrier_add,
-      r.client_base+r.client_add,
-      (r.client_base+r.client_add)-(r.carrier_base+r.carrier_add),
-      r.quantity, r.note
-    ]);
+    const h1=['','','','','','','','','','운송사 운임','','화주 청구 운임','','','','','','',''];
+    const h2=['No.','차량사용일','DN No.','출발지 시군구','출발지 상호','도착지 시군구','도착지 상호','내용','차종','기본운임','추가비용','기본운임','추가비용','운송사 합계','화주 합계','차액(화주-운송)','Q\'ty','수익률','비고'];
+    const rows=billingRows.map((r,i)=>{
+      const cTot=r.carrier_base+r.carrier_add;
+      const kTot=r.client_base+r.client_add;
+      const diff=kTot-cTot;
+      const margin=kTot>0?parseFloat((diff/kTot*100).toFixed(1)):null;
+      return [
+        i+1, r.delivery_date, r.order_no, r.origin, r.origin_name,
+        r.district, r.dest_name, r.content, r.vehicle_type,
+        r.carrier_base, r.carrier_add, r.client_base, r.client_add,
+        cTot, kTot, diff, r.quantity, margin!=null?margin+'%':'-', r.note
+      ];
+    });
     let cB=0,cA=0,cT=0,kB=0,kA=0,kT=0,df=0;
     billingRows.forEach(r=>{ cB+=r.carrier_base;cA+=r.carrier_add;cT+=r.carrier_base+r.carrier_add; kB+=r.client_base;kA+=r.client_add;kT+=r.client_base+r.client_add; df+=(r.client_base+r.client_add)-(r.carrier_base+r.carrier_add); });
-    rows.push(['합계','','','','','','','','', cB,cA,kB,kA,cT,kT,df,'','']);
+    const totalMarginXls=kT>0?parseFloat((df/kT*100).toFixed(1))+'%':'-';
+    rows.push(['합계','','','','','','','','', cB,cA,kB,kA,cT,kT,df,'',totalMarginXls,'']);
 
     const ws=XLSX.utils.aoa_to_sheet([
       [clientNm+' 월별 운송비 청구서'],
@@ -898,22 +909,26 @@
       h1, h2,
       ...rows
     ]);
-    ws['!cols']=[{wch:4},{wch:11},{wch:18},{wch:8},{wch:14},{wch:9},{wch:14},{wch:12},{wch:7},{wch:10},{wch:9},{wch:10},{wch:9},{wch:10},{wch:10},{wch:12},{wch:6},{wch:12}];
+    // 열 너비: No~비고 (19열: 수익률 추가)
+    ws['!cols']=[{wch:4},{wch:11},{wch:18},{wch:9},{wch:14},{wch:9},{wch:14},{wch:12},{wch:7},{wch:10},{wch:9},{wch:10},{wch:9},{wch:10},{wch:10},{wch:12},{wch:6},{wch:7},{wch:12}];
     ws['!merges']=[
       {s:{r:3,c:9},e:{r:3,c:10}}, // 운송사 운임
       {s:{r:3,c:11},e:{r:3,c:12}},// 화주 청구 운임
     ];
     XLSX.utils.book_append_sheet(wb,ws,'청구서작성');
 
-    // ── 명세표 시트 ──
+    // ── 명세표 시트 (수익률 추가) ──
     const ws2=XLSX.utils.aoa_to_sheet([
       [clientNm+' 운송비 명세표 ('+from+' ~ '+to+')'],
       [],
-      ['No.','DN No.','차량사용일','출발지 상호','도착지 상호','차종','운송사합계','화주합계','차액','Q\'ty','비고'],
-      ...billingRows.map((r,i)=>[i+1,r.order_no,r.delivery_date,r.origin_name,r.dest_name,r.vehicle_type, r.carrier_base+r.carrier_add, r.client_base+r.client_add, (r.client_base+r.client_add)-(r.carrier_base+r.carrier_add),r.quantity,r.note]),
-      ['합계','','','','','', cT,kT,df,'','']
+      ['No.','DN No.','차량사용일','출발지 시군구','출발지 상호','도착지 시군구','도착지 상호','차종','운송사합계','화주합계','차액','수익률','Q\'ty','비고'],
+      ...billingRows.map((r,i)=>{
+        const cTot2=r.carrier_base+r.carrier_add, kTot2=r.client_base+r.client_add, diff2=kTot2-cTot2;
+        return [i+1,r.order_no,r.delivery_date,r.origin,r.origin_name,r.district,r.dest_name,r.vehicle_type, cTot2, kTot2, diff2, kTot2>0?parseFloat((diff2/kTot2*100).toFixed(1))+'%':'-', r.quantity, r.note];
+      }),
+      ['합계','','','','','','','', cT,kT,df,totalMarginXls,'','']
     ]);
-    ws2['!cols']=[{wch:4},{wch:18},{wch:11},{wch:14},{wch:14},{wch:7},{wch:11},{wch:11},{wch:11},{wch:6},{wch:12}];
+    ws2['!cols']=[{wch:4},{wch:18},{wch:11},{wch:9},{wch:14},{wch:9},{wch:14},{wch:7},{wch:11},{wch:11},{wch:11},{wch:7},{wch:6},{wch:12}];
     XLSX.utils.book_append_sheet(wb,ws2,'명세표');
 
     XLSX.writeFile(wb,`운송청구서_${clientNm}_${from}_${to}.xlsx`);
