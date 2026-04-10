@@ -317,7 +317,11 @@
         </div>
         <div class="form-group">
           <label>수취인 이름 <span class="req">*</span></label>
-          <input type="text" id="receiver_name" class="req-field">
+          <input type="text" id="receiver_name" class="req-field" oninput="onReceiverInput(this.value)">
+          <div id="receiverAutoFillHint" style="display:none;background:#f0fff4;border:1px solid #9ae6b4;border-radius:8px;padding:8px 12px;margin-top:6px;align-items:center;justify-content:space-between;gap:8px;">
+            <span style="font-size:12px;color:#276749;"><i class="fas fa-history"></i> 이전 배송 정보가 있습니다</span>
+            <button type="button" onclick="applyReceiverAutofill()" style="padding:4px 12px;font-size:12px;font-weight:600;border:none;border-radius:6px;background:#38a169;color:#fff;cursor:pointer;">불러오기</button>
+          </div>
         </div>
         <div class="form-group">
           <label>수취인 연락처</label>
@@ -344,11 +348,17 @@
         </div>
       </div>
       <div style="margin-top:18px;">
-        <label style="display:block;margin-bottom:10px;font-weight:700;color:#2d3748;">배송 경유지</label>
-        <div class="extra-locations">
-          <div class="extra-loc-row"><span class="loc-num">1.</span><input type="text" class="loc-input" placeholder="경유지 주소 1"></div>
-          <div class="extra-loc-row"><span class="loc-num">2.</span><input type="text" class="loc-input" placeholder="경유지 주소 2"></div>
-          <div class="extra-loc-row"><span class="loc-num">3.</span><input type="text" class="loc-input" placeholder="경유지 주소 3"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <label style="font-weight:700;color:#2d3748;">배송 경유지</label>
+          <button type="button" onclick="addLocRow()" style="padding:4px 14px;font-size:12px;font-weight:600;border:none;border-radius:7px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;cursor:pointer;display:flex;align-items:center;gap:5px;">
+            <i class="fas fa-plus"></i> 경유지 추가
+          </button>
+        </div>
+        <div class="extra-locations" id="extraLocWrap">
+          <div class="extra-loc-row">
+            <span class="loc-num">1.</span>
+            <input type="text" class="loc-input" placeholder="경유지 주소 1">
+          </div>
         </div>
       </div>
       <div style="margin-top:15px;">
@@ -939,7 +949,9 @@
           customer_company,
           document.getElementById('customer_address').value,
           receiver_name,
-          document.getElementById('receiver_phone').value
+          document.getElementById('receiver_phone').value,
+          document.getElementById('dest_sido').value,
+          document.getElementById('dest_sigun').value
         );
         showDispatchModal({
           order_no, delivery_date,
@@ -949,12 +961,15 @@
                              ? (document.getElementById('origin_custom').value.trim() || '기타')
                              : document.getElementById('origin').value,
           origin_address:  document.getElementById('origin_address').value,
+          origin_sido:     document.getElementById('origin_sido') ? document.getElementById('origin_sido').value : '',
+          origin_sigun:    document.getElementById('origin_sigun') ? document.getElementById('origin_sigun').value : '',
           contact_person:  document.getElementById('contact_person').value === '기타'
                              ? (document.getElementById('contact_person_custom').value.trim() || '')
                              : document.getElementById('contact_person').value,
           contact_phone:   document.getElementById('contact_phone').value,
           product_name, quantity, customer_company,
           customer_address: document.getElementById('customer_address').value,
+          dest_sido:       document.getElementById('dest_sido').value,
           dest_sigun:      document.getElementById('dest_sigun').value,
           receiver_name,
           receiver_phone:  document.getElementById('receiver_phone').value,
@@ -993,7 +1008,12 @@
     document.getElementById('waste_collection').value='';
     document.getElementById('product_name_select').value='';
     document.getElementById('product_name').style.display='none';
-    document.querySelectorAll('.loc-input').forEach(i=>i.value='');
+    // 경유지: 1개만 남기고 나머지 삭제 후 초기화
+    const wrap = document.getElementById('extraLocWrap');
+    const rows = wrap.querySelectorAll('.extra-loc-row');
+    rows.forEach((r, i) => { if(i > 0) r.remove(); });
+    const firstInput = wrap.querySelector('.loc-input');
+    if(firstInput) firstInput.value = '';
     // 출발지 초기화
     document.getElementById('origin').value='ACT';
     document.getElementById('origin_address').value=ACT_ADDRESS;
@@ -1013,6 +1033,8 @@
     document.getElementById('origin_sido_group').style.display='none';
     document.getElementById('customer_address').readOnly=false;
     document.getElementById('customer_address').style.background='#fafafa';
+    document.getElementById('customerAutoFillHint').style.display='none';
+    document.getElementById('receiverAutoFillHint').style.display='none';
   }
 
   async function loadAllOrders() {
@@ -1242,15 +1264,23 @@
     const transport    = d.transport_type  ? `\n내용: ${d.transport_type}` : '';
     const vehicle_type = d.vehicle_type    ? `\n차량 종류: ${d.vehicle_type}` : '';
 
-    // 출발지
-    const originLabel  = d.origin === 'ACT' ? 'ACT (경기도 김포시)' : (d.origin || '');
-    const originAddr   = (d.origin_address && d.origin !== 'ACT')
-                           ? `\n출발지 주소: ${d.origin_address}` : '';
+    // 출발지: ACT는 고정, 기타는 시도+시군구+주소 합치기
+    let originLabel, originAddr;
+    if(d.origin === 'ACT') {
+      originLabel = 'ACT (경기도 김포시)';
+      originAddr  = '';
+    } else {
+      originLabel = d.origin || '';
+      // 시도+시군구+나머지주소 합치기
+      const originParts = [d.origin_sido, d.origin_sigun, d.origin_address].filter(Boolean);
+      originAddr = originParts.length ? `\n출발지 주소: ${originParts.join(' ')}` : '';
+    }
     const contactLine  = d.contact_person  ? `\n출발지 담당자: ${d.contact_person}${d.contact_phone ? ' / ' + d.contact_phone : ''}` : '';
 
-    // 도착지
+    // 도착지: 시도+시군구+배송지주소 모두 합치기
     const destSigun    = d.dest_sigun      ? ` (${d.dest_sigun})` : '';
-    const addr         = d.customer_address ? `\n배송지 주소: ${d.customer_address}` : '';
+    const addrParts    = [d.dest_sido, d.dest_sigun, d.customer_address].filter(Boolean);
+    const addr         = addrParts.length  ? `\n배송지 주소: ${addrParts.join(' ')}` : '';
     const phone        = d.receiver_phone  ? `\n수취인 연락처: ${d.receiver_phone}` : '';
     const delivery_note = d.delivery_note  ? `\n⚠️ 배송 요청사항: ${d.delivery_note}` : '';
     const notes        = d.notes           ? `\n비고: ${d.notes}` : '';
@@ -1281,19 +1311,48 @@ https://delivery-system-r6pr.onrender.com`;
     setTimeout(()=>{ btn.innerHTML = '<i class="fas fa-copy"></i> 메시지 복사'; }, 2000);
   }
 
+  // 도착시간이 배송 요청사항에 자동 반영되는 접두어 패턴
+  const ARRIVAL_PREFIX_RE = /^(\d{2}:\d{2}까지 도착)([ \n]|$)/;
+
   function syncArrivalTime() {
     const h = document.getElementById('arrival_hour').value;
     const m = document.getElementById('arrival_min').value;
-    document.getElementById('arrival_time').value = (h && m) ? `${h}:${m}` : '';
+    const timeVal = (h && m) ? `${h}:${m}` : '';
+    document.getElementById('arrival_time').value = timeVal;
+
+    // 배송 요청사항 자동 반영
+    const noteEl = document.getElementById('delivery_note');
+    const cur = noteEl.value;
+    const prefix = timeVal ? `${timeVal}까지 도착` : '';
+
+    if(!timeVal) {
+      // 시간 삭제 시 → 자동 접두어만 제거
+      noteEl.value = cur.replace(ARRIVAL_PREFIX_RE, '').trimStart();
+    } else {
+      // 기존에 자동 접두어가 있으면 교체, 없으면 맨 앞에 삽입
+      if(ARRIVAL_PREFIX_RE.test(cur)) {
+        noteEl.value = cur.replace(ARRIVAL_PREFIX_RE, prefix + ' ').trimEnd();
+        if(noteEl.value === prefix) noteEl.value = prefix; // 뒤에 공백 없이
+      } else {
+        // 기존 입력이 있으면 줄바꿈으로 이어붙이기, 없으면 그냥 입력
+        noteEl.value = cur.trim() ? `${prefix} / ${cur.trim()}` : prefix;
+      }
+    }
   }
   document.getElementById('arrival_hour').addEventListener('change', syncArrivalTime);
   document.getElementById('arrival_min').addEventListener('change', syncArrivalTime);
 
   // ── 배차정보 자동저장/불러오기 ──────────────────────────────────────
-  function saveCustomerHistory(company, address, receiver_name, receiver_phone) {
+  function saveCustomerHistory(company, address, receiver_name, receiver_phone, dest_sido, dest_sigun) {
     if(!company) return;
     const hist = JSON.parse(localStorage.getItem('delivery_customer_history') || '{}');
-    hist[company] = { address, receiver_name, receiver_phone };
+    hist[company] = { address, receiver_name, receiver_phone, dest_sido, dest_sigun };
+    // 수취인 이름 역인덱스: 수취인 → 회사명
+    if(receiver_name) {
+      const nameIdx = JSON.parse(localStorage.getItem('delivery_receiver_index') || '{}');
+      nameIdx[receiver_name] = company;
+      localStorage.setItem('delivery_receiver_index', JSON.stringify(nameIdx));
+    }
     localStorage.setItem('delivery_customer_history', JSON.stringify(hist));
   }
 
@@ -1316,8 +1375,67 @@ https://delivery-system-r6pr.onrender.com`;
     if(data.address)       document.getElementById('customer_address').value = data.address;
     if(data.receiver_name) document.getElementById('receiver_name').value    = data.receiver_name;
     if(data.receiver_phone)document.getElementById('receiver_phone').value   = data.receiver_phone;
+    if(data.dest_sido) {
+      document.getElementById('dest_sido').value = data.dest_sido;
+      populateSigun('dest_sigun', data.dest_sido, data.dest_sigun || '');
+    }
     hint.style.display = 'none';
     showAlert('✅ 이전 배송 정보를 불러왔습니다. 수령인 정보를 확인 후 수정해주세요.', 'success');
+  }
+
+  function onReceiverInput(val) {
+    const hint = document.getElementById('receiverAutoFillHint');
+    if(!val.trim()) { hint.style.display = 'none'; return; }
+    const nameIdx = JSON.parse(localStorage.getItem('delivery_receiver_index') || '{}');
+    const company = nameIdx[val.trim()];
+    if(company) {
+      const hist = JSON.parse(localStorage.getItem('delivery_customer_history') || '{}');
+      const saved = hist[company];
+      if(saved) {
+        hint._data = { ...saved, company };
+        hint.style.display = 'flex';
+        return;
+      }
+    }
+    hint.style.display = 'none';
+  }
+
+  function applyReceiverAutofill() {
+    const hint = document.getElementById('receiverAutoFillHint');
+    const data = hint._data;
+    if(!data) return;
+    if(data.company)       document.getElementById('customer_company').value = data.company;
+    if(data.address)       document.getElementById('customer_address').value = data.address;
+    if(data.receiver_phone)document.getElementById('receiver_phone').value   = data.receiver_phone;
+    if(data.dest_sido) {
+      document.getElementById('dest_sido').value = data.dest_sido;
+      populateSigun('dest_sigun', data.dest_sido, data.dest_sigun || '');
+    }
+    hint.style.display = 'none';
+    showAlert('✅ 이전 배송 정보를 불러왔습니다. 정보를 확인 후 수정해주세요.', 'success');
+  }
+
+  // ── 경유지 추가/삭제 ─────────────────────────────────────────────────
+  function addLocRow() {
+    const wrap = document.getElementById('extraLocWrap');
+    const n = wrap.querySelectorAll('.extra-loc-row').length + 1;
+    const row = document.createElement('div');
+    row.className = 'extra-loc-row';
+    row.innerHTML = `<span class="loc-num">${n}.</span>
+      <input type="text" class="loc-input" placeholder="경유지 주소 ${n}">
+      <button type="button" onclick="removeLocRow(this)" style="padding:4px 10px;border:none;border-radius:6px;background:#fed7d7;color:#c53030;cursor:pointer;font-size:13px;font-weight:700;flex-shrink:0;">×</button>`;
+    wrap.appendChild(row);
+  }
+
+  function removeLocRow(btn) {
+    const wrap = document.getElementById('extraLocWrap');
+    const row = btn.closest('.extra-loc-row');
+    row.remove();
+    // 번호 재정렬
+    wrap.querySelectorAll('.extra-loc-row').forEach((r, i) => {
+      r.querySelector('.loc-num').textContent = `${i+1}.`;
+      r.querySelector('input').placeholder = `경유지 주소 ${i+1}`;
+    });
   }
 
   document.getElementById('loginPw').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });

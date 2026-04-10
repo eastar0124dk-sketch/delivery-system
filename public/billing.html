@@ -258,6 +258,9 @@
         <button class="btn btn-sm" style="background:linear-gradient(135deg,#f6ad55,#ed8936);color:#fff;" onclick="autoCalcAll()" title="운임표 기준으로 기본운임 자동계산">
           <i class="fas fa-calculator"></i> 운임 자동계산
         </button>
+        <button class="btn btn-sm" style="background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff;" onclick="openRateModal()">
+          <i class="fas fa-table"></i> 운임표
+        </button>
         <button class="btn btn-sm" style="background:linear-gradient(135deg,#21d07a,#1a9c5b);color:#fff;" onclick="addBillingRow()">
           <i class="fas fa-plus"></i> 행 추가
         </button>
@@ -429,12 +432,25 @@
     if(!district||!vehicleType||typeof RATE_TABLE==='undefined') return null;
     const d=district.trim();
     const vt=vehicleType.trim();
+    let overrides={};
+    try{ overrides=JSON.parse(localStorage.getItem('rate_override')||'{}'); }catch(e){}
+
+    function applyOverride(key, carrier, client){
+      const ov=overrides[key]||{};
+      const c = ov[`c_${vt}`]!=null ? ov[`c_${vt}`] : carrier;
+      const k = ov[`k_${vt}`]!=null ? ov[`k_${vt}`] : client;
+      return {c, k};
+    }
+
     // 1차: 정확히 sigun 일치
     for(const key in RATE_TABLE){
       const e=RATE_TABLE[key];
       if(e.sigun===d){
-        const c=e.carrier[vt], k=e.client[vt];
-        if(c!=null||k!=null) return {carrier:c||0,client:k||0,matched:e.sigun,sido:e.sido};
+        const base=e.carrier[vt], kbase=e.client[vt];
+        if(base!=null||kbase!=null){
+          const {c,k}=applyOverride(key,base||0,kbase||0);
+          return {carrier:c,client:k,matched:e.sigun,sido:e.sido};
+        }
       }
     }
     // 2차: 시/구/군/도 제거 후 포함 매칭
@@ -443,8 +459,11 @@
       const e=RATE_TABLE[key];
       const sc=e.sigun.replace(/[시도구군읍면동]/g,'');
       if(clean&&sc&&(clean.includes(sc)||sc.includes(clean))){
-        const c=e.carrier[vt], k=e.client[vt];
-        if(c!=null||k!=null) return {carrier:c||0,client:k||0,matched:e.sigun,sido:e.sido};
+        const base=e.carrier[vt], kbase=e.client[vt];
+        if(base!=null||kbase!=null){
+          const {c,k}=applyOverride(key,base||0,kbase||0);
+          return {carrier:c,client:k,matched:e.sigun,sido:e.sido};
+        }
       }
     }
     return null;
@@ -501,13 +520,22 @@
     billingRows.forEach((r,i)=>{
       const tr = document.getElementById('brow'+i);
       if(!tr) return;
-      const inputs = tr.querySelectorAll('input');
+      // 텍스트 입력 순서: origin(0), origin_name(1), district(2), dest_name(3), content(4), vehicle_type(5)
+      const allInps = tr.querySelectorAll('input');
+      if(allInps[0]) r.origin       = allInps[0].value;
+      if(allInps[1]) r.origin_name  = allInps[1].value;
+      if(allInps[2]) r.district     = allInps[2].value;
+      if(allInps[3]) r.dest_name    = allInps[3].value;
+      if(allInps[4]) r.content      = allInps[4].value;
+      if(allInps[5]) r.vehicle_type = allInps[5].value;
       // num-inp 순서: carrier_base(0), carrier_add(1), client_base(2), client_add(3)
       const numInps = tr.querySelectorAll('.num-inp');
       if(numInps[0]) r.carrier_base = parseInt(numInps[0].value.replace(/[^0-9-]/g,''))||0;
       if(numInps[1]) r.carrier_add  = parseInt(numInps[1].value.replace(/[^0-9-]/g,''))||0;
       if(numInps[2]) r.client_base  = parseInt(numInps[2].value.replace(/[^0-9-]/g,''))||0;
       if(numInps[3]) r.client_add   = parseInt(numInps[3].value.replace(/[^0-9-]/g,''))||0;
+      // note는 마지막 input
+      if(allInps[allInps.length-1]) r.note = allInps[allInps.length-1].value;
     });
   }
 
@@ -666,11 +694,19 @@
         billingRows.forEach(row=>{
           const sv=savedRows.find(s=>s.order_no&&s.order_no===row.order_no);
           if(sv){
-            row.carrier_base=sv.carrier_base??row.carrier_base;
-            row.carrier_add =sv.carrier_add ??row.carrier_add;
-            row.client_base =sv.client_base ??row.client_base;
-            row.client_add  =sv.client_add  ??row.client_add;
-            row.note        =sv.note        ||row.note;
+            // ?? 대신 > 0 체크: 저장값 0이 정상 운임을 덮어쓰는 버그 방지
+            if(sv.carrier_base>0) row.carrier_base=sv.carrier_base;
+            if(sv.carrier_add >0) row.carrier_add =sv.carrier_add;
+            if(sv.client_base >0) row.client_base =sv.client_base;
+            if(sv.client_add  >0) row.client_add  =sv.client_add;
+            if(sv.note)           row.note        =sv.note;
+            // 텍스트 필드도 복원 (수동 수정된 경우)
+            if(sv.origin)       row.origin      =sv.origin;
+            if(sv.origin_name)  row.origin_name =sv.origin_name;
+            if(sv.district)     row.district    =sv.district;
+            if(sv.dest_name)    row.dest_name   =sv.dest_name;
+            if(sv.content)      row.content     =sv.content;
+            if(sv.vehicle_type) row.vehicle_type=sv.vehicle_type;
           }
         });
         // 수동 추가 행(id=null) 복원
@@ -884,6 +920,132 @@
   }
 
   checkAuth();
+
+  // ── 운임표 팝업 ──────────────────────────────────────────────────────
+  const RATE_OVERRIDE_KEY = 'rate_override';
+  const VEHICLE_TYPES = ['다마스','1톤','2.5톤','5톤','11톤'];
+
+  function openRateModal(){
+    // 저장된 override 불러오기
+    let overrides = {};
+    try{ overrides = JSON.parse(localStorage.getItem(RATE_OVERRIDE_KEY)||'{}'); }catch(e){}
+
+    // 시도별 그룹화
+    const grouped = {};
+    Object.entries(RATE_TABLE).forEach(([key, v])=>{
+      if(!grouped[v.sido]) grouped[v.sido] = [];
+      grouped[v.sido].push({key, sigun: v.sigun, carrier: v.carrier, client: v.client});
+    });
+
+    let html = `
+    <div id="rateModal" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;">
+      <div style="background:#1a202c;border-radius:12px;width:100%;max-width:1200px;padding:20px;box-shadow:0 8px 32px rgba(0,0,0,.5);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h2 style="color:#e2e8f0;font-size:18px;margin:0;"><i class="fas fa-table" style="color:#a78bfa;margin-right:8px;"></i>운임표 확인/수정</h2>
+          <div style="display:flex;gap:8px;">
+            <button onclick="saveRateOverrides()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:6px;padding:6px 16px;cursor:pointer;font-weight:600;">
+              <i class="fas fa-save"></i> 저장
+            </button>
+            <button onclick="resetRateOverrides()" style="background:#4a5568;color:#cbd5e0;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;" title="기본값으로 초기화">
+              <i class="fas fa-undo"></i> 초기화
+            </button>
+            <button onclick="document.getElementById('rateModal').remove()" style="background:#e53e3e;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+        <p style="color:#a0aec0;font-size:12px;margin:0 0 14px 0;">수정 후 저장 버튼을 누르면 이 기기에 저장됩니다. 운임 자동계산 시 저장된 값이 우선 적용됩니다.</p>
+        <div style="overflow:auto;max-height:70vh;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;color:#e2e8f0;">
+          <thead style="position:sticky;top:0;z-index:2;">
+            <tr style="background:#2d3748;">
+              <th style="padding:8px 6px;text-align:left;border:1px solid #4a5568;min-width:60px;">시도</th>
+              <th style="padding:8px 6px;text-align:left;border:1px solid #4a5568;min-width:60px;">시군구</th>
+              <th colspan="5" style="padding:8px 6px;text-align:center;border:1px solid #4a5568;background:#1e3a5f;">운송사 운임</th>
+              <th colspan="5" style="padding:8px 6px;text-align:center;border:1px solid #4a5568;background:#1a3a2e;">화주 청구 운임</th>
+            </tr>
+            <tr style="background:#2d3748;">
+              <th style="border:1px solid #4a5568;"></th>
+              <th style="border:1px solid #4a5568;"></th>
+              ${VEHICLE_TYPES.map(v=>`<th style="padding:5px;text-align:center;border:1px solid #4a5568;background:#1e3a5f;min-width:72px;">${v}</th>`).join('')}
+              ${VEHICLE_TYPES.map(v=>`<th style="padding:5px;text-align:center;border:1px solid #4a5568;background:#1a3a2e;min-width:72px;">${v}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>`;
+
+    let rowIdx = 0;
+    Object.entries(grouped).sort().forEach(([sido, items])=>{
+      items.sort((a,b)=>a.sigun.localeCompare(b.sigun,'ko')).forEach((item, ii)=>{
+        const bg = rowIdx%2===0 ? '#1a202c' : '#2d3748';
+        const ov = overrides[item.key] || {};
+        html += `<tr style="background:${bg};" data-key="${item.key}">
+          <td style="padding:5px 6px;border:1px solid #4a5568;color:#a0aec0;">${ii===0?sido:''}</td>
+          <td style="padding:5px 6px;border:1px solid #4a5568;font-weight:600;">${item.sigun}</td>
+          ${VEHICLE_TYPES.map(vt=>{
+            const orig = item.carrier[vt];
+            const val  = ov[`c_${vt}`] ?? orig;
+            const isOverridden = ov[`c_${vt}`] != null;
+            return `<td style="padding:2px;border:1px solid #4a5568;background:#1e3a5f22;">
+              <input type="text" data-key="${item.key}" data-field="c_${vt}"
+                value="${val!=null?val.toLocaleString():''}"
+                placeholder="-"
+                style="width:100%;background:${isOverridden?'rgba(124,58,237,.25)':'transparent'};color:${isOverridden?'#c4b5fd':'#e2e8f0'};border:none;text-align:right;padding:3px 4px;font-size:11px;border-radius:3px;"
+                oninput="markRateInput(this)">
+            </td>`;
+          }).join('')}
+          ${VEHICLE_TYPES.map(vt=>{
+            const orig = item.client[vt];
+            const val  = ov[`k_${vt}`] ?? orig;
+            const isOverridden = ov[`k_${vt}`] != null;
+            return `<td style="padding:2px;border:1px solid #4a5568;background:#1a3a2e22;">
+              <input type="text" data-key="${item.key}" data-field="k_${vt}"
+                value="${val!=null?val.toLocaleString():''}"
+                placeholder="-"
+                style="width:100%;background:${isOverridden?'rgba(52,211,153,.15)':'transparent'};color:${isOverridden?'#6ee7b7':'#e2e8f0'};border:none;text-align:right;padding:3px 4px;font-size:11px;border-radius:3px;"
+                oninput="markRateInput(this)">
+            </td>`;
+          }).join('')}
+        </tr>`;
+        rowIdx++;
+      });
+    });
+
+    html += `</tbody></table></div></div></div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+
+  function markRateInput(el){
+    el.style.background = 'rgba(251,191,36,.2)';
+    el.style.color = '#fbbf24';
+  }
+
+  function saveRateOverrides(){
+    let overrides = {};
+    try{ overrides = JSON.parse(localStorage.getItem(RATE_OVERRIDE_KEY)||'{}'); }catch(e){}
+
+    document.querySelectorAll('#rateModal input[data-key]').forEach(inp=>{
+      const key   = inp.dataset.key;
+      const field = inp.dataset.field;
+      const raw   = inp.value.replace(/[^0-9]/g,'');
+      if(!overrides[key]) overrides[key] = {};
+      if(raw==='') {
+        delete overrides[key][field];
+      } else {
+        overrides[key][field] = parseInt(raw);
+      }
+    });
+
+    localStorage.setItem(RATE_OVERRIDE_KEY, JSON.stringify(overrides));
+    document.getElementById('rateModal').remove();
+    alert('운임표가 저장되었습니다.\n다음 "운임 자동계산" 시 반영됩니다.');
+  }
+
+  function resetRateOverrides(){
+    if(!confirm('저장된 운임 수정값을 모두 초기화하고 기본 운임표로 되돌릴까요?')) return;
+    localStorage.removeItem(RATE_OVERRIDE_KEY);
+    document.getElementById('rateModal').remove();
+    alert('운임표가 기본값으로 초기화되었습니다.');
+  }
 </script>
 </body>
 </html>
