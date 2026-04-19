@@ -111,6 +111,11 @@ if DATABASE_URL:
             bl_no TEXT, mrn TEXT, customer TEXT, product TEXT,
             quantity TEXT, weight TEXT, notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        cur.execute('''CREATE TABLE IF NOT EXISTS ot_records (
+            id SERIAL PRIMARY KEY, work_date TEXT NOT NULL,
+            start_time TEXT, end_time TEXT, work_content TEXT,
+            ot_hours REAL DEFAULT 0, meal_ticket TEXT DEFAULT 'X',
+            notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.commit(); c.close()
 
     def db_fetch(sql, params=()):
@@ -211,6 +216,11 @@ else:
             bl_no TEXT, mrn TEXT, customer TEXT, product TEXT,
             quantity TEXT, weight TEXT, notes TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS ot_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, work_date TEXT NOT NULL,
+            start_time TEXT, end_time TEXT, work_content TEXT,
+            ot_hours REAL DEFAULT 0, meal_ticket TEXT DEFAULT 'X',
+            notes TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
         c.commit(); c.close()
 
     def db_fetch(sql, params=()):
@@ -730,6 +740,19 @@ class Handler(BaseHTTPRequestHandler):
             sql += ' ORDER BY created_at DESC'
             return self.send_json({'data': db_fetchall(sql, params)})
 
+        # ── OT 내역 ──
+        if path == '/api/ot':
+            if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
+            ym = g('ym')  # YYYY-MM filter
+            sql = 'SELECT * FROM ot_records WHERE 1=1'; params=[]
+            if ym: sql += ' AND work_date LIKE ?'; params.append(ym + '%')
+            sql += ' ORDER BY work_date ASC, id ASC'
+            rows = db_fetchall(sql, params)
+            total_hours = sum(float(r.get('ot_hours') or 0) for r in rows)
+            total_hours = round(total_hours, 1)
+            meal_count  = sum(1 for r in rows if (r.get('meal_ticket') or 'X') == 'O')
+            return self.send_json({'data': rows, 'total_hours': total_hours, 'meal_count': meal_count})
+
         # ── 제네릭 목록 API (admin) ──
         RESOURCE_MAP = {
             'todos':     ('todos',          'created_at DESC'),
@@ -873,6 +896,16 @@ class Handler(BaseHTTPRequestHandler):
                  body.get('quantity'), body.get('weight'), body.get('notes')))
             return self.send_json({'success': True, 'id': new_id})
 
+        # ── OT POST ──
+        if p == '/api/ot':
+            if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
+            new_id = db_insert(
+                'INSERT INTO ot_records (work_date,start_time,end_time,work_content,ot_hours,meal_ticket,notes) VALUES (?,?,?,?,?,?,?)',
+                (body.get('work_date'), body.get('start_time'), body.get('end_time'),
+                 body.get('work_content'), body.get('ot_hours', 0),
+                 body.get('meal_ticket', 'X'), body.get('notes', '')))
+            return self.send_json({'success': True, 'id': new_id})
+
         # ── 제네릭 POST (admin) ──
         INSERT_MAP = {
             '/api/todos':        ('todos',          ['title','done','priority','due_date','notes']),
@@ -950,9 +983,9 @@ class Handler(BaseHTTPRequestHandler):
         PATCH_MAP = {
             'todos':'todos', 'dispatch':'dispatch_items', 'claims':'claims',
             'calendar':'calendar_events', 'memos':'memos', 'vendors':'vendors',
-            'shipper-reqs':'shipper_reqs', 'bonded':'bonded_records'
+            'shipper-reqs':'shipper_reqs', 'bonded':'bonded_records', 'ot':'ot_records'
         }
-        m2 = re.match(r'^/api/(todos|dispatch|claims|calendar|memos|vendors|shipper-reqs|bonded)/(\d+)$', p)
+        m2 = re.match(r'^/api/(todos|dispatch|claims|calendar|memos|vendors|shipper-reqs|bonded|ot)/(\d+)$', p)
         if m2:
             resource, rid = m2.group(1), m2.group(2)
             table = PATCH_MAP[resource]
@@ -983,9 +1016,9 @@ class Handler(BaseHTTPRequestHandler):
         DELETE_MAP = {
             'todos':'todos', 'dispatch':'dispatch_items', 'claims':'claims',
             'calendar':'calendar_events', 'memos':'memos', 'vendors':'vendors',
-            'shipper-reqs':'shipper_reqs', 'bonded':'bonded_records'
+            'shipper-reqs':'shipper_reqs', 'bonded':'bonded_records', 'ot':'ot_records'
         }
-        m2 = re.match(r'^/api/(todos|dispatch|claims|calendar|memos|vendors|shipper-reqs|bonded)/(\d+)$', p)
+        m2 = re.match(r'^/api/(todos|dispatch|claims|calendar|memos|vendors|shipper-reqs|bonded|ot)/(\d+)$', p)
         if m2:
             resource, rid = m2.group(1), m2.group(2)
             db_exec(f"DELETE FROM {DELETE_MAP[resource]} WHERE id=?", (rid,))

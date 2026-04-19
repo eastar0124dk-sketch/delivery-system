@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OT 내역 관리 - 토탈 물류</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { display: flex; min-height: 100vh; background: #f0f4f8; margin: 0; font-family: 'Noto Sans KR', sans-serif; }
+
+    /* ── 공통 ── */
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.08); padding: 20px; margin-bottom: 20px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 10px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit; transition: all .15s; }
+    .btn:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-primary  { background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; }
+    .btn-green    { background: linear-gradient(135deg,#38a169,#276749); color: #fff; }
+    .btn-red      { background: linear-gradient(135deg,#e53e3e,#c53030); color: #fff; }
+    .btn-gray     { background: #e2e8f0; color: #4a5568; }
+    .btn-sm       { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+
+    /* ── 통계 카드 ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+    .stat-card { background: #fff; border-radius: 14px; padding: 18px 20px; box-shadow: 0 2px 10px rgba(0,0,0,.07); border-left: 4px solid; }
+    .stat-card.blue   { border-color: #667eea; }
+    .stat-card.green  { border-color: #38a169; }
+    .stat-card.orange { border-color: #ed8936; }
+    .stat-card.red    { border-color: #e53e3e; }
+    .stat-label { font-size: 11px; color: #718096; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .stat-val   { font-size: 26px; font-weight: 800; color: #1a202c; line-height: 1; }
+    .stat-unit  { font-size: 13px; color: #718096; margin-left: 4px; font-weight: 400; }
+
+    /* ── 헤더 컨트롤 ── */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #1a202c; display: flex; align-items: center; gap: 10px; }
+    .month-nav   { display: flex; align-items: center; gap: 10px; }
+    .month-btn   { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; color: #4a5568; }
+    .month-btn:hover { background: #f7fafc; }
+    .month-display { font-size: 15px; font-weight: 700; color: #2d3748; min-width: 90px; text-align: center; }
+
+    /* ── 메인 레이아웃 ── */
+    .main-layout { display: grid; grid-template-columns: 340px 1fr; gap: 20px; }
+
+    /* ── 입력 폼 ── */
+    .form-group  { margin-bottom: 14px; }
+    .form-label  { display: block; font-size: 12px; font-weight: 600; color: #4a5568; margin-bottom: 5px; }
+    .form-label .req { color: #e53e3e; margin-left: 2px; }
+    .form-input, .form-select {
+      width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+      font-size: 13px; font-family: inherit; color: #2d3748; background: #fff;
+      transition: border-color .15s;
+    }
+    .form-input:focus, .form-select:focus { outline: none; border-color: #667eea; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ot-preview {
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(135deg,#667eea,#764ba2); color: #fff;
+      border-radius: 10px; padding: 12px 16px; margin: 14px 0;
+    }
+    .ot-preview-label { font-size: 12px; opacity: .85; }
+    .ot-preview-val   { font-size: 22px; font-weight: 800; }
+    .ot-rule-note { font-size: 11px; color: #e53e3e; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; }
+
+    /* ── 테이블 ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead tr { background: #1a202c; color: #fff; }
+    thead th { padding: 10px 12px; text-align: center; font-weight: 600; font-size: 12px; white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid #f0f4f8; transition: background .1s; }
+    tbody tr:hover { background: #f7fafc; }
+    tbody td { padding: 9px 12px; text-align: center; color: #2d3748; vertical-align: middle; }
+    tbody td.left { text-align: left; }
+    .total-row td { background: #edf2f7; font-weight: 700; font-size: 13px; color: #2d3748; }
+    .total-row td.amount { color: #e53e3e; font-size: 15px; }
+
+    /* ── 배지 ── */
+    .meal-o { background: #c6f6d5; color: #276749; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+    .meal-x { background: #fee2e2; color: #991b1b; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+    .content-canon { color: #e53e3e; font-weight: 600; }
+
+    /* ── 설정 ── */
+    .rate-box { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .rate-input { width: 130px; padding: 7px 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-family: inherit; text-align: right; }
+    .rate-input:focus { outline: none; border-color: #667eea; }
+    .rate-label { font-size: 12px; color: #718096; }
+
+    /* ── 빈 상태 ── */
+    .empty-row td { text-align: center; color: #a0aec0; padding: 40px; }
+
+    /* ── 툴바 ── */
+    .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+
+    @media (max-width: 960px) {
+      .main-layout { grid-template-columns: 1fr; }
+      .stat-grid { grid-template-columns: repeat(2,1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar"></div>
+  <div class="hub-main">
+
+    <!-- 헤더 -->
+    <div class="page-header">
+      <div class="page-title">⏰ OT 내역 관리</div>
+      <div class="month-nav">
+        <button class="month-btn" onclick="changeMonth(-1)">&#8592;</button>
+        <div class="month-display" id="monthDisplay"></div>
+        <button class="month-btn" onclick="changeMonth(1)">&#8594;</button>
+        <button class="btn btn-gray btn-sm" onclick="goToday()">이번달</button>
+      </div>
+    </div>
+
+    <!-- 통계 카드 -->
+    <div class="stat-grid">
+      <div class="stat-card blue">
+        <div class="stat-label">📋 총 OT 횟수</div>
+        <div class="stat-val" id="statCount">0<span class="stat-unit">회</span></div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">⏱ 총 OT 근무시간</div>
+        <div class="stat-val" id="statHours">0<span class="stat-unit">h</span></div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-label">🍱 식권 사용</div>
+        <div class="stat-val" id="statMeal">0<span class="stat-unit">건</span></div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-label">💰 OT 총 금액</div>
+        <div class="stat-val" id="statAmount" style="font-size:18px;">0<span class="stat-unit">원</span></div>
+      </div>
+    </div>
+
+    <!-- 메인 레이아웃 -->
+    <div class="main-layout">
+
+      <!-- 좌측: 입력 폼 -->
+      <div>
+        <div class="card">
+          <div style="font-size:15px;font-weight:700;color:#2d3748;margin-bottom:16px;" id="formTitle">
+            ➕ OT 내역 등록
+          </div>
+
+          <!-- 시간당 OT 단가 설정 -->
+          <div style="background:#f7fafc;border-radius:10px;padding:12px;margin-bottom:16px;">
+            <div style="font-size:11px;font-weight:600;color:#718096;margin-bottom:8px;">⚙️ 시간당 OT 단가 설정</div>
+            <div class="rate-box">
+              <input type="number" class="rate-input" id="otRate" value="19228" min="0" step="100" oninput="updateStats()">
+              <span class="rate-label">원 / 시간</span>
+              <button class="btn btn-gray btn-sm" onclick="saveRate()">저장</button>
+            </div>
+            <div style="font-size:11px;color:#a0aec0;">총금액 = OT시간 × 단가</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">날짜 <span class="req">*</span></label>
+            <input type="date" class="form-input" id="fDate">
+          </div>
+          <div class="form-group">
+            <label class="form-label">업무내용 <span class="req">*</span></label>
+            <select class="form-select" id="fContent" onchange="onContentChange()">
+              <option value="">선택하세요</option>
+              <option value="메틀러토레도 입고">메틀러토레도 입고</option>
+              <option value="메틀러토레도 출고">메틀러토레도 출고</option>
+              <option value="캐논메디칼 긴급출고">캐논메디칼 긴급출고</option>
+              <option value="캐논메디칼 출고">캐논메디칼 출고</option>
+              <option value="보세근무">보세근무</option>
+              <option value="직접입력">✏️ 직접 입력...</option>
+            </select>
+            <input type="text" class="form-input" id="fContentCustom" placeholder="업무내용 직접 입력" style="display:none;margin-top:6px;" oninput="recalcOT()">
+          </div>
+
+          <div class="ot-rule-note" id="canonNote" style="display:none;">
+            ⚡ <b>캐논메디칼 긴급출고</b> — 최소 <b>3시간</b> 보장 (실제 근무시간이 3h 미만이면 3h로 계산)
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">시작시간 <span class="req">*</span></label>
+              <input type="time" class="form-input" id="fStart" oninput="recalcOT()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">퇴근시간 <span class="req">*</span></label>
+              <input type="time" class="form-input" id="fEnd" oninput="recalcOT()">
+            </div>
+          </div>
+
+          <!-- OT 시간 미리보기 -->
+          <div class="ot-preview">
+            <div>
+              <div class="ot-preview-label">계산된 OT 근무시간</div>
+              <div style="font-size:11px;opacity:.7;margin-top:2px;" id="otCalcNote">시작/퇴근시간 입력 후 자동계산</div>
+            </div>
+            <div class="ot-preview-val" id="otPreview">— h</div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">식권 사용</label>
+              <select class="form-select" id="fMeal">
+                <option value="X">X (미사용)</option>
+                <option value="O">O (사용)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">메모</label>
+              <input type="text" class="form-input" id="fNotes" placeholder="선택사항">
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button class="btn btn-primary" style="flex:1;" onclick="saveOT()">
+              <i class="fas fa-save"></i> <span id="saveBtnLabel">등록</span>
+            </button>
+            <button class="btn btn-gray" onclick="resetForm()">
+              <i class="fas fa-undo"></i> 초기화
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 우측: OT 테이블 -->
+      <div>
+        <div class="card">
+          <div class="toolbar">
+            <div style="font-size:14px;font-weight:700;color:#2d3748;" id="tableTitle">OT 내역</div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-green btn-sm" onclick="exportExcel()">
+                <i class="fas fa-file-excel"></i> 엑셀 다운로드
+              </button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table id="otTable">
+              <thead>
+                <tr>
+                  <th style="width:38px;">횟수</th>
+                  <th>날짜</th>
+                  <th>시작시간</th>
+                  <th>퇴근시간</th>
+                  <th>업무내용</th>
+                  <th>OT 근무시간</th>
+                  <th>식권</th>
+                  <th style="width:70px;">관리</th>
+                </tr>
+              </thead>
+              <tbody id="otBody">
+                <tr class="empty-row"><td colspan="8"><i class="fas fa-clock"></i><br>등록된 OT 내역이 없습니다</td></tr>
+              </tbody>
+              <tfoot>
+                <tr class="total-row" id="totalRow" style="display:none;">
+                  <td colspan="4" style="text-align:right;padding-right:12px;">합계</td>
+                  <td style="text-align:right;">총 OT 근무시간</td>
+                  <td id="totalHours" style="color:#276749;font-size:15px;font-weight:800;"></td>
+                  <td id="totalMeal"></td>
+                  <td></td>
+                </tr>
+                <tr class="total-row" id="amountRow" style="display:none;">
+                  <td colspan="4" style="text-align:right;padding-right:12px;"></td>
+                  <td style="text-align:right;">OT 총 금액</td>
+                  <td id="totalAmount" colspan="2" class="amount"></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="hub-nav.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+  <script>
+    initNav('ot.html');
+
+    const token = () => sessionStorage.getItem('adminToken');
+    const authH = () => ({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token() });
+
+    let records  = [];
+    let editingId = null;
+    let curYear  = new Date().getFullYear();
+    let curMonth = new Date().getMonth() + 1;
+    let otRate   = parseInt(localStorage.getItem('otRate') || '19228', 10);
+
+    // ── 초기화 ──────────────────────────────────────────────
+    document.getElementById('otRate').value = otRate;
+    updateMonthDisplay();
+    loadOT();
+    setTodayDate();
+
+    function setTodayDate() {
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById('fDate').value = today;
+    }
+
+    function updateMonthDisplay() {
+      document.getElementById('monthDisplay').textContent = `${curYear}.${String(curMonth).padStart(2,'0')}`;
+    }
+
+    function changeMonth(delta) {
+      curMonth += delta;
+      if (curMonth > 12) { curMonth = 1; curYear++; }
+      if (curMonth <  1) { curMonth = 12; curYear--; }
+      updateMonthDisplay();
+      loadOT();
+    }
+
+    function goToday() {
+      curYear  = new Date().getFullYear();
+      curMonth = new Date().getMonth() + 1;
+      updateMonthDisplay();
+      loadOT();
+    }
+
+    function saveRate() {
+      otRate = parseInt(document.getElementById('otRate').value) || 0;
+      localStorage.setItem('otRate', otRate);
+      updateStats();
+      alert('단가가 저장되었습니다.');
+    }
+
+    // ── OT 시간 계산 로직 ──────────────────────────────────
+    function calcOTHours(startTime, endTime, workContent) {
+      if (!startTime || !endTime) return null;
+      const [sh, sm] = startTime.split(':').map(Number);
+      const [eh, em] = endTime.split(':').map(Number);
+      let startMin = sh * 60 + sm;
+      let endMin   = eh * 60 + em;
+      if (endMin <= startMin) endMin += 24 * 60; // 자정 넘기는 경우
+      const actualHours = (endMin - startMin) / 60;
+      let rounded = Math.round(actualHours * 10) / 10;
+      // 캐논메디칼 긴급출고: 최소 3시간
+      if ((workContent || '').includes('캐논메디칼 긴급출고')) {
+        rounded = Math.max(3.0, rounded);
+      }
+      return rounded;
+    }
+
+    function getWorkContent() {
+      const sel = document.getElementById('fContent').value;
+      if (sel === '직접입력') return document.getElementById('fContentCustom').value.trim();
+      return sel;
+    }
+
+    function recalcOT() {
+      const s = document.getElementById('fStart').value;
+      const e = document.getElementById('fEnd').value;
+      const c = getWorkContent();
+      const h = calcOTHours(s, e, c);
+      if (h === null) {
+        document.getElementById('otPreview').textContent = '— h';
+        document.getElementById('otCalcNote').textContent = '시작/퇴근시간 입력 후 자동계산';
+      } else {
+        document.getElementById('otPreview').textContent = h.toFixed(1) + ' h';
+        const isCanon = c.includes('캐논메디칼 긴급출고');
+        const actualMin = (() => {
+          if (!s || !e) return null;
+          const [sh,sm]=s.split(':').map(Number), [eh,em]=e.split(':').map(Number);
+          let st=sh*60+sm, en=eh*60+em;
+          if(en<=st) en+=1440;
+          return Math.round((en-st)/60*10)/10;
+        })();
+        if (isCanon && actualMin !== null && actualMin < 3) {
+          document.getElementById('otCalcNote').textContent = `실제 ${actualMin.toFixed(1)}h → 3h 최소 적용`;
+        } else {
+          document.getElementById('otCalcNote').textContent = `${s} ~ ${e}`;
+        }
+      }
+    }
+
+    function onContentChange() {
+      const val = document.getElementById('fContent').value;
+      const customEl = document.getElementById('fContentCustom');
+      const noteEl   = document.getElementById('canonNote');
+      customEl.style.display = val === '직접입력' ? '' : 'none';
+      noteEl.style.display   = val === '캐논메디칼 긴급출고' ? '' : 'none';
+      recalcOT();
+    }
+
+    // ── API ──────────────────────────────────────────────
+    async function loadOT() {
+      const ym = `${curYear}-${String(curMonth).padStart(2,'0')}`;
+      document.getElementById('tableTitle').textContent = `${ym} OT 내역`;
+      try {
+        const res = await fetch(`/api/ot?ym=${ym}`, { headers: authH() });
+        const data = await res.json();
+        records = data.data || [];
+        renderTable();
+        updateStats();
+      } catch (e) { console.error(e); }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('otBody');
+      if (!records.length) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="8"><i class="fas fa-clock"></i><br>등록된 OT 내역이 없습니다</td></tr>';
+        document.getElementById('totalRow').style.display = 'none';
+        document.getElementById('amountRow').style.display = 'none';
+        return;
+      }
+
+      tbody.innerHTML = records.map((r, i) => {
+        const isCanon = (r.work_content || '').includes('캐논메디칼 긴급출고');
+        const contentClass = isCanon ? 'content-canon' : '';
+        return `<tr>
+          <td style="color:#a0aec0;font-size:12px;">${i + 1}</td>
+          <td style="white-space:nowrap;">${r.work_date || '-'}</td>
+          <td>${r.start_time || '-'}</td>
+          <td>${r.end_time || '-'}</td>
+          <td class="left ${contentClass}">${r.work_content || '-'}</td>
+          <td style="font-weight:700;color:#276749;">${parseFloat(r.ot_hours||0).toFixed(1)}</td>
+          <td><span class="${r.meal_ticket==='O'?'meal-o':'meal-x'}">${r.meal_ticket||'X'}</span></td>
+          <td>
+            <div style="display:flex;gap:4px;justify-content:center;">
+              <button class="btn btn-sm" style="background:#ebf8ff;color:#2b6cb0;padding:4px 8px;" onclick="editOT(${r.id})" title="수정"><i class="fas fa-pen"></i></button>
+              <button class="btn btn-sm" style="background:#fff5f5;color:#c53030;padding:4px 8px;" onclick="deleteOT(${r.id})" title="삭제"><i class="fas fa-trash"></i></button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+      const totalHours = records.reduce((s, r) => s + parseFloat(r.ot_hours || 0), 0);
+      const mealCount  = records.filter(r => r.meal_ticket === 'O').length;
+      const totalAmt   = Math.round(totalHours * otRate);
+
+      document.getElementById('totalHours').textContent = Math.round(totalHours * 10) / 10 + ' h';
+      document.getElementById('totalMeal').innerHTML = `<span class="meal-o">${mealCount}건</span>`;
+      document.getElementById('totalAmount').textContent = totalAmt.toLocaleString('ko-KR') + ' 원';
+      document.getElementById('totalRow').style.display = '';
+      document.getElementById('amountRow').style.display = '';
+    }
+
+    function updateStats() {
+      const totalHours = records.reduce((s, r) => s + parseFloat(r.ot_hours || 0), 0);
+      const mealCount  = records.filter(r => r.meal_ticket === 'O').length;
+      const totalAmt   = Math.round(totalHours * otRate);
+
+      document.getElementById('statCount').innerHTML  = `${records.length}<span class="stat-unit">회</span>`;
+      document.getElementById('statHours').innerHTML  = `${Math.round(totalHours*10)/10}<span class="stat-unit">h</span>`;
+      document.getElementById('statMeal').innerHTML   = `${mealCount}<span class="stat-unit">건</span>`;
+      document.getElementById('statAmount').innerHTML = `${totalAmt.toLocaleString('ko-KR')}<span class="stat-unit">원</span>`;
+
+      // tfoot도 업데이트
+      if (records.length) {
+        document.getElementById('totalAmount').textContent = totalAmt.toLocaleString('ko-KR') + ' 원';
+      }
+    }
+
+    // ── 저장/수정 ──────────────────────────────────────────
+    async function saveOT() {
+      const date    = document.getElementById('fDate').value;
+      const start   = document.getElementById('fStart').value;
+      const end     = document.getElementById('fEnd').value;
+      const content = getWorkContent();
+      const meal    = document.getElementById('fMeal').value;
+      const notes   = document.getElementById('fNotes').value.trim();
+
+      if (!date)    { alert('날짜를 입력해주세요.'); return; }
+      if (!start)   { alert('시작시간을 입력해주세요.'); return; }
+      if (!end)     { alert('퇴근시간을 입력해주세요.'); return; }
+      if (!content) { alert('업무내용을 선택/입력해주세요.'); return; }
+
+      const ot_hours = calcOTHours(start, end, content);
+      if (ot_hours === null || ot_hours <= 0) { alert('시간을 다시 확인해주세요.'); return; }
+
+      const body = { work_date: date, start_time: start, end_time: end,
+                     work_content: content, ot_hours, meal_ticket: meal, notes };
+
+      try {
+        if (editingId) {
+          await fetch(`/api/ot/${editingId}`, { method: 'PATCH', headers: authH(), body: JSON.stringify(body) });
+        } else {
+          await fetch('/api/ot', { method: 'POST', headers: authH(), body: JSON.stringify(body) });
+        }
+        resetForm();
+        loadOT();
+      } catch (e) { alert('저장 실패: ' + e.message); }
+    }
+
+    function editOT(id) {
+      const r = records.find(x => x.id === id);
+      if (!r) return;
+      editingId = id;
+
+      document.getElementById('fDate').value  = r.work_date  || '';
+      document.getElementById('fStart').value = r.start_time || '';
+      document.getElementById('fEnd').value   = r.end_time   || '';
+      document.getElementById('fMeal').value  = r.meal_ticket || 'X';
+      document.getElementById('fNotes').value = r.notes || '';
+
+      // 업무내용 선택
+      const sel = document.getElementById('fContent');
+      const opts = [...sel.options].map(o => o.value);
+      if (opts.includes(r.work_content)) {
+        sel.value = r.work_content;
+        document.getElementById('fContentCustom').style.display = 'none';
+      } else {
+        sel.value = '직접입력';
+        document.getElementById('fContentCustom').style.display = '';
+        document.getElementById('fContentCustom').value = r.work_content || '';
+      }
+
+      document.getElementById('canonNote').style.display =
+        (r.work_content || '').includes('캐논메디칼 긴급출고') ? '' : 'none';
+
+      document.getElementById('formTitle').textContent = '✏️ OT 내역 수정';
+      document.getElementById('saveBtnLabel').textContent = '수정 저장';
+      recalcOT();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function deleteOT(id) {
+      const r = records.find(x => x.id === id);
+      if (!confirm(`${r?.work_date} ${r?.work_content} 항목을 삭제하시겠습니까?`)) return;
+      await fetch(`/api/ot/${id}`, { method: 'DELETE', headers: authH() });
+      loadOT();
+    }
+
+    function resetForm() {
+      editingId = null;
+      document.getElementById('fDate').value  = new Date().toISOString().slice(0,10);
+      document.getElementById('fStart').value = '';
+      document.getElementById('fEnd').value   = '';
+      document.getElementById('fContent').value = '';
+      document.getElementById('fContentCustom').value = '';
+      document.getElementById('fContentCustom').style.display = 'none';
+      document.getElementById('fMeal').value  = 'X';
+      document.getElementById('fNotes').value = '';
+      document.getElementById('canonNote').style.display = 'none';
+      document.getElementById('otPreview').textContent = '— h';
+      document.getElementById('otCalcNote').textContent = '시작/퇴근시간 입력 후 자동계산';
+      document.getElementById('formTitle').textContent = '➕ OT 내역 등록';
+      document.getElementById('saveBtnLabel').textContent = '등록';
+    }
+
+    // ── 엑셀 다운로드 ──────────────────────────────────────
+    function exportExcel() {
+      if (!records.length) { alert('데이터가 없습니다.'); return; }
+      const ym = `${curYear}-${String(curMonth).padStart(2,'0')}`;
+      const totalHours = records.reduce((s,r) => s + parseFloat(r.ot_hours||0), 0);
+      const mealCount  = records.filter(r => r.meal_ticket === 'O').length;
+      const totalAmt   = Math.round(totalHours * otRate);
+
+      const aoa = [
+        ['횟수','날짜','시작시간','퇴근시간','업무내용','OT 근무시간','식권 사용여부','메모']
+      ];
+      records.forEach((r, i) => aoa.push([
+        i + 1, r.work_date, r.start_time, r.end_time,
+        r.work_content, parseFloat(r.ot_hours||0).toFixed(1),
+        r.meal_ticket || 'X', r.notes || ''
+      ]));
+      // 합계 행
+      aoa.push([]);
+      aoa.push(['', '', '', '', '총 OT 근무시간', Math.round(totalHours*10)/10 + ' h', mealCount + '건', '']);
+      aoa.push(['', '', '', '', 'OT 총 금액', totalAmt.toLocaleString('ko-KR') + ' 원', '', '']);
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [{wch:6},{wch:12},{wch:9},{wch:9},{wch:20},{wch:12},{wch:10},{wch:20}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, `OT내역_${ym}`);
+      XLSX.writeFile(wb, `OT내역_${ym}.xlsx`);
+    }
+  </script>
+</body>
+</html>
