@@ -100,7 +100,10 @@
           </select>
           <span class="count-label" id="countLabel"></span>
         </div>
-        <button class="btn-primary" onclick="openModal()">+ 업체 추가</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-primary" style="background:linear-gradient(135deg,#38a169,#276749);" onclick="exportExcel()">📥 엑셀 다운로드</button>
+          <button class="btn-primary" onclick="openModal()">+ 업체 추가</button>
+        </div>
       </div>
 
       <div class="table-wrap">
@@ -288,7 +291,23 @@
       if (e.target === document.getElementById('modal')) closeModal();
     });
 
+    function exportExcel() {
+      if (!vendors.length) { alert('데이터가 없습니다.'); return; }
+      const typeLabel = { transport:'운송사', shipper:'화주', forwarder:'포워더', other:'기타' };
+      const rows = [['업체명', '구분', '담당자', '전화번호', '주소', '메모']];
+      vendors.forEach(v => rows.push([
+        v.name || '', typeLabel[v.type] || v.type || '',
+        v.manager || '', v.phone || '', v.address || '', v.memo || ''
+      ]));
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{wch:20},{wch:8},{wch:12},{wch:14},{wch:30},{wch:30}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '업체관리');
+      XLSX.writeFile(wb, `업체관리_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
     loadVendors();
   </script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 </body>
 </html>

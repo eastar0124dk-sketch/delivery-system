@@ -91,7 +91,10 @@
     <div class="card">
       <div class="top-bar">
         <div class="todo-count" id="todoCount">전체 0개</div>
-        <button class="btn-primary" onclick="openModal()">+ 할일 추가</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-primary" style="background:linear-gradient(135deg,#38a169,#276749);" onclick="exportExcel()">📥 엑셀 다운로드</button>
+          <button class="btn-primary" onclick="openModal()">+ 할일 추가</button>
+        </div>
       </div>
       <div class="filter-tabs">
         <button class="filter-tab active" data-filter="all" onclick="setFilter('all', this)">전체</button>
@@ -263,7 +266,27 @@
       if (e.target === document.getElementById('modal')) closeModal();
     });
 
+    function exportExcel() {
+      if (!todos.length) { alert('데이터가 없습니다.'); return; }
+      const priorityLabel = { urgent: '긴급', high: '높음', normal: '보통', low: '낮음' };
+      const rows = [['제목', '우선순위', '마감일', '카테고리', '메모', '완료여부']];
+      todos.forEach(t => rows.push([
+        t.title || '',
+        priorityLabel[t.priority] || t.priority || '',
+        t.due_date || '',
+        t.category || '',
+        t.memo || '',
+        t.done ? '완료' : '미완료'
+      ]));
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{wch:30},{wch:8},{wch:12},{wch:12},{wch:30},{wch:8}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '업무Todo');
+      XLSX.writeFile(wb, `업무Todo_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
     loadTodos();
   </script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 </body>
 </html>

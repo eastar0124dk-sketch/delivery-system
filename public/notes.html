@@ -107,7 +107,10 @@
       <div class="notes-list-panel">
         <div class="notes-list-header">
           <div class="notes-list-header-title">메모 목록</div>
-          <button class="btn-new" onclick="newNote()">+ 새 메모</button>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-new" style="background:linear-gradient(135deg,#38a169,#276749);color:#fff;" onclick="exportExcel()">📥</button>
+            <button class="btn-new" onclick="newNote()">+ 새 메모</button>
+          </div>
         </div>
         <div class="notes-scroll" id="notesList"></div>
       </div>
@@ -281,7 +284,24 @@
       return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
     }
 
+    function exportExcel() {
+      if (!notes.length) { alert('데이터가 없습니다.'); return; }
+      const rows = [['제목', '내용', '작성일', '수정일']];
+      [...notes].sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at)).forEach(n => rows.push([
+        n.title || '',
+        n.content || '',
+        n.created_at ? new Date(n.created_at).toLocaleString('ko-KR') : '',
+        n.updated_at ? new Date(n.updated_at).toLocaleString('ko-KR') : ''
+      ]));
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{wch:25},{wch:60},{wch:18},{wch:18}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '메모장');
+      XLSX.writeFile(wb, `메모장_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
     loadNotes();
   </script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 </body>
 </html>

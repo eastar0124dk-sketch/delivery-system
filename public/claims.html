@@ -331,7 +331,10 @@
 <main class="hub-main">
   <div class="page-header">
     <h1 class="page-title"><i class="fa fa-triangle-exclamation" style="margin-right:8px;"></i>클레임 트래커</h1>
-    <button class="btn btn-primary" onclick="openAddModal()"><i class="fa fa-plus"></i> 클레임 등록</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" style="background:linear-gradient(135deg,#38a169,#276749);" onclick="exportExcel()">📥 엑셀 다운로드</button>
+      <button class="btn btn-primary" onclick="openAddModal()"><i class="fa fa-plus"></i> 클레임 등록</button>
+    </div>
   </div>
 
   <!-- 요약 카드 -->
@@ -660,11 +663,31 @@
     if (e.target === this) closeResolveModal();
   });
 
+  function exportExcel() {
+    if (!allClaims.length) { alert('데이터가 없습니다.'); return; }
+    const typeMap = { shortage:'부족', damage:'파손', delay:'지연', wrong:'오배송', other:'기타' };
+    const rows = [['DN번호', '화주', '클레임유형', '내용', '등록일', '상태', '처리내용']];
+    allClaims.forEach(c => rows.push([
+      c.dn_no || '', c.client || '',
+      typeMap[c.claim_type] || c.claim_type || '',
+      c.description || '',
+      c.created_at ? new Date(c.created_at).toLocaleDateString('ko-KR') : '',
+      c.status === 'open' ? '처리중' : '완료',
+      c.resolution || ''
+    ]));
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:14},{wch:12},{wch:10},{wch:35},{wch:12},{wch:8},{wch:30}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '클레임트래커');
+    XLSX.writeFile(wb, `클레임_${new Date().toISOString().slice(0,10)}.xlsx`);
+  }
+
   // ── 초기화 ───────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', () => {
     if (typeof initNav === 'function') initNav('claims');
     loadData();
   });
 </script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 </body>
 </html>
