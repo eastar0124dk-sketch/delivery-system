@@ -3,7 +3,7 @@
 import os
 os.environ.setdefault('PYTHONUTF8', '1')
 
-import json, secrets, re, mimetypes, socket, io
+import json, secrets, re, mimetypes, socket, io, hashlib
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timedelta
@@ -31,6 +31,10 @@ TELEGRAM_CHAT_ID = re.sub(r'[^0-9-]', '', os.environ.get('TELEGRAM_CHAT_ID', '')
 
 valid_tokens       = set()
 valid_staff_tokens = set()
+
+def make_token(pw: str) -> str:
+    """비밀번호 기반 결정적 토큰 — 서버 재시작 후에도 유효"""
+    return hashlib.sha256(('totalmogul_salt_' + pw).encode()).hexdigest()
 
 def send_telegram(msg):
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
@@ -603,8 +607,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def token_ok(self, admin_only=False):
         t = self.get_token()
-        if t and t in valid_tokens: return True
-        if not admin_only and t and t in valid_staff_tokens: return True
+        if not t: return False
+        # 메모리 세트 (구버전 호환)
+        if t in valid_tokens: return True
+        if not admin_only and t in valid_staff_tokens: return True
+        # 결정적 토큰 검증 (서버 재시작 후에도 유효)
+        db_admin = (db_fetch('SELECT value FROM app_settings WHERE key=?', ('admin_pw',)) or {}).get('value') or ADMIN_PW
+        db_staff = (db_fetch('SELECT value FROM app_settings WHERE key=?', ('staff_pw',)) or {}).get('value') or STAFF_PW
+        if t == make_token(db_admin): return True
+        if not admin_only and t == make_token(db_staff): return True
         return False
 
     def _serve_static(self, req_path):
@@ -870,10 +881,10 @@ class Handler(BaseHTTPRequestHandler):
             db_admin = (db_fetch('SELECT value FROM app_settings WHERE key=?', ('admin_pw',)) or {}).get('value') or ADMIN_PW
             db_staff = (db_fetch('SELECT value FROM app_settings WHERE key=?', ('staff_pw',)) or {}).get('value') or STAFF_PW
             if pw == db_admin:
-                t = secrets.token_hex(32); valid_tokens.add(t)
+                t = make_token(pw); valid_tokens.add(t)
                 return self.send_json({'token': t, 'role': 'admin'})
             elif pw == db_staff:
-                t = secrets.token_hex(32); valid_staff_tokens.add(t)
+                t = make_token(pw); valid_staff_tokens.add(t)
                 return self.send_json({'token': t, 'role': 'staff'})
             return self.send_json({'error':'비밀번호가 틀렸습니다.'}, 401)
 
