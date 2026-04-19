@@ -80,6 +80,9 @@
     .btn-cancel { padding: 10px 20px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; color: #718096; cursor: pointer; font-family: inherit; font-size: 14px; }
     .empty-msg { text-align: center; padding: 40px; color: #a0aec0; font-size: 14px; }
     .count-label { font-size: 13px; color: #718096; }
+    .ocr-loading { display: flex; align-items: center; gap: 8px; color: #667eea; font-size: 13px; margin: 8px 0; }
+    .ocr-spinner { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #667eea; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -100,8 +103,12 @@
           </select>
           <span class="count-label" id="countLabel"></span>
         </div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn-primary" style="background:linear-gradient(135deg,#38a169,#276749);" onclick="exportExcel()">📥 엑셀 다운로드</button>
+          <label class="btn-primary" style="background:linear-gradient(135deg,#ed8936,#c05621);cursor:pointer;" title="명함 사진을 업로드하면 자동으로 정보를 인식합니다">
+            📷 명함 스캔 등록
+            <input type="file" id="cardInput" accept="image/*" style="display:none;" onchange="scanBusinessCard(event)">
+          </label>
           <button class="btn-primary" onclick="openModal()">+ 업체 추가</button>
         </div>
       </div>
@@ -131,6 +138,11 @@
   <div class="modal-overlay" id="modal">
     <div class="modal">
       <div class="modal-title" id="modalTitle">🏢 업체 추가</div>
+      <div id="cardPreviewBox" style="display:none;margin-bottom:16px;background:#f7fafc;border-radius:10px;padding:12px;">
+        <div style="font-size:12px;font-weight:600;color:#718096;margin-bottom:8px;">📷 인식된 명함</div>
+        <img id="cardPreviewImg" style="max-width:100%;max-height:160px;border-radius:8px;object-fit:contain;" alt="명함">
+        <div id="ocrStatusMsg" style="font-size:12px;color:#667eea;margin-top:6px;"></div>
+      </div>
       <input type="hidden" id="inp-id">
       <div class="form-group">
         <label class="form-label">업체명 <span style="color:#ef4444">*</span></label>
@@ -306,8 +318,112 @@
       XLSX.writeFile(wb, `업체관리_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
+    // ── 명함 스캔 OCR ──────────────────────────────────────
+    async function scanBusinessCard(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // 미리보기 표시 + 모달 열기
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const imgSrc = e.target.result;
+        document.getElementById('cardPreviewImg').src = imgSrc;
+        document.getElementById('cardPreviewBox').style.display = '';
+        document.getElementById('ocrStatusMsg').innerHTML =
+          '<div class="ocr-loading"><div class="ocr-spinner"></div>명함 인식 중...</div>';
+
+        // 폼 초기화 후 모달 열기
+        document.getElementById('inp-id').value = '';
+        document.getElementById('inp-name').value = '';
+        document.getElementById('inp-manager').value = '';
+        document.getElementById('inp-phone').value = '';
+        document.getElementById('inp-address').value = '';
+        document.getElementById('inp-memo').value = '';
+        document.getElementById('inp-type').value = 'other';
+        document.getElementById('modalTitle').textContent = '📷 명함 스캔 등록';
+        document.getElementById('modal').classList.add('show');
+
+        // Tesseract OCR 실행
+        try {
+          const { data: { text } } = await Tesseract.recognize(imgSrc, 'kor+eng', {
+            logger: m => {
+              if (m.status === 'recognizing text') {
+                const pct = Math.round((m.progress || 0) * 100);
+                document.getElementById('ocrStatusMsg').innerHTML =
+                  `<div class="ocr-loading"><div class="ocr-spinner"></div>텍스트 인식 중... ${pct}%</div>`;
+              }
+            }
+          });
+
+          parseCardText(text);
+          document.getElementById('ocrStatusMsg').innerHTML =
+            '✅ 인식 완료 — 내용을 확인 후 수정하세요.';
+          document.getElementById('ocrStatusMsg').style.color = '#276749';
+        } catch (err) {
+          document.getElementById('ocrStatusMsg').innerHTML = '⚠️ 인식 실패 — 직접 입력해주세요.';
+          document.getElementById('ocrStatusMsg').style.color = '#e53e3e';
+          console.error('OCR error:', err);
+        }
+
+        // 파일 input 초기화 (재사용 가능)
+        event.target.value = '';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function parseCardText(text) {
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const allText = lines.join(' ');
+
+      // 전화번호 추출 (다양한 패턴)
+      const phoneMatch = allText.match(/(?:Tel|TEL|전화|Mobile|M|HP|핸드폰|연락처)?[:\s]*(\d{2,4}[-.\s]?\d{3,4}[-.\s]?\d{4})/i);
+      if (phoneMatch) {
+        let phone = phoneMatch[1].replace(/[^\d-]/g, '');
+        if (!phone.includes('-')) {
+          phone = phone.replace(/^(\d{2,3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
+        }
+        document.getElementById('inp-phone').value = phone;
+      }
+
+      // 이메일 추출
+      const emailMatch = allText.match(/[\w.-]+@[\w.-]+\.\w+/);
+      let emailNote = '';
+      if (emailMatch) emailNote = emailMatch[0];
+
+      // 주소 추출 (시/도/구 포함 라인)
+      const addressMatch = lines.find(l =>
+        /서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|시|구|동|로\s|길\s/.test(l) &&
+        l.length > 10
+      );
+      if (addressMatch) document.getElementById('inp-address').value = addressMatch;
+
+      // 업체명 추출 (주식회사/㈜/(주) 포함 라인 우선, 또는 첫 번째 긴 라인)
+      const companyLine = lines.find(l =>
+        /주식회사|㈜|\(주\)|Corp|Co\.|Ltd|Inc|LLC|물류|운송|포워딩|Logistics|Trading/.test(l)
+      ) || lines.find(l => l.length >= 3 && l.length <= 30 && /[가-힣a-zA-Z]/.test(l));
+      if (companyLine) {
+        document.getElementById('inp-name').value = companyLine.replace(/[\(\)㈜]/g, '').trim();
+        // 업체 타입 자동 분류
+        if (/운송|물류|배송|Logistics|Transport/.test(companyLine)) {
+          document.getElementById('inp-type').value = 'transport';
+        } else if (/포워딩|Forwarding|Forwarder/.test(companyLine)) {
+          document.getElementById('inp-type').value = 'forwarder';
+        }
+      }
+
+      // 담당자명 추출 (직함 앞 한글 이름)
+      const nameMatch = allText.match(/([가-힣]{2,4})\s*(?:대표|부장|차장|과장|팀장|이사|사장|실장|주임|대리|사원|매니저|Manager|Director)/);
+      if (nameMatch) document.getElementById('inp-manager').value = nameMatch[1];
+
+      // 메모에 이메일 기록
+      if (emailNote) {
+        document.getElementById('inp-memo').value = `이메일: ${emailNote}`;
+      }
+    }
+
     loadVendors();
   </script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+  <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
 </body>
 </html>

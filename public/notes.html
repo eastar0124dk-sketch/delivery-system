@@ -141,7 +141,7 @@
 
     async function loadNotes() {
       try {
-        const res = await fetch('/api/notes', { headers: authH() });
+        const res = await fetch('/api/memos', { headers: authH() });
         if (!res.ok) throw new Error();
         notes = await res.json();
       } catch {
@@ -213,8 +213,8 @@
 
       const body = { title: titleEl.value, content: contentEl.value };
       try {
-        const res = await fetch(`/api/notes/${currentId}`, {
-          method: 'PUT', headers: authH(), body: JSON.stringify(body)
+        const res = await fetch(`/api/memos/${currentId}`, {
+          method: 'PATCH', headers: authH(), body: JSON.stringify(body)
         });
         if (!res.ok) throw new Error();
         const updated = await res.json();
@@ -237,14 +237,16 @@
     async function newNote() {
       if (isDirty) await saveCurrentNote();
       try {
-        const res = await fetch('/api/notes', {
+        const res = await fetch('/api/memos', {
           method: 'POST', headers: authH(),
           body: JSON.stringify({ title: '새 메모', content: '' })
         });
         if (!res.ok) throw new Error();
-        const note = await res.json();
+        const resp = await res.json();
+        const newId = resp.id || resp;
+        const note = { id: newId, title: '새 메모', content: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
         notes.unshift(note);
-        currentId = note.id;
+        currentId = newId;
         renderList();
         renderEditor(note);
         setTimeout(() => {
@@ -257,7 +259,7 @@
     async function deleteNote(id) {
       if (!confirm('메모를 삭제하시겠습니까?')) return;
       try {
-        await fetch(`/api/notes/${id}`, { method: 'DELETE', headers: authH() });
+        await fetch(`/api/memos/${id}`, { method: 'DELETE', headers: authH() });
         notes = notes.filter(n => n.id !== id);
         currentId = null;
         isDirty = false;

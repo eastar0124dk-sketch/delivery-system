@@ -48,10 +48,17 @@
       font-size: 11px; border-radius: 4px; padding: 1px 5px; margin-bottom: 2px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
     }
-    .ev-general { background: #dbeafe; color: #1e40af; }
-    .ev-dispatch { background: #d1fae5; color: #065f46; }
-    .ev-deadline { background: #fee2e2; color: #991b1b; }
-    .ev-meeting  { background: #ede9fe; color: #5b21b6; }
+    .ev-general   { background: #dbeafe; color: #1e40af; }
+    .ev-dispatch  { background: #d1fae5; color: #065f46; }
+    .ev-deadline  { background: #fee2e2; color: #991b1b; }
+    .ev-meeting   { background: #ede9fe; color: #5b21b6; }
+    .ev-inbound   { background: #d1fae5; color: #065f46; }
+    .ev-outbound  { background: #fed7aa; color: #9a3412; }
+    .ev-transfer  { background: #fef3c7; color: #92400e; }
+    .ev-issue     { background: #fee2e2; color: #991b1b; }
+    .ev-bonded    { background: #e0e7ff; color: #3730a3; }
+    .ev-canon     { background: #fce7f3; color: #9d174d; }
+    .ev-mettler   { background: #f0fdf4; color: #166534; }
 
     .layout { display: flex; gap: 20px; }
     .cal-section { flex: 1; }
@@ -61,10 +68,17 @@
     .event-item {
       padding: 10px 12px; border-radius: 10px; border-left: 4px solid #667eea;
     }
-    .event-item.ev-general  { border-color: #3b82f6; background: #eff6ff; }
-    .event-item.ev-dispatch { border-color: #10b981; background: #f0fdf4; }
-    .event-item.ev-deadline { border-color: #ef4444; background: #fff5f5; }
-    .event-item.ev-meeting  { border-color: #8b5cf6; background: #faf5ff; }
+    .event-item.ev-general   { border-color: #3b82f6; background: #eff6ff; }
+    .event-item.ev-dispatch  { border-color: #10b981; background: #f0fdf4; }
+    .event-item.ev-deadline  { border-color: #ef4444; background: #fff5f5; }
+    .event-item.ev-meeting   { border-color: #8b5cf6; background: #faf5ff; }
+    .event-item.ev-inbound   { border-color: #10b981; background: #f0fdf4; }
+    .event-item.ev-outbound  { border-color: #f97316; background: #fff7ed; }
+    .event-item.ev-transfer  { border-color: #f59e0b; background: #fffbeb; }
+    .event-item.ev-issue     { border-color: #ef4444; background: #fff5f5; }
+    .event-item.ev-bonded    { border-color: #6366f1; background: #eef2ff; }
+    .event-item.ev-canon     { border-color: #ec4899; background: #fdf2f8; }
+    .event-item.ev-mettler   { border-color: #22c55e; background: #f0fdf4; }
     .event-item-title { font-size: 14px; font-weight: 600; color: #2d3748; }
     .event-item-meta  { font-size: 12px; color: #718096; margin-top: 2px; }
     .event-item-actions { display: flex; gap: 6px; margin-top: 6px; }
@@ -170,10 +184,17 @@
       <div class="form-group">
         <label class="form-label">타입</label>
         <select class="form-select" id="inp-ev-type">
-          <option value="general">일반</option>
-          <option value="dispatch">배차</option>
-          <option value="deadline">마감</option>
-          <option value="meeting">회의</option>
+          <option value="inbound">📦 입고</option>
+          <option value="outbound">🚚 출고</option>
+          <option value="transfer">🔄 재고이동</option>
+          <option value="issue">🚨 이슈 &amp; 이벤트</option>
+          <option value="bonded">🚢 보세 반입/출</option>
+          <option value="canon">🖨️ 캐논메디칼</option>
+          <option value="mettler">⚖️ 메틀러토레도</option>
+          <option value="dispatch">🚗 배차</option>
+          <option value="deadline">⏰ 마감</option>
+          <option value="meeting">💬 회의</option>
+          <option value="general">📌 일반</option>
         </select>
       </div>
       <div class="form-group">
@@ -199,8 +220,16 @@
     let selectedDate = null;
     let editingId = null;
 
-    const typeLabel = { general: '일반', dispatch: '배차', deadline: '마감', meeting: '회의' };
-    const typeClass = { general: 'ev-general', dispatch: 'ev-dispatch', deadline: 'ev-deadline', meeting: 'ev-meeting' };
+    const typeLabel = {
+      inbound:'📦 입고', outbound:'🚚 출고', transfer:'🔄 재고이동', issue:'🚨 이슈',
+      bonded:'🚢 보세', canon:'🖨️ 캐논', mettler:'⚖️ 메틀러',
+      dispatch:'🚗 배차', deadline:'⏰ 마감', meeting:'💬 회의', general:'📌 일반'
+    };
+    const typeClass = {
+      inbound:'ev-inbound', outbound:'ev-outbound', transfer:'ev-transfer', issue:'ev-issue',
+      bonded:'ev-bonded', canon:'ev-canon', mettler:'ev-mettler',
+      dispatch:'ev-dispatch', deadline:'ev-deadline', meeting:'ev-meeting', general:'ev-general'
+    };
 
     function init() {
       const now = new Date();
@@ -321,7 +350,7 @@
       document.getElementById('inp-ev-title').value = '';
       document.getElementById('inp-ev-date').value = prefillDate || selectedDate || '';
       document.getElementById('inp-ev-time').value = '';
-      document.getElementById('inp-ev-type').value = 'general';
+      document.getElementById('inp-ev-type').value = 'inbound';
       document.getElementById('inp-ev-memo').value = '';
       document.getElementById('modal').classList.add('show');
     }
@@ -387,7 +416,11 @@
 
     function exportExcel() {
       if (!events.length) { alert('데이터가 없습니다.'); return; }
-      const typeLabel = { work:'업무', meeting:'미팅', deadline:'마감', personal:'개인', general:'일반' };
+      const typeLabel = {
+        inbound:'입고', outbound:'출고', transfer:'재고이동', issue:'이슈&이벤트',
+        bonded:'보세', canon:'캐논메디칼', mettler:'메틀러토레도',
+        dispatch:'배차', deadline:'마감', meeting:'회의', general:'일반'
+      };
       const rows = [['날짜', '시간', '제목', '유형', '메모']];
       [...events].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e => rows.push([
         e.date || '', e.time || '', e.title || '',
