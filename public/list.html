@@ -202,6 +202,7 @@
     <div class="export-btns">
       <button class="btn btn-secondary btn-sm" onclick="printAll()"><i class="fas fa-print"></i> 목록 인쇄</button>
       <button class="btn btn-pdf btn-sm" onclick="exportPDFAll()"><i class="fas fa-file-pdf"></i> 목록 PDF</button>
+      <button class="btn btn-pdf btn-sm" id="bulkPdfBtn" onclick="bulkPDF()" style="display:none;background:linear-gradient(135deg,#e53e3e,#c53030);"><i class="fas fa-file-pdf"></i> 선택 일괄 PDF (<span id="chkCount">0</span>건)</button>
       <button class="btn btn-excel btn-sm" onclick="exportExcel()"><i class="fas fa-file-excel"></i> 엑셀 다운로드</button>
     </div>
   </div>
@@ -220,7 +221,7 @@
     <div class="table-wrap desktop-only">
       <table>
         <thead>
-          <tr><th>#</th><th>DN번호</th><th>배송일</th><th>고객사</th><th>제품명</th><th>수량</th><th>수취인</th><th>기사</th><th>상태</th><th>관리</th></tr>
+          <tr><th style="width:36px;"><input type="checkbox" id="chkAll" title="전체선택" onchange="toggleAllCheck(this.checked)"></th><th>#</th><th>DN번호</th><th>배송일</th><th>고객사</th><th>제품명</th><th>수량</th><th>수취인</th><th>기사</th><th>상태</th><th>관리</th></tr>
         </thead>
         <tbody id="orderTbody"></tbody>
       </table>
@@ -402,6 +403,7 @@
 
     tbody.innerHTML=pageData.map((r,i)=>`
       <tr>
+        <td><input type="checkbox" class="row-chk" data-id="${r.id}" onchange="updateChkCount()"></td>
         <td style="color:#a0aec0;font-size:12px;">${start+i+1}</td>
         <td><span class="order-no" style="cursor:pointer;text-decoration:underline;" onclick="openDetail(${r.id})" title="클릭하여 상세보기">${r.order_no}</span></td>
         <td style="white-space:nowrap;">${r.delivery_date||'-'}</td>
@@ -478,6 +480,137 @@
     a.href = url; a.download = `배송인수증_${today}.csv`;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  // ── 체크박스 ──
+  function updateChkCount() {
+    const checked = document.querySelectorAll('.row-chk:checked');
+    const cnt = checked.length;
+    document.getElementById('chkCount').textContent = cnt;
+    document.getElementById('bulkPdfBtn').style.display = cnt > 0 ? '' : 'none';
+    const all = document.querySelectorAll('.row-chk');
+    const chkAll = document.getElementById('chkAll');
+    if (chkAll) chkAll.checked = all.length > 0 && checked.length === all.length;
+  }
+  function toggleAllCheck(checked) {
+    document.querySelectorAll('.row-chk').forEach(c => c.checked = checked);
+    updateChkCount();
+  }
+
+  // ── 일괄 PDF ──
+  async function bulkPDF() {
+    const checked = [...document.querySelectorAll('.row-chk:checked')];
+    if (!checked.length) { alert('항목을 선택하세요.'); return; }
+    if (!confirm(`선택한 ${checked.length}건의 인수증명서를 하나의 PDF로 저장하시겠습니까?`)) return;
+
+    const btn = document.getElementById('bulkPdfBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 생성중...';
+
+    const hidden = document.createElement('div');
+    hidden.style.cssText = 'position:fixed;left:-9999px;top:0;width:680px;background:#fff;padding:24px;';
+    document.body.appendChild(hidden);
+
+    try {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pw = pdf.internal.pageSize.getWidth();
+      const ph = pdf.internal.pageSize.getHeight();
+      let first = true;
+
+      for (const chk of checked) {
+        const id = chk.dataset.id;
+        const r = await fetch(`/api/records/${id}`, { headers: authH() }).then(res => res.json());
+
+        // Build receipt HTML in hidden div
+        let locRows = '';
+        try {
+          const arr = JSON.parse(r.extra_locations || '[]');
+          for (let i = 0; i < 2; i++) locRows += `<tr><td colspan="2" style="text-align:left;">경유지 ${i + 1}.</td><td style="text-align:left;">${arr[i] || ''}</td></tr>`;
+        } catch {
+          for (let i = 0; i < 2; i++) locRows += `<tr><td colspan="2" style="text-align:left;">경유지 ${i + 1}.</td><td></td></tr>`;
+        }
+        const driverSig = r.driver_signature ? `<img src="${r.driver_signature}" style="max-width:120px;max-height:60px;">` : '<div style="padding:20px 0;color:#a0aec0;font-size:12px;">서명 없음</div>';
+        const receiverSig = r.receiver_signature ? `<img src="${r.receiver_signature}" style="max-width:120px;max-height:60px;">` : '<div style="padding:20px 0;color:#a0aec0;font-size:12px;">서명 없음</div>';
+
+        hidden.innerHTML = `
+          <div style="font-family:'Noto Sans KR',sans-serif;font-size:13px;color:#1a202c;">
+            <div style="text-align:center;font-size:20px;font-weight:700;margin-bottom:6px;">인수증명서</div>
+            <div style="text-align:right;font-size:11px;color:${r.status==='signed'?'#276749':'#c05621'};font-weight:600;margin-bottom:8px;">${r.status==='signed'?'✅ 서명 완료':'📋 서명 대기'}</div>
+            <hr style="border:1px solid #2d3748;margin:6px 0 12px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:12px;">
+              <div><span style="color:#718096;font-size:11px;">배송일자 :</span> <strong>${r.delivery_date||'-'}</strong></div>
+              <div><span style="color:#718096;font-size:11px;">수량 :</span> <strong>${r.quantity||'-'}</strong></div>
+              <div><span style="color:#718096;font-size:11px;">고객사 :</span> ${r.customer_company||'-'}</div>
+              <div><span style="color:#718096;font-size:11px;">수취인 :</span> ${r.receiver_name||'-'}</div>
+              <div style="grid-column:span 2;"><span style="color:#718096;font-size:11px;">제품명 :</span> ${r.product_name||'-'}</div>
+              ${r.notes?`<div style="grid-column:span 2;"><span style="color:#718096;font-size:11px;">비고 :</span> ${r.notes}</div>`:''}
+            </div>
+            <div style="background:#2d3748;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:600;margin-bottom:12px;">
+              DN 번호 : ${r.order_no}${r.vehicle_no?`  |  차량번호 : ${r.vehicle_no}`:''}
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
+              <thead><tr style="background:#f7fafc;">
+                <th style="border:1px solid #e2e8f0;padding:6px;width:34%;">작업 내용</th>
+                <th style="border:1px solid #e2e8f0;padding:6px;width:30%;">단위</th>
+                <th style="border:1px solid #e2e8f0;padding:6px;">기타</th>
+              </tr></thead>
+              <tbody>
+                <tr><td style="border:1px solid #e2e8f0;padding:5px;">현장 대기</td><td style="border:1px solid #e2e8f0;padding:5px;">대기시간</td><td style="border:1px solid #e2e8f0;padding:5px;">${r.wait_time?r.wait_time+'분':''}</td></tr>
+                <tr><td style="border:1px solid #e2e8f0;padding:5px;">작업비</td><td style="border:1px solid #e2e8f0;padding:5px;">원</td><td style="border:1px solid #e2e8f0;padding:5px;">${r.work_fee?Number(r.work_fee).toLocaleString()+'원':''}</td></tr>
+                ${locRows}
+                <tr><td style="border:1px solid #e2e8f0;padding:5px;">폐기물 회수</td><td style="border:1px solid #e2e8f0;padding:5px;">회수</td><td style="border:1px solid #e2e8f0;padding:5px;">${r.waste_collection||'회수 불필요'}</td></tr>
+              </tbody>
+            </table>
+            <div style="font-size:11px;color:#718096;text-align:center;margin-bottom:12px;font-style:italic;">
+              상기와 같이 운송 중 추가 작업이 발생하였음을 증명합니다.
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+              <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;">
+                <div style="font-size:11px;color:#718096;margin-bottom:8px;">운송담당자 (서명)</div>
+                ${driverSig}
+                <div style="font-size:12px;font-weight:600;margin-top:6px;">${r.driver_name||''}</div>
+              </div>
+              <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;">
+                <div style="font-size:11px;color:#718096;margin-bottom:8px;">확인검수자 (서명)</div>
+                ${receiverSig}
+                <div style="font-size:12px;font-weight:600;margin-top:6px;">${r.receiver_name||''}</div>
+              </div>
+            </div>
+          </div>`;
+
+        await new Promise(res => setTimeout(res, 200)); // wait for render
+        const canvas = await html2canvas(hidden, { scale: 2, useCORS: true, allowTaint: true });
+        const imgW = pw - 20;
+        const imgH = (canvas.height * imgW) / canvas.width;
+
+        if (!first) pdf.addPage();
+        first = false;
+
+        let yPos = 10;
+        while (yPos < imgH + 10) {
+          const sliceH = Math.min(ph - 20, imgH + 10 - yPos);
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = (sliceH / imgW) * canvas.width;
+          const ctx = sliceCanvas.getContext('2d');
+          ctx.drawImage(canvas, 0, (yPos / imgW) * canvas.width, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', 10, 10, imgW, sliceH);
+          yPos += sliceH;
+          if (yPos < imgH + 10) pdf.addPage();
+        }
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      pdf.save(`인수증명서_일괄_${today}_${checked.length}건.pdf`);
+    } catch (e) {
+      alert('PDF 생성 오류: ' + e.message);
+      console.error(e);
+    } finally {
+      document.body.removeChild(hidden);
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fas fa-file-pdf"></i> 선택 일괄 PDF (<span id="chkCount">${document.querySelectorAll('.row-chk:checked').length}</span>건)`;
+    }
   }
 
   // ── 삭제 ──
