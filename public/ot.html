@@ -103,11 +103,28 @@
     <!-- 헤더 -->
     <div class="page-header">
       <div class="page-title">⏰ OT 내역 관리</div>
-      <div class="month-nav">
-        <button class="month-btn" onclick="changeMonth(-1)">&#8592;</button>
-        <div class="month-display" id="monthDisplay"></div>
-        <button class="month-btn" onclick="changeMonth(1)">&#8594;</button>
-        <button class="btn btn-gray btn-sm" onclick="goToday()">이번달</button>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <!-- 월별 탭 -->
+        <div id="modeMonth" class="month-nav">
+          <button class="month-btn" onclick="changeMonth(-1)">&#8592;</button>
+          <div class="month-display" id="monthDisplay"></div>
+          <button class="month-btn" onclick="changeMonth(1)">&#8594;</button>
+          <button class="btn btn-gray btn-sm" onclick="goToday()">이번달</button>
+        </div>
+        <!-- 기간 조회 -->
+        <div id="modeRange" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;" class="month-nav">
+          <input type="date" id="rangeFrom" class="month-btn" style="padding:5px 8px;font-size:13px;cursor:text;">
+          <span style="color:#718096;font-size:13px;">~</span>
+          <input type="date" id="rangeTo"   class="month-btn" style="padding:5px 8px;font-size:13px;cursor:text;">
+          <button class="btn btn-gray btn-sm" onclick="applyRange()">조회</button>
+        </div>
+        <!-- 모드 전환 -->
+        <div style="display:flex;gap:4px;background:#e2e8f0;border-radius:8px;padding:3px;">
+          <button id="tabMonth" onclick="setMode('month')"
+            style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#667eea;color:#fff;font-family:inherit;">월별</button>
+          <button id="tabRange" onclick="setMode('range')"
+            style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:#718096;font-family:inherit;">기간조회</button>
+        </div>
       </div>
     </div>
 
@@ -224,7 +241,11 @@
         <div class="card">
           <div class="toolbar">
             <div style="font-size:14px;font-weight:700;color:#2d3748;" id="tableTitle">OT 내역</div>
-            <div style="display:flex;gap:8px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <label class="btn btn-sm" style="background:linear-gradient(135deg,#ed8936,#c05621);color:#fff;cursor:pointer;" title="엑셀 파일로 여러 건 일괄 등록">
+                <i class="fas fa-file-upload"></i> 엑셀 업로드
+                <input type="file" id="otUploadInput" accept=".xlsx,.xls" style="display:none;" onchange="handleOTUpload(event)">
+              </label>
               <button class="btn btn-green btn-sm" onclick="exportExcel()">
                 <i class="fas fa-file-excel"></i> 엑셀 다운로드
               </button>
@@ -312,6 +333,55 @@
       curMonth = new Date().getMonth() + 1;
       updateMonthDisplay();
       loadOT();
+    }
+
+    // ── 모드 전환 (월별 ↔ 기간조회) ───────────────────────
+    let viewMode = 'month';  // 'month' | 'range'
+
+    function setMode(mode) {
+      viewMode = mode;
+      document.getElementById('modeMonth').style.display = mode === 'month' ? 'flex' : 'none';
+      document.getElementById('modeRange').style.display = mode === 'range' ? 'flex' : 'none';
+      document.getElementById('tabMonth').style.background = mode === 'month' ? '#667eea' : 'transparent';
+      document.getElementById('tabMonth').style.color      = mode === 'month' ? '#fff' : '#718096';
+      document.getElementById('tabRange').style.background = mode === 'range' ? '#667eea' : 'transparent';
+      document.getElementById('tabRange').style.color      = mode === 'range' ? '#fff' : '#718096';
+
+      if (mode === 'range') {
+        // 기본: 이번달 1일 ~ 오늘
+        const today = new Date();
+        const from  = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`;
+        const to    = today.toISOString().slice(0,10);
+        document.getElementById('rangeFrom').value = from;
+        document.getElementById('rangeTo').value   = to;
+        // 급여 주기 기본값 (21일~20일): 이전달 21일 ~ 이번달 20일
+        const prev = new Date(today.getFullYear(), today.getMonth() - 1, 21);
+        const curr = new Date(today.getFullYear(), today.getMonth(), 20);
+        document.getElementById('rangeFrom').value = prev.toISOString().slice(0,10);
+        document.getElementById('rangeTo').value   = curr.toISOString().slice(0,10);
+        applyRange();
+      } else {
+        loadOT();
+      }
+    }
+
+    function applyRange() {
+      const from = document.getElementById('rangeFrom').value;
+      const to   = document.getElementById('rangeTo').value;
+      if (!from || !to) { alert('기간을 선택해주세요.'); return; }
+      if (from > to)    { alert('시작일이 종료일보다 클 수 없습니다.'); return; }
+      loadOTRange(from, to);
+    }
+
+    async function loadOTRange(from, to) {
+      document.getElementById('tableTitle').textContent = `${from} ~ ${to} OT 내역`;
+      try {
+        const res = await fetch(`/api/ot?from=${from}&to=${to}`, { headers: authH() });
+        const data = await res.json();
+        records = data.data || [];
+        renderTable();
+        updateStats();
+      } catch (e) { console.error(e); }
     }
 
     function saveRate() {
@@ -561,6 +631,101 @@
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, `OT내역_${ym}`);
       XLSX.writeFile(wb, `OT내역_${ym}.xlsx`);
+    }
+
+    // ── 엑셀 일괄 업로드 ───────────────────────────────────
+    async function handleOTUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      event.target.value = '';
+
+      let wb;
+      try {
+        const buf = await file.arrayBuffer();
+        wb = XLSX.read(buf, { type: 'array' });
+      } catch(e) { alert('파일을 읽을 수 없습니다: ' + e.message); return; }
+
+      const ws    = wb.Sheets[wb.SheetNames[0]];
+      const rows  = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      if (!rows.length) { alert('데이터가 없습니다.'); return; }
+
+      // 헤더 행 찾기 (날짜 컬럼 포함 여부로 판단)
+      let headerIdx = 0;
+      for (let i = 0; i < Math.min(rows.length, 5); i++) {
+        const r = rows[i].map(c => String(c).trim());
+        if (r.some(c => /날짜|date|work_date/i.test(c))) { headerIdx = i; break; }
+      }
+      const header = rows[headerIdx].map(c => String(c).trim().toLowerCase());
+
+      // 컬럼 인덱스 찾기
+      const ci = (keys) => {
+        for (const k of keys) {
+          const idx = header.findIndex(h => h.includes(k));
+          if (idx !== -1) return idx;
+        }
+        return -1;
+      };
+      const iDate    = ci(['날짜','work_date','date']);
+      const iStart   = ci(['시작','start']);
+      const iEnd     = ci(['퇴근','end','종료']);
+      const iContent = ci(['업무','content','work']);
+      const iHours   = ci(['ot 근무','ot시간','ot_hours','hours','근무시간']);
+      const iMeal    = ci(['식권','meal']);
+
+      // 날짜 없으면 위치 기반 (횟수,날짜,시작,퇴근,업무,OT시간,식권)
+      const byPos = iDate === -1;
+
+      const dataRows = rows.slice(headerIdx + 1).filter(r => {
+        const dateVal = byPos ? r[1] : r[iDate];
+        return dateVal && String(dateVal).trim() && !/총|합계|금액/i.test(String(dateVal));
+      });
+
+      if (!dataRows.length) { alert('등록할 데이터 행이 없습니다.'); return; }
+
+      const getCell = (row, idx, posIdx) => {
+        const v = byPos ? row[posIdx] : row[idx];
+        return v === undefined || v === null ? '' : String(v).trim();
+      };
+
+      // 미리보기 확인
+      const preview = dataRows.slice(0, 3).map((r, i) => {
+        const d = getCell(r, iDate, 1);
+        const c = getCell(r, iContent, 4);
+        const h = getCell(r, iHours, 5);
+        return `${i+1}. ${d} | ${c} | ${h}h`;
+      }).join('\n');
+      if (!confirm(`${dataRows.length}건을 등록하시겠습니까?\n\n첫 3건:\n${preview}`)) return;
+
+      let ok = 0, fail = 0, failMsgs = [];
+      for (const row of dataRows) {
+        const work_date    = getCell(row, iDate, 1);
+        const start_time   = getCell(row, iStart, 2);
+        const end_time     = getCell(row, iEnd, 3);
+        const work_content = getCell(row, iContent, 4);
+        const meal_ticket  = getCell(row, iMeal, 6) || 'X';
+        let   ot_hours     = parseFloat(getCell(row, iHours, 5)) || 0;
+
+        // 시간 재계산 (start/end 있으면 우선)
+        if (start_time && end_time) {
+          ot_hours = calcOTHours(start_time, end_time, work_content) || ot_hours;
+        }
+
+        if (!work_date || !work_content) { fail++; continue; }
+
+        try {
+          const res = await fetch('/api/ot', {
+            method: 'POST', headers: authH(),
+            body: JSON.stringify({ work_date, start_time, end_time, work_content, ot_hours, meal_ticket, notes: '' })
+          });
+          if (res.ok) ok++;
+          else { fail++; failMsgs.push(`${work_date} ${work_content}`); }
+        } catch(e) { fail++; failMsgs.push(String(e)); }
+      }
+
+      let msg = `✅ ${ok}건 등록 완료`;
+      if (fail) msg += `\n⚠️ ${fail}건 실패`;
+      alert(msg);
+      loadOT();
     }
   </script>
 </body>

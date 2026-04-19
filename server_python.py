@@ -743,9 +743,13 @@ class Handler(BaseHTTPRequestHandler):
         # ── OT 내역 ──
         if path == '/api/ot':
             if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
-            ym = g('ym')  # YYYY-MM filter
+            ym   = g('ym')    # YYYY-MM 월별 필터
+            frm  = g('from')  # YYYY-MM-DD 시작일
+            to   = g('to')    # YYYY-MM-DD 종료일
             sql = 'SELECT * FROM ot_records WHERE 1=1'; params=[]
-            if ym: sql += ' AND work_date LIKE ?'; params.append(ym + '%')
+            if ym:  sql += ' AND work_date LIKE ?'; params.append(ym + '%')
+            if frm: sql += ' AND work_date >= ?';  params.append(frm)
+            if to:  sql += ' AND work_date <= ?';  params.append(to)
             sql += ' ORDER BY work_date ASC, id ASC'
             rows = db_fetchall(sql, params)
             total_hours = sum(float(r.get('ot_hours') or 0) for r in rows)
