@@ -116,6 +116,25 @@ if DATABASE_URL:
             start_time TEXT, end_time TEXT, work_content TEXT,
             ot_hours REAL DEFAULT 0, meal_ticket TEXT DEFAULT 'X',
             notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # OT 시드 데이터 (테이블이 비어있을 때만 삽입)
+        cur.execute('SELECT COUNT(*) as cnt FROM ot_records')
+        row = cur.fetchone(); cnt = dict(row).get('cnt', 0) if row else 0
+        if cnt == 0:
+            ot_seed = [
+                ('2026-03-25','18:00','20:10','메틀러토레도 입고', 2.2,'X'),
+                ('2026-03-27','18:00','18:50','메틀러토레도 출고', 0.8,'X'),
+                ('2026-03-31','18:00','18:50','메틀러토레도 입고', 0.8,'X'),
+                ('2026-04-01','18:00','21:50','메틀러토레도 출고', 3.8,'O'),
+                ('2026-04-13','18:00','18:50','캐논메디칼 출고',   0.8,'X'),
+                ('2026-04-14','22:00','22:40','캐논메디칼 긴급출고',3.0,'X'),
+                ('2026-04-15','18:30','19:00','캐논메디칼 긴급출고',3.0,'X'),
+                ('2026-04-18','13:20','14:50','캐논메디칼 긴급출고',3.0,'X'),
+                ('2026-04-19','07:30','09:00','캐논메디칼 긴급출고',3.0,'X'),
+                ('2026-04-19','11:30','15:40','보세근무',           4.2,'O'),
+            ]
+            for d in ot_seed:
+                cur.execute(
+                    'INSERT INTO ot_records (work_date,start_time,end_time,work_content,ot_hours,meal_ticket) VALUES (%s,%s,%s,%s,%s,%s)', d)
         c.commit(); c.close()
 
     def db_fetch(sql, params=()):
@@ -221,6 +240,23 @@ else:
             start_time TEXT, end_time TEXT, work_content TEXT,
             ot_hours REAL DEFAULT 0, meal_ticket TEXT DEFAULT 'X',
             notes TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+        # OT 시드 데이터 (테이블이 비어있을 때만 삽입)
+        cnt = c.execute('SELECT COUNT(*) FROM ot_records').fetchone()[0]
+        if cnt == 0:
+            ot_seed = [
+                ('2026-03-25','18:00','20:10','메틀러토레도 입고', 2.2,'X'),
+                ('2026-03-27','18:00','18:50','메틀러토레도 출고', 0.8,'X'),
+                ('2026-03-31','18:00','18:50','메틀러토레도 입고', 0.8,'X'),
+                ('2026-04-01','18:00','21:50','메틀러토레도 출고', 3.8,'O'),
+                ('2026-04-13','18:00','18:50','캐논메디칼 출고',   0.8,'X'),
+                ('2026-04-14','22:00','22:40','캐논메디칼 긴급출고',3.0,'X'),
+                ('2026-04-15','18:30','19:00','캐논메디칼 긴급출고',3.0,'X'),
+                ('2026-04-18','13:20','14:50','캐논메디칼 긴급출고',3.0,'X'),
+                ('2026-04-19','07:30','09:00','캐논메디칼 긴급출고',3.0,'X'),
+                ('2026-04-19','11:30','15:40','보세근무',           4.2,'O'),
+            ]
+            c.executemany(
+                'INSERT INTO ot_records (work_date,start_time,end_time,work_content,ot_hours,meal_ticket) VALUES (?,?,?,?,?,?)', ot_seed)
         c.commit(); c.close()
 
     def db_fetch(sql, params=()):
