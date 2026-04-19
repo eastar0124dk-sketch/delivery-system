@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>대시보드 - 토탈 물류</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    body { display: flex; min-height: 100vh; background: #f0f4f8; margin: 0; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: #fff; border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08); padding: 20px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .stat-label { font-size: 12px; color: #718096; font-weight: 600; }
+    .stat-value { font-size: 28px; font-weight: 700; }
+    .stat-icon { font-size: 20px; margin-bottom: 4px; }
+    .color-blue   { color: #3b82f6; }
+    .color-green  { color: #10b981; }
+    .color-orange { color: #f59e0b; }
+    .color-red    { color: #ef4444; }
+    .color-purple { color: #8b5cf6; }
+    .color-cyan   { color: #06b6d4; }
+    .color-teal   { color: #14b8a6; }
+
+    .section-title { font-size: 16px; font-weight: 700; color: #1a202c; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.08); padding: 24px; margin-bottom: 24px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { background: #f7fafc; color: #4a5568; padding: 10px 12px; text-align: left; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f0f4f8; color: #2d3748; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f7fafc; }
+
+    .quick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .quick-card {
+      background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+      padding: 16px; text-align: center; cursor: pointer; text-decoration: none;
+      transition: all .2s; display: block;
+    }
+    .quick-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+    .quick-card .q-icon { font-size: 24px; margin-bottom: 8px; }
+    .quick-card .q-label { font-size: 13px; font-weight: 600; color: #2d3748; }
+
+    .date-banner { font-size: 14px; color: #718096; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-green { background: #d1fae5; color: #065f46; }
+    .badge-blue  { background: #dbeafe; color: #1e40af; }
+  </style>
+</head>
+<body>
+  <div id="sidebar"></div>
+  <div class="hub-main">
+    <div class="hub-page-title">🏠 대시보드</div>
+    <div class="date-banner" id="dateBanner"><i class="fa fa-calendar"></i> <span id="todayStr"></span></div>
+
+    <!-- 통계 카드 -->
+    <div class="stat-grid" id="statGrid">
+      <div class="stat-card">
+        <div class="stat-icon color-blue">📦</div>
+        <div class="stat-label">오늘 오더</div>
+        <div class="stat-value color-blue" id="s-total">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon color-green">✅</div>
+        <div class="stat-label">서명 완료</div>
+        <div class="stat-value color-green" id="s-signed">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon color-orange">⏳</div>
+        <div class="stat-label">미서명</div>
+        <div class="stat-value color-orange" id="s-pending">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon color-red">⚠️</div>
+        <div class="stat-label">진행중 클레임</div>
+        <div class="stat-value color-red" id="s-claims">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon color-purple">📋</div>
+        <div class="stat-label">미완료 Todo</div>
+        <div class="stat-value color-purple" id="s-todos">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon color-cyan">🚢</div>
+        <div class="stat-label">보세 반입</div>
+        <div class="stat-value color-cyan" id="s-bonded-in">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon color-teal">🔄</div>
+        <div class="stat-label">보세 반출</div>
+        <div class="stat-value color-teal" id="s-bonded-out">-</div>
+      </div>
+    </div>
+
+    <!-- 최근 서명 완료 -->
+    <div class="card">
+      <div class="section-title">✅ 최근 서명 완료</div>
+      <table>
+        <thead>
+          <tr>
+            <th>DN 번호</th>
+            <th>고객사</th>
+            <th>완료 시각</th>
+            <th>상태</th>
+          </tr>
+        </thead>
+        <tbody id="recentTable">
+          <tr><td colspan="4" style="text-align:center;color:#a0aec0;padding:24px;">불러오는 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 빠른 메뉴 -->
+    <div class="card">
+      <div class="section-title">⚡ 빠른 메뉴</div>
+      <div class="quick-grid">
+        <a href="admin.html" class="quick-card">
+          <div class="q-icon">🗂️</div>
+          <div class="q-label">오더 관리</div>
+        </a>
+        <a href="journal_mettler.html" class="quick-card">
+          <div class="q-icon">⚖️</div>
+          <div class="q-label">메틀러 업무일지</div>
+        </a>
+        <a href="journal_chanel.html" class="quick-card">
+          <div class="q-icon">💄</div>
+          <div class="q-label">샤넬 업무일지</div>
+        </a>
+        <a href="bonded.html" class="quick-card">
+          <div class="q-icon">🚢</div>
+          <div class="q-label">보세 반입/출</div>
+        </a>
+        <a href="todo.html" class="quick-card">
+          <div class="q-icon">✅</div>
+          <div class="q-label">업무 Todo</div>
+        </a>
+        <a href="claims.html" class="quick-card">
+          <div class="q-icon">⚠️</div>
+          <div class="q-label">클레임 트래커</div>
+        </a>
+        <a href="dispatch.html" class="quick-card">
+          <div class="q-icon">🚚</div>
+          <div class="q-label">차량 배차</div>
+        </a>
+        <a href="billing.html" class="quick-card">
+          <div class="q-icon">💰</div>
+          <div class="q-label">운송 청구서</div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="hub-nav.js"></script>
+  <script>
+    initNav('hub.html');
+
+    const token = sessionStorage.getItem('adminToken');
+    const authH = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` });
+
+    // 오늘 날짜
+    const now = new Date();
+    const days = ['일','월','화','수','목','금','토'];
+    document.getElementById('todayStr').textContent =
+      `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
+
+    // 통계 로드
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/stats', { headers: authH() });
+        if (!res.ok) throw new Error();
+        const d = await res.json();
+        document.getElementById('s-total').textContent      = d.total_today    ?? 0;
+        document.getElementById('s-signed').textContent     = d.signed_today   ?? 0;
+        document.getElementById('s-pending').textContent    = d.pending_today  ?? 0;
+        document.getElementById('s-claims').textContent     = d.open_claims    ?? 0;
+        document.getElementById('s-todos').textContent      = d.pending_todos  ?? 0;
+        document.getElementById('s-bonded-in').textContent  = d.bonded_in      ?? 0;
+        document.getElementById('s-bonded-out').textContent = d.bonded_out     ?? 0;
+
+        const tbody = document.getElementById('recentTable');
+        const list = d.recent_signed || [];
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#a0aec0;padding:24px;">최근 서명 완료 내역이 없습니다.</td></tr>';
+        } else {
+          tbody.innerHTML = list.map(r => `
+            <tr>
+              <td><strong>${r.dn_number || '-'}</strong></td>
+              <td>${r.customer || '-'}</td>
+              <td>${r.completed_at ? new Date(r.completed_at).toLocaleString('ko-KR') : '-'}</td>
+              <td><span class="badge badge-green">완료</span></td>
+            </tr>
+          `).join('');
+        }
+      } catch {
+        document.getElementById('s-total').textContent = '오류';
+        document.getElementById('recentTable').innerHTML =
+          '<tr><td colspan="4" style="text-align:center;color:#fc8181;padding:24px;">데이터를 불러올 수 없습니다.</td></tr>';
+      }
+    }
+
+    loadStats();
+  </script>
+</body>
+</html>

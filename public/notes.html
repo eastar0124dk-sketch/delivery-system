@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>메모장 - 토탈 물류</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    body { display: flex; min-height: 100vh; background: #f0f4f8; margin: 0; }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2); color: #fff;
+      border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer;
+      font-family: inherit; font-size: 14px; font-weight: 600;
+    }
+    .btn-primary:hover { opacity: .9; }
+
+    .notes-layout { display: flex; gap: 20px; height: calc(100vh - 96px); }
+
+    /* 메모 목록 */
+    .notes-list-panel {
+      width: 260px; flex-shrink: 0; background: #fff;
+      border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .notes-list-header {
+      padding: 16px; border-bottom: 1px solid #e2e8f0;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .notes-list-header-title { font-size: 14px; font-weight: 700; color: #1a202c; }
+    .btn-new {
+      background: linear-gradient(135deg, #667eea, #764ba2); color: #fff;
+      border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+      font-family: inherit; font-size: 12px; font-weight: 600;
+    }
+    .notes-scroll { flex: 1; overflow-y: auto; }
+    .note-item {
+      padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f0f4f8;
+      transition: background .15s;
+    }
+    .note-item:hover { background: #f7fafc; }
+    .note-item.active { background: #ebf4ff; border-left: 3px solid #667eea; }
+    .note-item-title { font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .note-item-time  { font-size: 11px; color: #a0aec0; }
+    .note-item-preview { font-size: 12px; color: #718096; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .notes-empty { padding: 24px; text-align: center; color: #a0aec0; font-size: 13px; }
+
+    /* 편집 패널 */
+    .notes-editor-panel {
+      flex: 1; background: #fff; border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .editor-header {
+      padding: 14px 20px; border-bottom: 1px solid #e2e8f0;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    }
+    .editor-title-input {
+      flex: 1; padding: 8px 12px; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; font-size: 16px; font-weight: 700;
+      font-family: inherit; color: #1a202c;
+    }
+    .editor-title-input:focus { outline: none; border-color: #667eea; }
+    .editor-actions { display: flex; gap: 8px; }
+    .btn-save {
+      padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+      font-family: inherit; font-size: 13px; font-weight: 600;
+      background: linear-gradient(135deg, #667eea, #764ba2); color: #fff;
+    }
+    .btn-save:hover { opacity: .9; }
+    .btn-del-note {
+      padding: 8px 14px; border-radius: 8px; border: 1.5px solid #fc8181;
+      background: #fff; color: #e53e3e; cursor: pointer; font-family: inherit; font-size: 13px;
+    }
+    .btn-del-note:hover { background: #fff5f5; }
+    .editor-meta { padding: 6px 20px; font-size: 11px; color: #a0aec0; border-bottom: 1px solid #f0f4f8; }
+    .editor-body {
+      flex: 1; padding: 16px 20px;
+    }
+    .editor-textarea {
+      width: 100%; height: 100%; border: none; outline: none; resize: none;
+      font-family: inherit; font-size: 14px; color: #2d3748; line-height: 1.7;
+      box-sizing: border-box;
+    }
+    .editor-no-select {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%; flex-direction: column; gap: 12px; color: #a0aec0;
+    }
+    .editor-no-select i { font-size: 40px; }
+    .save-status { font-size: 12px; color: #a0aec0; padding: 6px 20px; text-align: right; }
+    .save-status.saved { color: #10b981; }
+    .save-status.saving { color: #f59e0b; }
+
+    @media (max-width: 768px) {
+      .notes-layout { flex-direction: column; height: auto; }
+      .notes-list-panel { width: 100%; height: 200px; }
+      .notes-editor-panel { min-height: 400px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar"></div>
+  <div class="hub-main">
+    <div class="hub-page-title">📝 메모장</div>
+
+    <div class="notes-layout">
+      <!-- 목록 -->
+      <div class="notes-list-panel">
+        <div class="notes-list-header">
+          <div class="notes-list-header-title">메모 목록</div>
+          <button class="btn-new" onclick="newNote()">+ 새 메모</button>
+        </div>
+        <div class="notes-scroll" id="notesList"></div>
+      </div>
+
+      <!-- 편집 -->
+      <div class="notes-editor-panel">
+        <div id="editorContent">
+          <div class="editor-no-select">
+            <i class="fa fa-sticky-note"></i>
+            <span>왼쪽에서 메모를 선택하거나<br>새 메모를 추가하세요.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="hub-nav.js"></script>
+  <script>
+    initNav('notes.html');
+
+    const token = sessionStorage.getItem('adminToken');
+    const authH = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` });
+
+    let notes = [];
+    let currentId = null;
+    let autoSaveTimer = null;
+    let isDirty = false;
+
+    async function loadNotes() {
+      try {
+        const res = await fetch('/api/notes', { headers: authH() });
+        if (!res.ok) throw new Error();
+        notes = await res.json();
+      } catch {
+        notes = [];
+      }
+      renderList();
+    }
+
+    function renderList() {
+      const el = document.getElementById('notesList');
+      if (notes.length === 0) {
+        el.innerHTML = '<div class="notes-empty">메모가 없습니다.<br>+ 새 메모를 클릭하세요.</div>';
+        return;
+      }
+      el.innerHTML = notes.map(n => `
+        <div class="note-item ${n.id === currentId ? 'active' : ''}" onclick="selectNote(${n.id})">
+          <div class="note-item-title">${escHtml(n.title || '제목 없음')}</div>
+          <div class="note-item-preview">${escHtml((n.content || '').slice(0, 40))}</div>
+          <div class="note-item-time">${formatTime(n.updated_at || n.created_at)}</div>
+        </div>
+      `).join('');
+    }
+
+    function selectNote(id) {
+      if (isDirty) saveCurrentNote();
+      currentId = id;
+      const note = notes.find(n => n.id === id);
+      if (!note) return;
+      renderList();
+      renderEditor(note);
+    }
+
+    function renderEditor(note) {
+      document.getElementById('editorContent').innerHTML = `
+        <div class="editor-header">
+          <input type="text" class="editor-title-input" id="noteTitle"
+            value="${escAttr(note.title || '')}" placeholder="제목"
+            oninput="markDirty()">
+          <div class="editor-actions">
+            <button class="btn-save" onclick="saveCurrentNote(true)">💾 저장</button>
+            <button class="btn-del-note" onclick="deleteNote(${note.id})">🗑️ 삭제</button>
+          </div>
+        </div>
+        <div class="editor-meta">
+          마지막 수정: ${formatTime(note.updated_at || note.created_at)}
+        </div>
+        <div class="editor-body">
+          <textarea class="editor-textarea" id="noteContent"
+            placeholder="내용을 입력하세요..."
+            oninput="markDirty()">${escHtml(note.content || '')}</textarea>
+        </div>
+        <div class="save-status" id="saveStatus">저장됨</div>
+      `;
+    }
+
+    function markDirty() {
+      isDirty = true;
+      const el = document.getElementById('saveStatus');
+      if (el) { el.textContent = '저장 안됨...'; el.className = 'save-status saving'; }
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(() => saveCurrentNote(), 3000);
+    }
+
+    async function saveCurrentNote(manual = false) {
+      if (!currentId) return;
+      const titleEl = document.getElementById('noteTitle');
+      const contentEl = document.getElementById('noteContent');
+      if (!titleEl || !contentEl) return;
+
+      const body = { title: titleEl.value, content: contentEl.value };
+      try {
+        const res = await fetch(`/api/notes/${currentId}`, {
+          method: 'PUT', headers: authH(), body: JSON.stringify(body)
+        });
+        if (!res.ok) throw new Error();
+        const updated = await res.json();
+        const idx = notes.findIndex(n => n.id === currentId);
+        if (idx !== -1) notes[idx] = { ...notes[idx], ...updated, ...body };
+        isDirty = false;
+        renderList();
+        const el = document.getElementById('saveStatus');
+        if (el) { el.textContent = manual ? '저장 완료!' : '자동 저장됨'; el.className = 'save-status saved'; }
+        setTimeout(() => {
+          const el2 = document.getElementById('saveStatus');
+          if (el2) { el2.textContent = '저장됨'; el2.className = 'save-status'; }
+        }, 2000);
+      } catch {
+        const el = document.getElementById('saveStatus');
+        if (el) { el.textContent = '저장 실패'; el.className = 'save-status'; el.style.color = '#e53e3e'; }
+      }
+    }
+
+    async function newNote() {
+      if (isDirty) await saveCurrentNote();
+      try {
+        const res = await fetch('/api/notes', {
+          method: 'POST', headers: authH(),
+          body: JSON.stringify({ title: '새 메모', content: '' })
+        });
+        if (!res.ok) throw new Error();
+        const note = await res.json();
+        notes.unshift(note);
+        currentId = note.id;
+        renderList();
+        renderEditor(note);
+        setTimeout(() => {
+          const el = document.getElementById('noteTitle');
+          if (el) { el.focus(); el.select(); }
+        }, 50);
+      } catch { alert('생성에 실패했습니다.'); }
+    }
+
+    async function deleteNote(id) {
+      if (!confirm('메모를 삭제하시겠습니까?')) return;
+      try {
+        await fetch(`/api/notes/${id}`, { method: 'DELETE', headers: authH() });
+        notes = notes.filter(n => n.id !== id);
+        currentId = null;
+        isDirty = false;
+        renderList();
+        document.getElementById('editorContent').innerHTML = `
+          <div class="editor-no-select">
+            <i class="fa fa-sticky-note"></i>
+            <span>왼쪽에서 메모를 선택하거나<br>새 메모를 추가하세요.</span>
+          </div>
+        `;
+      } catch { alert('삭제에 실패했습니다.'); }
+    }
+
+    function formatTime(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function escAttr(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    }
+
+    loadNotes();
+  </script>
+</body>
+</html>

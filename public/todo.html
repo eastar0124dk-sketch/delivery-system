@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>업무 Todo - 토탈 물류</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    body { display: flex; min-height: 100vh; background: #f0f4f8; margin: 0; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.08); padding: 24px; margin-bottom: 24px; }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2); color: #fff;
+      border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer;
+      font-family: inherit; font-size: 14px; font-weight: 600;
+    }
+    .btn-primary:hover { opacity: .9; }
+
+    .filter-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .filter-tab {
+      padding: 8px 18px; border-radius: 20px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: 2px solid #e2e8f0; background: #fff; color: #718096;
+      transition: all .15s;
+    }
+    .filter-tab.active { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border-color: transparent; }
+
+    .todo-list { display: flex; flex-direction: column; gap: 10px; }
+    .todo-item {
+      display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+      background: #fff; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.06);
+      transition: all .15s;
+    }
+    .todo-item:hover { box-shadow: 0 3px 12px rgba(0,0,0,.1); }
+    .todo-item.done { opacity: .6; }
+    .todo-item.done .todo-title { text-decoration: line-through; color: #a0aec0; }
+    .todo-check { width: 20px; height: 20px; cursor: pointer; accent-color: #667eea; flex-shrink: 0; }
+    .todo-content { flex: 1; }
+    .todo-title { font-size: 14px; font-weight: 600; color: #2d3748; }
+    .todo-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge-urgent  { background: #fee2e2; color: #991b1b; }
+    .badge-high    { background: #fed7aa; color: #9a3412; }
+    .badge-normal  { background: #dbeafe; color: #1e40af; }
+    .badge-low     { background: #f0fdf4; color: #166534; }
+    .due-date { font-size: 12px; color: #718096; display: flex; align-items: center; gap: 4px; }
+    .due-today { color: #ef4444; font-weight: 600; }
+    .todo-memo { font-size: 12px; color: #a0aec0; margin-top: 2px; }
+    .btn-del {
+      background: none; border: none; color: #fc8181; cursor: pointer; font-size: 16px;
+      padding: 4px; border-radius: 6px; transition: background .15s;
+    }
+    .btn-del:hover { background: #fff5f5; }
+
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 1000; align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 16px; padding: 28px; width: 480px;
+      max-width: 95vw; box-shadow: 0 8px 40px rgba(0,0,0,.2);
+    }
+    .modal-title { font-size: 18px; font-weight: 700; color: #1a202c; margin-bottom: 20px; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: #4a5568; margin-bottom: 6px; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; font-size: 14px; font-family: inherit;
+      transition: border-color .15s; box-sizing: border-box;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none; border-color: #667eea;
+    }
+    .form-textarea { resize: vertical; min-height: 80px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .btn-cancel {
+      padding: 10px 20px; border-radius: 10px; border: 1.5px solid #e2e8f0;
+      background: #fff; color: #718096; cursor: pointer; font-family: inherit; font-size: 14px;
+    }
+    .empty-msg { text-align: center; padding: 40px; color: #a0aec0; font-size: 14px; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .todo-count { font-size: 13px; color: #718096; }
+  </style>
+</head>
+<body>
+  <div id="sidebar"></div>
+  <div class="hub-main">
+    <div class="hub-page-title">✅ 업무 Todo</div>
+    <div class="card">
+      <div class="top-bar">
+        <div class="todo-count" id="todoCount">전체 0개</div>
+        <button class="btn-primary" onclick="openModal()">+ 할일 추가</button>
+      </div>
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="all" onclick="setFilter('all', this)">전체</button>
+        <button class="filter-tab" data-filter="pending" onclick="setFilter('pending', this)">미완료</button>
+        <button class="filter-tab" data-filter="done" onclick="setFilter('done', this)">완료</button>
+      </div>
+      <div class="todo-list" id="todoList">
+        <div class="empty-msg">불러오는 중...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 추가 모달 -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-title">✅ 할일 추가</div>
+      <div class="form-group">
+        <label class="form-label">제목 <span style="color:#ef4444">*</span></label>
+        <input type="text" class="form-input" id="inp-title" placeholder="할일 제목을 입력하세요">
+      </div>
+      <div class="form-group">
+        <label class="form-label">우선순위</label>
+        <select class="form-select" id="inp-priority">
+          <option value="urgent">🔴 긴급</option>
+          <option value="high">🟠 높음</option>
+          <option value="normal" selected>🔵 보통</option>
+          <option value="low">🟢 낮음</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">마감일</label>
+        <input type="date" class="form-input" id="inp-due">
+      </div>
+      <div class="form-group">
+        <label class="form-label">메모</label>
+        <textarea class="form-textarea" id="inp-memo" placeholder="추가 메모 (선택)"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">취소</button>
+        <button class="btn-primary" onclick="addTodo()">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="hub-nav.js"></script>
+  <script>
+    initNav('todo.html');
+
+    const token = sessionStorage.getItem('adminToken');
+    const authH = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` });
+
+    let todos = [];
+    let currentFilter = 'all';
+
+    const priorityLabel = { urgent: '긴급', high: '높음', normal: '보통', low: '낮음' };
+    const priorityClass = { urgent: 'badge-urgent', high: 'badge-high', normal: 'badge-normal', low: 'badge-low' };
+
+    async function loadTodos() {
+      try {
+        const res = await fetch('/api/todos', { headers: authH() });
+        if (!res.ok) throw new Error();
+        todos = await res.json();
+        renderTodos();
+      } catch {
+        document.getElementById('todoList').innerHTML = '<div class="empty-msg" style="color:#fc8181">데이터를 불러올 수 없습니다.</div>';
+      }
+    }
+
+    function renderTodos() {
+      const today = new Date().toISOString().slice(0, 10);
+      let filtered = todos;
+      if (currentFilter === 'pending') filtered = todos.filter(t => !t.done);
+      if (currentFilter === 'done')    filtered = todos.filter(t => t.done);
+
+      document.getElementById('todoCount').textContent = `전체 ${todos.length}개 · 미완료 ${todos.filter(t=>!t.done).length}개`;
+
+      if (filtered.length === 0) {
+        document.getElementById('todoList').innerHTML = '<div class="empty-msg">할일이 없습니다.</div>';
+        return;
+      }
+
+      document.getElementById('todoList').innerHTML = filtered.map(t => {
+        const isToday = t.due_date === today;
+        const dueHtml = t.due_date
+          ? `<span class="due-date ${isToday ? 'due-today' : ''}"><i class="fa fa-calendar"></i> ${t.due_date}${isToday ? ' (오늘!)' : ''}</span>`
+          : '';
+        return `
+          <div class="todo-item ${t.done ? 'done' : ''}" id="todo-${t.id}">
+            <input type="checkbox" class="todo-check" ${t.done ? 'checked' : ''}
+              onchange="toggleTodo(${t.id}, this.checked)">
+            <div class="todo-content">
+              <div class="todo-title">${escHtml(t.title)}</div>
+              <div class="todo-meta">
+                <span class="badge ${priorityClass[t.priority] || 'badge-normal'}">
+                  ${priorityLabel[t.priority] || t.priority}
+                </span>
+                ${dueHtml}
+              </div>
+              ${t.memo ? `<div class="todo-memo">${escHtml(t.memo)}</div>` : ''}
+            </div>
+            <button class="btn-del" onclick="deleteTodo(${t.id})" title="삭제"><i class="fa fa-trash"></i></button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function toggleTodo(id, checked) {
+      try {
+        await fetch(`/api/todos/${id}`, {
+          method: 'PATCH',
+          headers: authH(),
+          body: JSON.stringify({ done: checked ? 1 : 0 })
+        });
+        const t = todos.find(x => x.id === id);
+        if (t) t.done = checked;
+        renderTodos();
+      } catch { alert('상태 변경에 실패했습니다.'); }
+    }
+
+    async function deleteTodo(id) {
+      if (!confirm('삭제하시겠습니까?')) return;
+      try {
+        await fetch(`/api/todos/${id}`, { method: 'DELETE', headers: authH() });
+        todos = todos.filter(t => t.id !== id);
+        renderTodos();
+      } catch { alert('삭제에 실패했습니다.'); }
+    }
+
+    async function addTodo() {
+      const title = document.getElementById('inp-title').value.trim();
+      if (!title) { alert('제목을 입력하세요.'); return; }
+      const body = {
+        title,
+        priority: document.getElementById('inp-priority').value,
+        due_date: document.getElementById('inp-due').value || null,
+        memo:     document.getElementById('inp-memo').value.trim() || null
+      };
+      try {
+        const res = await fetch('/api/todos', { method: 'POST', headers: authH(), body: JSON.stringify(body) });
+        if (!res.ok) throw new Error();
+        const newTodo = await res.json();
+        todos.unshift(newTodo);
+        renderTodos();
+        closeModal();
+      } catch { alert('추가에 실패했습니다.'); }
+    }
+
+    function setFilter(f, el) {
+      currentFilter = f;
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      renderTodos();
+    }
+
+    function openModal() {
+      document.getElementById('inp-title').value = '';
+      document.getElementById('inp-priority').value = 'normal';
+      document.getElementById('inp-due').value = '';
+      document.getElementById('inp-memo').value = '';
+      document.getElementById('modal').classList.add('show');
+    }
+    function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    document.getElementById('modal').addEventListener('click', e => {
+      if (e.target === document.getElementById('modal')) closeModal();
+    });
+
+    loadTodos();
+  </script>
+</body>
+</html>

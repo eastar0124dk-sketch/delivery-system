@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>차량 배차 관리</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      min-height: 100vh;
+    }
+    .hub-main {
+      margin-left: 220px;
+      padding: 24px;
+      flex: 1;
+      min-width: 0;
+    }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    /* 탭 */
+    .client-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 24px;
+      background: white;
+      border-radius: 12px;
+      padding: 6px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      width: fit-content;
+    }
+    .client-tab {
+      padding: 10px 28px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .client-tab.active {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      box-shadow: 0 2px 8px rgba(102,126,234,.4);
+    }
+    /* 요약 카드 */
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .summary-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .summary-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: white;
+      flex-shrink: 0;
+    }
+    .icon-carrier { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .icon-shipper { background: linear-gradient(135deg, #f093fb, #f5576c); }
+    .icon-margin  { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+    .summary-info { min-width: 0; }
+    .summary-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .summary-value { font-size: 20px; font-weight: 700; color: #222; }
+    /* 툴바 */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      box-shadow: 0 2px 8px rgba(102,126,234,.4);
+    }
+    .btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-success {
+      background: linear-gradient(135deg, #43e97b, #38f9d7);
+      color: white;
+      box-shadow: 0 2px 8px rgba(67,233,123,.3);
+    }
+    .btn-success:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-danger {
+      background: linear-gradient(135deg, #f5576c, #f093fb);
+      color: white;
+      font-size: 12px;
+      padding: 6px 12px;
+    }
+    .btn-danger:hover { opacity: .9; }
+    .btn-edit {
+      background: #f0f4f8;
+      color: #667eea;
+      font-size: 12px;
+      padding: 6px 12px;
+      border: 1px solid #e0e7ff;
+    }
+    .btn-edit:hover { background: #e0e7ff; }
+    /* 테이블 */
+    .table-wrap {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      overflow: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      background: #f8f9ff;
+      color: #555;
+      font-weight: 600;
+      padding: 12px 14px;
+      text-align: center;
+      border-bottom: 2px solid #eef0f8;
+      white-space: nowrap;
+    }
+    tbody td {
+      padding: 11px 14px;
+      text-align: center;
+      border-bottom: 1px solid #f0f2f8;
+      color: #333;
+      white-space: nowrap;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #fafbff; }
+    .td-actions { display: flex; gap: 6px; justify-content: center; }
+    /* 빈 상태 */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #aaa;
+    }
+    .empty-state i { font-size: 40px; margin-bottom: 12px; display: block; }
+    /* 모달 오버레이 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 20px;
+      width: 680px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    }
+    .modal-header {
+      padding: 24px 28px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #aaa;
+      cursor: pointer;
+      padding: 4px;
+    }
+    .modal-close:hover { color: #555; }
+    .modal-body { padding: 20px 28px 28px; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    input, select, textarea {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 14px;
+      border: 1.5px solid #e8ecf4;
+      border-radius: 10px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color .2s;
+      color: #333;
+    }
+    input:focus, select:focus, textarea:focus { border-color: #667eea; }
+    textarea { resize: vertical; min-height: 70px; }
+    .modal-footer {
+      padding: 0 28px 28px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .btn-cancel {
+      background: #f0f4f8;
+      color: #666;
+      border: none;
+    }
+    .btn-cancel:hover { background: #e0e7f0; }
+    /* 반응형 */
+    @media (max-width: 900px) {
+      .summary-cards { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .hub-main { margin-left: 0; padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 사이드바 -->
+<script src="hub-nav.js"></script>
+
+<main class="hub-main">
+  <div class="page-header">
+    <h1 class="page-title"><i class="fa fa-truck" style="margin-right:8px;"></i>차량 배차 관리</h1>
+  </div>
+
+  <!-- 클라이언트 탭 -->
+  <div class="client-tabs">
+    <button class="client-tab active" id="tab-mettler" onclick="switchClient('mettler')">메틀러토레도</button>
+    <button class="client-tab" id="tab-chanel" onclick="switchClient('chanel')">샤넬코리아</button>
+  </div>
+
+  <!-- 요약 카드 -->
+  <div class="summary-cards">
+    <div class="summary-card">
+      <div class="summary-icon icon-carrier"><i class="fa fa-truck"></i></div>
+      <div class="summary-info">
+        <div class="summary-label">운송사 합계</div>
+        <div class="summary-value" id="sum-carrier">0 원</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon icon-shipper"><i class="fa fa-building"></i></div>
+      <div class="summary-info">
+        <div class="summary-label">화주 합계</div>
+        <div class="summary-value" id="sum-shipper">0 원</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon icon-margin"><i class="fa fa-chart-line"></i></div>
+      <div class="summary-info">
+        <div class="summary-label">마진</div>
+        <div class="summary-value" id="sum-margin">0 원</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 툴바 -->
+  <div class="toolbar">
+    <span id="record-count" style="font-size:13px;color:#888;"></span>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-success" onclick="exportExcel()"><i class="fa fa-file-excel"></i> 엑셀 다운로드</button>
+      <button class="btn btn-primary" onclick="openAddModal()"><i class="fa fa-plus"></i> 배차 등록</button>
+    </div>
+  </div>
+
+  <!-- 테이블 -->
+  <div class="table-wrap">
+    <table id="dispatch-table">
+      <thead>
+        <tr>
+          <th>날짜</th>
+          <th>출발지</th>
+          <th>도착지</th>
+          <th>화물내용</th>
+          <th>차량종류</th>
+          <th>운송사운임</th>
+          <th>운송사작업비</th>
+          <th>화주운임</th>
+          <th>화주작업비</th>
+          <th>담당</th>
+          <th>운송사명</th>
+          <th>비고</th>
+          <th>수정/삭제</th>
+        </tr>
+      </thead>
+      <tbody id="dispatch-body">
+        <tr><td colspan="13"><div class="empty-state"><i class="fa fa-inbox"></i>데이터를 불러오는 중...</div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- 배차 등록/수정 모달 -->
+<div class="modal-overlay" id="dispatch-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">배차 등록</span>
+      <button class="modal-close" onclick="closeModal()"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>날짜</label>
+          <input type="date" id="f-date" />
+        </div>
+        <div class="form-group">
+          <label>차량종류</label>
+          <select id="f-vehicle">
+            <option value="">선택</option>
+            <option>1톤</option>
+            <option>2.5톤</option>
+            <option>5톤</option>
+            <option>11톤</option>
+            <option>윙바디</option>
+            <option>탑차</option>
+            <option>오토바이</option>
+            <option>기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>출발지</label>
+          <input type="text" id="f-origin" placeholder="출발지 입력" />
+        </div>
+        <div class="form-group">
+          <label>도착지</label>
+          <input type="text" id="f-destination" placeholder="도착지 입력" />
+        </div>
+        <div class="form-group full">
+          <label>화물내용</label>
+          <input type="text" id="f-cargo" placeholder="화물 내용 입력" />
+        </div>
+        <div class="form-group">
+          <label>운송사운임 (원)</label>
+          <input type="text" id="f-carrier-fee" placeholder="0" inputmode="numeric" />
+        </div>
+        <div class="form-group">
+          <label>운송사작업비 (원)</label>
+          <input type="text" id="f-carrier-work" placeholder="0" inputmode="numeric" />
+        </div>
+        <div class="form-group">
+          <label>화주운임 (원)</label>
+          <input type="text" id="f-shipper-fee" placeholder="0" inputmode="numeric" />
+        </div>
+        <div class="form-group">
+          <label>화주작업비 (원)</label>
+          <input type="text" id="f-shipper-work" placeholder="0" inputmode="numeric" />
+        </div>
+        <div class="form-group">
+          <label>담당자</label>
+          <input type="text" id="f-assigned" placeholder="담당자명" />
+        </div>
+        <div class="form-group">
+          <label>연락처</label>
+          <input type="text" id="f-contact" placeholder="010-0000-0000" />
+        </div>
+        <div class="form-group">
+          <label>운송사명</label>
+          <input type="text" id="f-carrier-name" placeholder="운송사명" />
+        </div>
+        <div class="form-group full">
+          <label>비고</label>
+          <textarea id="f-notes" placeholder="기타 메모"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveDispatch()"><i class="fa fa-save"></i> 저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── 인증 ──────────────────────────────────────────────
+  const token = sessionStorage.getItem('adminToken');
+  if (!token) { location.href = 'index.html'; }
+  const authH = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` });
+
+  // ── 상태 ──────────────────────────────────────────────
+  let currentClient = 'mettler';
+  let dispatchData  = [];
+  let editingId     = null;
+
+  // ── 클라이언트 전환 ──────────────────────────────────
+  function switchClient(client) {
+    currentClient = client;
+    document.getElementById('tab-mettler').classList.toggle('active', client === 'mettler');
+    document.getElementById('tab-chanel').classList.toggle('active', client === 'chanel');
+    loadData();
+  }
+
+  // ── 데이터 로드 ──────────────────────────────────────
+  async function loadData() {
+    try {
+      const res  = await fetch(`/api/dispatch?client=${currentClient}`, { headers: authH() });
+      dispatchData = await res.json();
+      renderTable();
+      renderSummary();
+    } catch (e) {
+      console.error(e);
+      renderEmpty('데이터를 불러오지 못했습니다.');
+    }
+  }
+
+  // ── 요약 렌더 ────────────────────────────────────────
+  function renderSummary() {
+    const carrierTotal = dispatchData.reduce((s, r) => s + (Number(r.carrier_fee) || 0) + (Number(r.carrier_work) || 0), 0);
+    const shipperTotal = dispatchData.reduce((s, r) => s + (Number(r.shipper_fee) || 0) + (Number(r.shipper_work) || 0), 0);
+    const margin       = shipperTotal - carrierTotal;
+    document.getElementById('sum-carrier').textContent = fmt(carrierTotal) + ' 원';
+    document.getElementById('sum-shipper').textContent = fmt(shipperTotal) + ' 원';
+    const el = document.getElementById('sum-margin');
+    el.textContent = fmt(margin) + ' 원';
+    el.style.color  = margin >= 0 ? '#22c55e' : '#ef4444';
+  }
+
+  // ── 테이블 렌더 ──────────────────────────────────────
+  function renderTable() {
+    const tbody = document.getElementById('dispatch-body');
+    document.getElementById('record-count').textContent = `총 ${dispatchData.length}건`;
+    if (!dispatchData.length) {
+      tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><i class="fa fa-inbox"></i>등록된 배차가 없습니다.</div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = dispatchData.map(r => `
+      <tr>
+        <td>${r.item_date || '-'}</td>
+        <td>${esc(r.origin)}</td>
+        <td>${esc(r.destination)}</td>
+        <td>${esc(r.cargo)}</td>
+        <td>${esc(r.vehicle_type)}</td>
+        <td style="text-align:right;">${fmt(r.carrier_fee)}</td>
+        <td style="text-align:right;">${fmt(r.carrier_work)}</td>
+        <td style="text-align:right;">${fmt(r.shipper_fee)}</td>
+        <td style="text-align:right;">${fmt(r.shipper_work)}</td>
+        <td>${esc(r.assigned_to)}</td>
+        <td>${esc(r.carrier_name)}</td>
+        <td>${esc(r.notes)}</td>
+        <td>
+          <div class="td-actions">
+            <button class="btn btn-edit" onclick="openEditModal(${r.id})"><i class="fa fa-pen"></i> 수정</button>
+            <button class="btn btn-danger" onclick="deleteDispatch(${r.id})"><i class="fa fa-trash"></i> 삭제</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderEmpty(msg) {
+    document.getElementById('dispatch-body').innerHTML =
+      `<tr><td colspan="13"><div class="empty-state"><i class="fa fa-exclamation-circle"></i>${msg}</div></td></tr>`;
+  }
+
+  // ── 모달 열기/닫기 ───────────────────────────────────
+  function openAddModal() {
+    editingId = null;
+    document.getElementById('modal-title').textContent = '배차 등록';
+    clearForm();
+    document.getElementById('dispatch-modal').classList.add('open');
+  }
+
+  function openEditModal(id) {
+    editingId = id;
+    const r = dispatchData.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-title').textContent = '배차 수정';
+    document.getElementById('f-date').value         = r.item_date || '';
+    document.getElementById('f-origin').value       = r.origin || '';
+    document.getElementById('f-destination').value  = r.destination || '';
+    document.getElementById('f-cargo').value        = r.cargo || '';
+    document.getElementById('f-vehicle').value      = r.vehicle_type || '';
+    document.getElementById('f-carrier-fee').value  = fmt(r.carrier_fee);
+    document.getElementById('f-carrier-work').value = fmt(r.carrier_work);
+    document.getElementById('f-shipper-fee').value  = fmt(r.shipper_fee);
+    document.getElementById('f-shipper-work').value = fmt(r.shipper_work);
+    document.getElementById('f-assigned').value     = r.assigned_to || '';
+    document.getElementById('f-contact').value      = r.contact || '';
+    document.getElementById('f-carrier-name').value = r.carrier_name || '';
+    document.getElementById('f-notes').value        = r.notes || '';
+    document.getElementById('dispatch-modal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('dispatch-modal').classList.remove('open');
+    editingId = null;
+  }
+
+  function clearForm() {
+    ['f-date','f-origin','f-destination','f-cargo','f-carrier-fee',
+     'f-carrier-work','f-shipper-fee','f-shipper-work',
+     'f-assigned','f-contact','f-carrier-name','f-notes'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('f-vehicle').value = '';
+  }
+
+  // ── 저장 ─────────────────────────────────────────────
+  async function saveDispatch() {
+    const body = {
+      client:        currentClient,
+      item_date:     document.getElementById('f-date').value,
+      origin:        document.getElementById('f-origin').value.trim(),
+      destination:   document.getElementById('f-destination').value.trim(),
+      cargo:         document.getElementById('f-cargo').value.trim(),
+      vehicle_type:  document.getElementById('f-vehicle').value,
+      carrier_fee:   unFmt(document.getElementById('f-carrier-fee').value),
+      carrier_work:  unFmt(document.getElementById('f-carrier-work').value),
+      shipper_fee:   unFmt(document.getElementById('f-shipper-fee').value),
+      shipper_work:  unFmt(document.getElementById('f-shipper-work').value),
+      assigned_to:   document.getElementById('f-assigned').value.trim(),
+      contact:       document.getElementById('f-contact').value.trim(),
+      carrier_name:  document.getElementById('f-carrier-name').value.trim(),
+      notes:         document.getElementById('f-notes').value.trim(),
+    };
+    try {
+      const url    = editingId ? `/api/dispatch/${editingId}` : '/api/dispatch';
+      const method = editingId ? 'PATCH' : 'POST';
+      const res    = await fetch(url, { method, headers: authH(), body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(await res.text());
+      closeModal();
+      loadData();
+    } catch (e) {
+      alert('저장 실패: ' + e.message);
+    }
+  }
+
+  // ── 삭제 ─────────────────────────────────────────────
+  async function deleteDispatch(id) {
+    if (!confirm('이 배차 항목을 삭제하시겠습니까?')) return;
+    try {
+      const res = await fetch(`/api/dispatch/${id}`, { method: 'DELETE', headers: authH() });
+      if (!res.ok) throw new Error(await res.text());
+      loadData();
+    } catch (e) {
+      alert('삭제 실패: ' + e.message);
+    }
+  }
+
+  // ── 엑셀 내보내기 ────────────────────────────────────
+  function exportExcel() {
+    if (!dispatchData.length) { alert('내보낼 데이터가 없습니다.'); return; }
+    const headers = ['날짜','출발지','도착지','화물내용','차량종류','운송사운임','운송사작업비','화주운임','화주작업비','담당','운송사명','비고'];
+    const rows    = dispatchData.map(r => [
+      r.item_date, r.origin, r.destination, r.cargo, r.vehicle_type,
+      Number(r.carrier_fee)||0, Number(r.carrier_work)||0,
+      Number(r.shipper_fee)||0, Number(r.shipper_work)||0,
+      r.assigned_to, r.carrier_name, r.notes
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    const clientLabel = currentClient === 'mettler' ? '메틀러토레도' : '샤넬코리아';
+    XLSX.utils.book_append_sheet(wb, ws, clientLabel);
+    XLSX.writeFile(wb, `배차관리_${clientLabel}_${today()}.xlsx`);
+  }
+
+  // ── 유틸 ─────────────────────────────────────────────
+  function fmt(v) {
+    const n = Number(v);
+    if (!v && v !== 0) return '-';
+    return isNaN(n) ? '-' : n.toLocaleString('ko-KR');
+  }
+  function unFmt(v) { return Number((v || '0').replace(/,/g, '')) || 0; }
+  function esc(v)   { return v ? String(v).replace(/</g,'&lt;').replace(/>/g,'&gt;') : '-'; }
+  function today()  { return new Date().toISOString().slice(0,10).replace(/-/g,''); }
+
+  // 숫자 필드 자동 콤마
+  ['f-carrier-fee','f-carrier-work','f-shipper-fee','f-shipper-work'].forEach(id => {
+    document.getElementById(id).addEventListener('input', function() {
+      const raw = this.value.replace(/[^0-9]/g,'');
+      this.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+    });
+  });
+
+  // 모달 외부 클릭 닫기
+  document.getElementById('dispatch-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // ── 초기화 ───────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    if (typeof initNav === 'function') initNav('dispatch');
+    loadData();
+  });
+</script>
+</body>
+</html>

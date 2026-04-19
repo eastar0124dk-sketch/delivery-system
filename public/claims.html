@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>클레임 트래커</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      min-height: 100vh;
+    }
+    .hub-main {
+      margin-left: 220px;
+      padding: 24px;
+      flex: 1;
+      min-width: 0;
+    }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    /* 요약 카드 */
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+      max-width: 480px;
+    }
+    .summary-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .summary-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: white;
+      flex-shrink: 0;
+    }
+    .icon-open   { background: linear-gradient(135deg, #f5576c, #f093fb); }
+    .icon-closed { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+    .summary-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .summary-value { font-size: 24px; font-weight: 700; color: #222; }
+    /* 필터 탭 */
+    .filter-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 20px;
+      background: white;
+      border-radius: 12px;
+      padding: 6px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      width: fit-content;
+    }
+    .filter-tab {
+      padding: 9px 24px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .filter-tab.active {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      box-shadow: 0 2px 8px rgba(102,126,234,.4);
+    }
+    .tab-count {
+      background: rgba(255,255,255,.3);
+      border-radius: 20px;
+      padding: 1px 7px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .filter-tab:not(.active) .tab-count {
+      background: #f0f4f8;
+      color: #888;
+    }
+    /* 툴바 */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      box-shadow: 0 2px 8px rgba(102,126,234,.4);
+    }
+    .btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-success {
+      background: linear-gradient(135deg, #43e97b, #38f9d7);
+      color: white;
+      box-shadow: 0 2px 8px rgba(67,233,123,.3);
+      font-size: 12px;
+      padding: 6px 12px;
+    }
+    .btn-success:hover { opacity: .9; }
+    .btn-danger {
+      background: linear-gradient(135deg, #f5576c, #f093fb);
+      color: white;
+      font-size: 12px;
+      padding: 6px 12px;
+    }
+    .btn-danger:hover { opacity: .9; }
+    .btn-cancel {
+      background: #f0f4f8;
+      color: #666;
+      border: none;
+    }
+    .btn-cancel:hover { background: #e0e7f0; }
+    /* 테이블 */
+    .table-wrap {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      overflow: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      background: #f8f9ff;
+      color: #555;
+      font-weight: 600;
+      padding: 12px 14px;
+      text-align: center;
+      border-bottom: 2px solid #eef0f8;
+      white-space: nowrap;
+    }
+    tbody td {
+      padding: 12px 14px;
+      text-align: center;
+      border-bottom: 1px solid #f0f2f8;
+      color: #333;
+      vertical-align: middle;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #fafbff; }
+    .td-desc {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: left;
+    }
+    .td-actions { display: flex; gap: 6px; justify-content: center; }
+    /* 클레임 유형 뱃지 */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge-loss    { background: #fee2e2; color: #dc2626; }
+    .badge-damage  { background: #ffedd5; color: #ea580c; }
+    .badge-delay   { background: #fef9c3; color: #ca8a04; }
+    .badge-count   { background: #dbeafe; color: #2563eb; }
+    .badge-urgent  { background: #dc2626; color: white; animation: pulse .9s infinite; }
+    .badge-other   { background: #f3f4f6; color: #6b7280; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: .7; }
+    }
+    /* 상태 뱃지 */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-open   { background: #fee2e2; color: #dc2626; }
+    .status-closed { background: #dcfce7; color: #16a34a; }
+    /* DN 링크 */
+    .dn-link {
+      color: #667eea;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .dn-link:hover { color: #764ba2; }
+    /* 빈 상태 */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #aaa;
+    }
+    .empty-state i { font-size: 40px; margin-bottom: 12px; display: block; }
+    /* 모달 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 20px;
+      width: 560px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    }
+    .modal-sm {
+      width: 440px;
+    }
+    .modal-header {
+      padding: 24px 28px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #aaa;
+      cursor: pointer;
+      padding: 4px;
+    }
+    .modal-close:hover { color: #555; }
+    .modal-body { padding: 20px 28px 4px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    input, select, textarea {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 14px;
+      border: 1.5px solid #e8ecf4;
+      border-radius: 10px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color .2s;
+      color: #333;
+    }
+    input:focus, select:focus, textarea:focus { border-color: #667eea; }
+    textarea { resize: vertical; min-height: 90px; }
+    .modal-footer {
+      padding: 8px 28px 28px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    /* 반응형 */
+    @media (max-width: 600px) {
+      .hub-main { margin-left: 0; padding: 16px; }
+      .summary-row { grid-template-columns: 1fr; max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 사이드바 -->
+<script src="hub-nav.js"></script>
+
+<main class="hub-main">
+  <div class="page-header">
+    <h1 class="page-title"><i class="fa fa-triangle-exclamation" style="margin-right:8px;"></i>클레임 트래커</h1>
+    <button class="btn btn-primary" onclick="openAddModal()"><i class="fa fa-plus"></i> 클레임 등록</button>
+  </div>
+
+  <!-- 요약 카드 -->
+  <div class="summary-row">
+    <div class="summary-card">
+      <div class="summary-icon icon-open"><i class="fa fa-circle-exclamation"></i></div>
+      <div>
+        <div class="summary-label">진행중</div>
+        <div class="summary-value" id="count-open">0</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon icon-closed"><i class="fa fa-circle-check"></i></div>
+      <div>
+        <div class="summary-label">완료</div>
+        <div class="summary-value" id="count-closed">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 필터 탭 -->
+  <div class="filter-tabs">
+    <button class="filter-tab active" id="ftab-open"   onclick="switchFilter('open')">
+      진행중 <span class="tab-count" id="badge-open">0</span>
+    </button>
+    <button class="filter-tab" id="ftab-closed" onclick="switchFilter('closed')">
+      완료 <span class="tab-count" id="badge-closed">0</span>
+    </button>
+    <button class="filter-tab" id="ftab-all"    onclick="switchFilter('all')">
+      전체 <span class="tab-count" id="badge-all">0</span>
+    </button>
+  </div>
+
+  <!-- 툴바 -->
+  <div class="toolbar">
+    <span id="record-count" style="font-size:13px;color:#888;"></span>
+  </div>
+
+  <!-- 테이블 -->
+  <div class="table-wrap">
+    <table id="claims-table">
+      <thead>
+        <tr>
+          <th>DN번호</th>
+          <th>화주</th>
+          <th>클레임 유형</th>
+          <th style="text-align:left;min-width:160px;">내용</th>
+          <th>등록일</th>
+          <th>상태</th>
+          <th>처리/삭제</th>
+        </tr>
+      </thead>
+      <tbody id="claims-body">
+        <tr><td colspan="7"><div class="empty-state"><i class="fa fa-inbox"></i>데이터를 불러오는 중...</div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- 클레임 등록 모달 -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">클레임 등록</span>
+      <button class="modal-close" onclick="closeAddModal()"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>DN 번호</label>
+        <input type="text" id="a-dn" placeholder="DN 번호 입력" />
+      </div>
+      <div class="form-group">
+        <label>화주</label>
+        <select id="a-client">
+          <option value="">선택</option>
+          <option value="메틀러토레도">메틀러토레도</option>
+          <option value="샤넬코리아">샤넬코리아</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>클레임 유형</label>
+        <select id="a-type">
+          <option value="">선택</option>
+          <option value="분실">분실</option>
+          <option value="파손">파손</option>
+          <option value="지연">지연</option>
+          <option value="수량오류">수량오류</option>
+          <option value="긴급">긴급</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>상세 내용</label>
+        <textarea id="a-desc" placeholder="클레임 상세 내용을 입력하세요."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeAddModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitClaim()"><i class="fa fa-save"></i> 등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 완료 처리 모달 -->
+<div class="modal-overlay" id="resolve-modal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title">완료 처리</span>
+      <button class="modal-close" onclick="closeResolveModal()"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>처리 내용</label>
+        <textarea id="r-resolution" placeholder="처리 내용을 입력하세요." rows="5"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeResolveModal()">취소</button>
+      <button class="btn btn-success" onclick="submitResolve()"><i class="fa fa-check"></i> 완료 처리</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── 인증 ──────────────────────────────────────────────
+  const token = sessionStorage.getItem('adminToken');
+  if (!token) { location.href = 'index.html'; }
+  const authH = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` });
+
+  // ── 상태 ──────────────────────────────────────────────
+  let currentFilter = 'open';
+  let allClaims     = [];
+  let resolvingId   = null;
+
+  // ── 필터 전환 ────────────────────────────────────────
+  function switchFilter(f) {
+    currentFilter = f;
+    ['open','closed','all'].forEach(k => {
+      document.getElementById(`ftab-${k}`).classList.toggle('active', k === f);
+    });
+    renderTable();
+  }
+
+  // ── 데이터 로드 ──────────────────────────────────────
+  async function loadData() {
+    try {
+      const res = await fetch('/api/claims?status=all', { headers: authH() });
+      allClaims = await res.json();
+      updateCounts();
+      renderTable();
+    } catch (e) {
+      console.error(e);
+      renderEmpty('데이터를 불러오지 못했습니다.');
+    }
+  }
+
+  function updateCounts() {
+    const openCount   = allClaims.filter(c => c.status === 'open').length;
+    const closedCount = allClaims.filter(c => c.status === 'closed').length;
+    document.getElementById('count-open').textContent   = openCount;
+    document.getElementById('count-closed').textContent = closedCount;
+    document.getElementById('badge-open').textContent   = openCount;
+    document.getElementById('badge-closed').textContent = closedCount;
+    document.getElementById('badge-all').textContent    = allClaims.length;
+  }
+
+  // ── 테이블 렌더 ──────────────────────────────────────
+  function renderTable() {
+    const filtered = currentFilter === 'all'
+      ? allClaims
+      : allClaims.filter(c => c.status === currentFilter);
+
+    document.getElementById('record-count').textContent = `총 ${filtered.length}건`;
+    const tbody = document.getElementById('claims-body');
+
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><i class="fa fa-inbox"></i>해당하는 클레임이 없습니다.</div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(c => `
+      <tr>
+        <td>
+          <span class="dn-link" onclick="searchDN('${esc(c.dn_no)}')" title="DN 검색">${esc(c.dn_no) || '-'}</span>
+        </td>
+        <td>${esc(c.client) || '-'}</td>
+        <td>${typeBadge(c.claim_type)}</td>
+        <td><div class="td-desc" title="${esc(c.description)}">${esc(c.description) || '-'}</div></td>
+        <td>${formatDate(c.created_at)}</td>
+        <td>${statusBadge(c.status)}</td>
+        <td>
+          <div class="td-actions">
+            ${c.status === 'open'
+              ? `<button class="btn btn-success" onclick="openResolveModal(${c.id})"><i class="fa fa-check"></i> 완료</button>`
+              : `<span style="font-size:12px;color:#aaa;">처리완료</span>`
+            }
+            <button class="btn btn-danger" onclick="deleteClaim(${c.id})"><i class="fa fa-trash"></i></button>
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderEmpty(msg) {
+    document.getElementById('claims-body').innerHTML =
+      `<tr><td colspan="7"><div class="empty-state"><i class="fa fa-exclamation-circle"></i>${msg}</div></td></tr>`;
+  }
+
+  // ── 뱃지 헬퍼 ────────────────────────────────────────
+  function typeBadge(t) {
+    const map = {
+      '분실':    ['badge-loss',   'fa-box-open',        '분실'],
+      '파손':    ['badge-damage', 'fa-burst',           '파손'],
+      '지연':    ['badge-delay',  'fa-clock',           '지연'],
+      '수량오류':['badge-count',  'fa-calculator',      '수량오류'],
+      '긴급':    ['badge-urgent', 'fa-bolt',            '긴급'],
+      '기타':    ['badge-other',  'fa-circle-question', '기타'],
+    };
+    const [cls, icon, label] = map[t] || map['기타'];
+    return `<span class="badge ${cls}"><i class="fa ${icon}"></i>${label}</span>`;
+  }
+
+  function statusBadge(s) {
+    if (s === 'open')
+      return `<span class="status-badge status-open"><i class="fa fa-circle-dot"></i> 진행중</span>`;
+    return `<span class="status-badge status-closed"><i class="fa fa-circle-check"></i> 완료</span>`;
+  }
+
+  // ── DN 검색 ──────────────────────────────────────────
+  function searchDN(dn) {
+    if (!dn || dn === '-') return;
+    alert(`DN ${dn} 검색 기능은 DN 조회 페이지와 연동됩니다.`);
+    // 필요 시: window.open(`dn-search.html?dn=${encodeURIComponent(dn)}`, '_blank');
+  }
+
+  // ── 등록 모달 ────────────────────────────────────────
+  function openAddModal() {
+    document.getElementById('a-dn').value     = '';
+    document.getElementById('a-client').value = '';
+    document.getElementById('a-type').value   = '';
+    document.getElementById('a-desc').value   = '';
+    document.getElementById('add-modal').classList.add('open');
+  }
+  function closeAddModal() {
+    document.getElementById('add-modal').classList.remove('open');
+  }
+
+  async function submitClaim() {
+    const body = {
+      dn_no:       document.getElementById('a-dn').value.trim(),
+      client:      document.getElementById('a-client').value,
+      claim_type:  document.getElementById('a-type').value,
+      description: document.getElementById('a-desc').value.trim(),
+      status:      'open',
+    };
+    if (!body.dn_no && !confirm('DN번호 없이 등록하시겠습니까?')) return;
+    if (!body.claim_type) { alert('클레임 유형을 선택해주세요.'); return; }
+    try {
+      const res = await fetch('/api/claims', {
+        method: 'POST',
+        headers: authH(),
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      closeAddModal();
+      loadData();
+    } catch (e) {
+      alert('등록 실패: ' + e.message);
+    }
+  }
+
+  // ── 완료 처리 모달 ───────────────────────────────────
+  function openResolveModal(id) {
+    resolvingId = id;
+    document.getElementById('r-resolution').value = '';
+    document.getElementById('resolve-modal').classList.add('open');
+  }
+  function closeResolveModal() {
+    document.getElementById('resolve-modal').classList.remove('open');
+    resolvingId = null;
+  }
+
+  async function submitResolve() {
+    const resolution = document.getElementById('r-resolution').value.trim();
+    if (!resolution) { alert('처리 내용을 입력해주세요.'); return; }
+    try {
+      const res = await fetch(`/api/claims/${resolvingId}`, {
+        method: 'PATCH',
+        headers: authH(),
+        body: JSON.stringify({ status: 'closed', resolution }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      closeResolveModal();
+      loadData();
+    } catch (e) {
+      alert('완료 처리 실패: ' + e.message);
+    }
+  }
+
+  // ── 삭제 ─────────────────────────────────────────────
+  async function deleteClaim(id) {
+    if (!confirm('이 클레임 항목을 삭제하시겠습니까?')) return;
+    try {
+      const res = await fetch(`/api/claims/${id}`, { method: 'DELETE', headers: authH() });
+      if (!res.ok) throw new Error(await res.text());
+      loadData();
+    } catch (e) {
+      alert('삭제 실패: ' + e.message);
+    }
+  }
+
+  // ── 유틸 ─────────────────────────────────────────────
+  function esc(v) {
+    return v ? String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '';
+  }
+  function formatDate(v) {
+    if (!v) return '-';
+    return String(v).slice(0, 10);
+  }
+
+  // 모달 외부 클릭 닫기
+  document.getElementById('add-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddModal();
+  });
+  document.getElementById('resolve-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeResolveModal();
+  });
+
+  // ── 초기화 ───────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    if (typeof initNav === 'function') initNav('claims');
+    loadData();
+  });
+</script>
+</body>
+</html>

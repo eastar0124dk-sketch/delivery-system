@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>업체 관리 - 토탈 물류</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    body { display: flex; min-height: 100vh; background: #f0f4f8; margin: 0; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.08); padding: 24px; margin-bottom: 24px; }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2); color: #fff;
+      border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer;
+      font-family: inherit; font-size: 14px; font-weight: 600;
+    }
+    .btn-primary:hover { opacity: .9; }
+
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    .search-box {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    .search-input {
+      padding: 10px 12px; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; font-size: 14px; font-family: inherit; width: 220px;
+    }
+    .search-input:focus { outline: none; border-color: #667eea; }
+    .filter-select {
+      padding: 10px 12px; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; font-size: 14px; font-family: inherit;
+    }
+    .filter-select:focus { outline: none; border-color: #667eea; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { background: #f7fafc; color: #4a5568; padding: 11px 12px; text-align: left; font-weight: 600; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+    td { padding: 11px 12px; border-bottom: 1px solid #f0f4f8; color: #2d3748; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f7fafc; }
+
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+    }
+    .badge-transport { background: #dbeafe; color: #1e40af; }
+    .badge-shipper   { background: #d1fae5; color: #065f46; }
+    .badge-forwarder { background: #ede9fe; color: #5b21b6; }
+    .badge-other     { background: #f3f4f6; color: #4b5563; }
+
+    .btn-edit {
+      padding: 5px 12px; border-radius: 7px; border: 1.5px solid #667eea;
+      background: #fff; color: #667eea; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600;
+    }
+    .btn-edit:hover { background: #ebf4ff; }
+    .btn-del {
+      padding: 5px 12px; border-radius: 7px; border: 1.5px solid #fc8181;
+      background: #fff; color: #e53e3e; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600;
+    }
+    .btn-del:hover { background: #fff5f5; }
+
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 1000; align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 16px; padding: 28px; width: 520px;
+      max-width: 95vw; box-shadow: 0 8px 40px rgba(0,0,0,.2); max-height: 90vh; overflow-y: auto;
+    }
+    .modal-title { font-size: 18px; font-weight: 700; color: #1a202c; margin-bottom: 20px; }
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: #4a5568; margin-bottom: 6px; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; font-size: 14px; font-family: inherit; box-sizing: border-box;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #667eea; }
+    .form-textarea { resize: vertical; min-height: 70px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .btn-cancel { padding: 10px 20px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; color: #718096; cursor: pointer; font-family: inherit; font-size: 14px; }
+    .empty-msg { text-align: center; padding: 40px; color: #a0aec0; font-size: 14px; }
+    .count-label { font-size: 13px; color: #718096; }
+  </style>
+</head>
+<body>
+  <div id="sidebar"></div>
+  <div class="hub-main">
+    <div class="hub-page-title">🏢 업체 관리</div>
+
+    <div class="card">
+      <div class="top-bar">
+        <div class="search-box">
+          <input type="text" class="search-input" id="searchInput" placeholder="업체명/담당자 검색" oninput="renderTable()">
+          <select class="filter-select" id="typeFilter" onchange="renderTable()">
+            <option value="">전체 구분</option>
+            <option value="transport">운송사</option>
+            <option value="shipper">화주</option>
+            <option value="forwarder">포워더</option>
+            <option value="other">기타</option>
+          </select>
+          <span class="count-label" id="countLabel"></span>
+        </div>
+        <button class="btn-primary" onclick="openModal()">+ 업체 추가</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>업체명</th>
+              <th>구분</th>
+              <th>담당자</th>
+              <th>전화번호</th>
+              <th>주소</th>
+              <th>메모</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody id="vendorTable">
+            <tr><td colspan="7" class="empty-msg">불러오는 중...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 모달 -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-title" id="modalTitle">🏢 업체 추가</div>
+      <input type="hidden" id="inp-id">
+      <div class="form-group">
+        <label class="form-label">업체명 <span style="color:#ef4444">*</span></label>
+        <input type="text" class="form-input" id="inp-name" placeholder="업체명">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">구분</label>
+          <select class="form-select" id="inp-type">
+            <option value="transport">운송사</option>
+            <option value="shipper">화주</option>
+            <option value="forwarder">포워더</option>
+            <option value="other">기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">담당자</label>
+          <input type="text" class="form-input" id="inp-manager" placeholder="담당자명">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">전화번호</label>
+        <input type="tel" class="form-input" id="inp-phone" placeholder="010-0000-0000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">주소</label>
+        <input type="text" class="form-input" id="inp-address" placeholder="주소">
+      </div>
+      <div class="form-group">
+        <label class="form-label">메모</label>
+        <textarea class="form-textarea" id="inp-memo" placeholder="추가 메모 (선택)"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">취소</button>
+        <button class="btn-primary" onclick="saveVendor()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="hub-nav.js"></script>
+  <script>
+    initNav('vendors.html');
+
+    const token = sessionStorage.getItem('adminToken');
+    const authH = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` });
+
+    let vendors = [];
+
+    const typeLabel = { transport: '운송사', shipper: '화주', forwarder: '포워더', other: '기타' };
+    const typeClass = { transport: 'badge-transport', shipper: 'badge-shipper', forwarder: 'badge-forwarder', other: 'badge-other' };
+
+    async function loadVendors() {
+      try {
+        const res = await fetch('/api/vendors', { headers: authH() });
+        if (!res.ok) throw new Error();
+        vendors = await res.json();
+      } catch {
+        vendors = [];
+      }
+      renderTable();
+    }
+
+    function renderTable() {
+      const q     = document.getElementById('searchInput').value.trim().toLowerCase();
+      const tType = document.getElementById('typeFilter').value;
+
+      let filtered = vendors;
+      if (q)     filtered = filtered.filter(v => (v.name||'').toLowerCase().includes(q) || (v.manager||'').toLowerCase().includes(q));
+      if (tType) filtered = filtered.filter(v => v.type === tType);
+
+      document.getElementById('countLabel').textContent = `${filtered.length}개 업체`;
+
+      if (filtered.length === 0) {
+        document.getElementById('vendorTable').innerHTML =
+          '<tr><td colspan="7" class="empty-msg">업체가 없습니다.</td></tr>';
+        return;
+      }
+
+      document.getElementById('vendorTable').innerHTML = filtered.map(v => `
+        <tr>
+          <td><strong>${escHtml(v.name || '-')}</strong></td>
+          <td><span class="badge ${typeClass[v.type] || 'badge-other'}">${typeLabel[v.type] || v.type || '-'}</span></td>
+          <td>${escHtml(v.manager || '-')}</td>
+          <td>${v.phone ? `<a href="tel:${escHtml(v.phone)}" style="color:#667eea;text-decoration:none;">${escHtml(v.phone)}</a>` : '-'}</td>
+          <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(v.address || '-')}</td>
+          <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#718096;">${escHtml(v.memo || '-')}</td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <button class="btn-edit" onclick="editVendor(${v.id})">수정</button>
+              <button class="btn-del" onclick="deleteVendor(${v.id})">삭제</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openModal(vendor = null) {
+      document.getElementById('inp-id').value      = vendor ? vendor.id : '';
+      document.getElementById('inp-name').value    = vendor ? (vendor.name || '')    : '';
+      document.getElementById('inp-type').value    = vendor ? (vendor.type || 'transport') : 'transport';
+      document.getElementById('inp-manager').value = vendor ? (vendor.manager || '') : '';
+      document.getElementById('inp-phone').value   = vendor ? (vendor.phone || '')   : '';
+      document.getElementById('inp-address').value = vendor ? (vendor.address || '') : '';
+      document.getElementById('inp-memo').value    = vendor ? (vendor.memo || '')    : '';
+      document.getElementById('modalTitle').textContent = vendor ? '🏢 업체 수정' : '🏢 업체 추가';
+      document.getElementById('modal').classList.add('show');
+    }
+
+    function editVendor(id) {
+      const v = vendors.find(x => x.id === id);
+      if (v) openModal(v);
+    }
+
+    async function saveVendor() {
+      const name = document.getElementById('inp-name').value.trim();
+      if (!name) { alert('업체명을 입력하세요.'); return; }
+
+      const id = document.getElementById('inp-id').value;
+      const body = {
+        name,
+        type:    document.getElementById('inp-type').value,
+        manager: document.getElementById('inp-manager').value.trim() || null,
+        phone:   document.getElementById('inp-phone').value.trim() || null,
+        address: document.getElementById('inp-address').value.trim() || null,
+        memo:    document.getElementById('inp-memo').value.trim() || null
+      };
+
+      try {
+        let res;
+        if (id) {
+          res = await fetch(`/api/vendors/${id}`, { method: 'PUT', headers: authH(), body: JSON.stringify(body) });
+        } else {
+          res = await fetch('/api/vendors', { method: 'POST', headers: authH(), body: JSON.stringify(body) });
+        }
+        if (!res.ok) throw new Error();
+        closeModal();
+        await loadVendors();
+      } catch { alert('저장에 실패했습니다.'); }
+    }
+
+    async function deleteVendor(id) {
+      const v = vendors.find(x => x.id === id);
+      if (!confirm(`"${v?.name || '업체'}"를 삭제하시겠습니까?`)) return;
+      try {
+        await fetch(`/api/vendors/${id}`, { method: 'DELETE', headers: authH() });
+        vendors = vendors.filter(x => x.id !== id);
+        renderTable();
+      } catch { alert('삭제에 실패했습니다.'); }
+    }
+
+    function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    document.getElementById('modal').addEventListener('click', e => {
+      if (e.target === document.getElementById('modal')) closeModal();
+    });
+
+    loadVendors();
+  </script>
+</body>
+</html>

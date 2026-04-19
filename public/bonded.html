@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>보세 반입/출 관리 - 토탈 물류</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="hub-nav.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Noto Sans KR',sans-serif;display:flex;min-height:100vh;background:#f0f4f8;}
+    .hub-main{margin-left:220px;padding:24px;flex:1;}
+    @media(max-width:768px){.hub-main{margin-left:0;padding:16px;}}
+
+    .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+    .page-title{font-size:20px;font-weight:700;color:#1a202c;display:flex;align-items:center;gap:10px;}
+    .page-title i{color:#2b6cb0;}
+
+    .btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
+    .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(102,126,234,.4);}
+    .btn-danger{background:#fed7d7;color:#c53030;}
+    .btn-sm{padding:6px 12px;font-size:12px;border-radius:7px;}
+
+    /* 필터 영역 */
+    .filter-bar{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.07);padding:16px 20px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+    .filter-bar label{font-size:12px;font-weight:600;color:#4a5568;white-space:nowrap;}
+    .filter-bar input[type=date]{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;}
+    .filter-bar select{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;background:#fff;}
+
+    /* 요약 카드 */
+    .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+    @media(max-width:700px){.summary-grid{grid-template-columns:1fr 1fr;}}
+    .stat-card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.07);padding:18px;text-align:center;}
+    .stat-card .stat-label{font-size:11px;font-weight:600;color:#718096;margin-bottom:6px;text-transform:uppercase;}
+    .stat-card .stat-value{font-size:28px;font-weight:700;}
+    .stat-card.in .stat-value{color:#2b6cb0;}
+    .stat-card.out .stat-value{color:#c05621;}
+    .stat-card.total .stat-value{color:#2d3748;}
+    .stat-card.pending .stat-value{color:#6b46c1;}
+
+    /* 테이블 */
+    .card{background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:24px;margin-bottom:20px;}
+    .card-title{font-size:15px;font-weight:700;color:#2d3748;display:flex;align-items:center;gap:8px;padding-bottom:14px;border-bottom:2px solid #f0f4f8;margin-bottom:16px;}
+    .table-wrap{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th{background:#f7fafc;color:#4a5568;font-weight:600;padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;white-space:nowrap;}
+    td{padding:10px 12px;border-bottom:1px solid #f0f4f8;vertical-align:middle;}
+    tr:hover td{background:#fafafa;}
+    .no-data{text-align:center;padding:40px;color:#a0aec0;}
+    .badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+    .badge-in{background:#ebf8ff;color:#2b6cb0;}
+    .badge-out{background:#fff7ed;color:#c05621;}
+
+    /* 모달 */
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;}
+    .modal-overlay.show{display:flex;}
+    .modal-box{background:#fff;border-radius:20px;padding:28px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;}
+    .modal-title{font-size:17px;font-weight:700;color:#2d3748;margin-bottom:20px;display:flex;align-items:center;gap:8px;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    @media(max-width:500px){.form-grid{grid-template-columns:1fr;}}
+    .form-group{display:flex;flex-direction:column;gap:5px;}
+    .form-group.span2{grid-column:span 2;}
+    @media(max-width:500px){.form-group.span2{grid-column:span 1;}}
+    .form-group label{font-size:12px;font-weight:600;color:#4a5568;}
+    .req{color:#e53e3e;margin-left:2px;}
+    .form-group input,.form-group select,.form-group textarea{padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;transition:border .2s;}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#667eea;background:#fff;}
+    .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+
+    .alert{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:14px;display:none;align-items:center;gap:8px;}
+    .alert-success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;display:flex;}
+    .alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;display:flex;}
+  </style>
+</head>
+<body>
+  <div id="sidebar"></div>
+  <div class="hub-main">
+    <div class="page-header">
+      <div class="page-title"><i class="fas fa-ship"></i> 보세 반입/출 관리</div>
+      <button class="btn btn-primary" onclick="openModal()"><i class="fas fa-plus"></i> 반입/출 등록</button>
+    </div>
+
+    <div class="alert alert-success" id="alertSuccess"><i class="fas fa-check-circle"></i> <span id="alertSuccessMsg"></span></div>
+    <div class="alert alert-error" id="alertError"><i class="fas fa-exclamation-circle"></i> <span id="alertErrorMsg"></span></div>
+
+    <!-- 필터 -->
+    <div class="filter-bar">
+      <label><i class="fas fa-calendar" style="color:#667eea;margin-right:4px;"></i> 날짜</label>
+      <input type="date" id="filterDate" onchange="loadRecords()">
+      <label>구분</label>
+      <select id="filterType" onchange="loadRecords()">
+        <option value="">전체</option>
+        <option value="반입">반입</option>
+        <option value="반출">반출</option>
+      </select>
+      <button class="btn btn-primary" style="padding:8px 14px;" onclick="setToday()">
+        <i class="fas fa-calendar-day"></i> 오늘
+      </button>
+      <button class="btn" style="background:#e2e8f0;color:#4a5568;padding:8px 14px;" onclick="clearFilter()">
+        <i class="fas fa-times"></i> 초기화
+      </button>
+    </div>
+
+    <!-- 요약 -->
+    <div class="summary-grid">
+      <div class="stat-card in">
+        <div class="stat-label">📥 반입 건수</div>
+        <div class="stat-value" id="cntIn">-</div>
+      </div>
+      <div class="stat-card out">
+        <div class="stat-label">📤 반출 건수</div>
+        <div class="stat-value" id="cntOut">-</div>
+      </div>
+      <div class="stat-card total">
+        <div class="stat-label">📦 전체 건수</div>
+        <div class="stat-value" id="cntTotal">-</div>
+      </div>
+      <div class="stat-card pending">
+        <div class="stat-label">📋 조회 날짜</div>
+        <div class="stat-value" id="filterDateDisplay" style="font-size:14px;padding-top:6px;">-</div>
+      </div>
+    </div>
+
+    <!-- 목록 -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-list" style="color:#2b6cb0;"></i> 반입/출 내역</div>
+      <div class="table-wrap">
+        <table id="recordsTable">
+          <thead>
+            <tr>
+              <th>구분</th>
+              <th>날짜</th>
+              <th>BL번호</th>
+              <th>MRN</th>
+              <th>화주명</th>
+              <th>품명</th>
+              <th>수량</th>
+              <th>중량</th>
+              <th>비고</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody id="recordsBody">
+            <tr><td colspan="10" class="no-data"><i class="fas fa-ship" style="display:block;font-size:32px;margin-bottom:8px;"></i>데이터가 없습니다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 등록/수정 모달 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-box">
+      <div class="modal-title"><i class="fas fa-ship" style="color:#2b6cb0;"></i> <span id="modalTitle">반입/출 등록</span></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>구분 <span class="req">*</span></label>
+          <select id="fType">
+            <option value="반입">📥 반입</option>
+            <option value="반출">📤 반출</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>날짜 <span class="req">*</span></label>
+          <input type="date" id="fDate">
+        </div>
+        <div class="form-group">
+          <label>BL번호</label>
+          <input type="text" id="fBl" placeholder="BL번호 입력">
+        </div>
+        <div class="form-group">
+          <label>MRN</label>
+          <input type="text" id="fMrn" placeholder="MRN 입력">
+        </div>
+        <div class="form-group">
+          <label>화주명</label>
+          <input type="text" id="fCustomer" placeholder="화주명">
+        </div>
+        <div class="form-group">
+          <label>품명</label>
+          <input type="text" id="fProduct" placeholder="품명">
+        </div>
+        <div class="form-group">
+          <label>수량</label>
+          <input type="text" id="fQty" placeholder="수량">
+        </div>
+        <div class="form-group">
+          <label>중량 (KG)</label>
+          <input type="text" id="fWeight" placeholder="중량">
+        </div>
+        <div class="form-group span2">
+          <label>비고</label>
+          <input type="text" id="fNotes" placeholder="기타 메모">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" style="background:#e2e8f0;color:#4a5568;" onclick="closeModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveRecord()"><i class="fas fa-save"></i> 저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = sessionStorage.getItem('adminToken');
+    if (!token) location.href = 'index.html';
+    const authH = () => ({ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` });
+    if (typeof initNav === 'function') initNav('bonded');
+
+    let editId = null;
+    let allRecords = [];
+
+    function setToday() {
+      document.getElementById('filterDate').value = new Date().toISOString().split('T')[0];
+      loadRecords();
+    }
+
+    function clearFilter() {
+      document.getElementById('filterDate').value = '';
+      document.getElementById('filterType').value = '';
+      loadRecords();
+    }
+
+    async function loadRecords() {
+      const date = document.getElementById('filterDate').value;
+      const type = document.getElementById('filterType').value;
+      let url = '/api/bonded';
+      const params = [];
+      if (date) params.push(`date=${date}`);
+      if (type) params.push(`type=${encodeURIComponent(type)}`);
+      if (params.length) url += '?' + params.join('&');
+      try {
+        const res = await fetch(url, { headers: authH() });
+        const json = await res.json();
+        allRecords = json.data || [];
+        renderTable(allRecords);
+        updateStats(allRecords, date);
+      } catch(e) { console.error(e); }
+    }
+
+    function updateStats(records, date) {
+      const inCnt  = records.filter(r => r.record_type === '반입').length;
+      const outCnt = records.filter(r => r.record_type === '반출').length;
+      document.getElementById('cntIn').textContent    = inCnt;
+      document.getElementById('cntOut').textContent   = outCnt;
+      document.getElementById('cntTotal').textContent = records.length;
+      document.getElementById('filterDateDisplay').textContent = date || '전체';
+    }
+
+    function renderTable(records) {
+      const tbody = document.getElementById('recordsBody');
+      if (!records.length) {
+        tbody.innerHTML = '<tr><td colspan="10" class="no-data"><i class="fas fa-ship" style="display:block;font-size:32px;margin-bottom:8px;"></i>데이터가 없습니다</td></tr>';
+        return;
+      }
+      tbody.innerHTML = records.map(r => `
+        <tr>
+          <td><span class="badge badge-${r.record_type==='반입'?'in':'out'}">${r.record_type==='반입'?'📥 반입':'📤 반출'}</span></td>
+          <td>${r.record_date||'-'}</td>
+          <td style="font-family:monospace;font-weight:700;color:#2b6cb0;">${r.bl_no||'-'}</td>
+          <td style="font-family:monospace;font-size:12px;">${r.mrn||'-'}</td>
+          <td>${r.customer||'-'}</td>
+          <td>${r.product||'-'}</td>
+          <td>${r.quantity||'-'}</td>
+          <td>${r.weight||'-'}</td>
+          <td style="font-size:12px;color:#718096;">${r.notes||'-'}</td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-sm" style="background:#ebf8ff;color:#2b6cb0;" onclick="editRecord(${r.id})"><i class="fas fa-edit"></i></button>
+              <button class="btn btn-sm btn-danger" onclick="deleteRecord(${r.id})"><i class="fas fa-trash"></i></button>
+            </div>
+          </td>
+        </tr>`).join('');
+    }
+
+    function openModal(id=null) {
+      editId = id;
+      document.getElementById('modalTitle').textContent = id ? '반입/출 수정' : '반입/출 등록';
+      if (!id) {
+        document.getElementById('fType').value = '반입';
+        document.getElementById('fDate').value = document.getElementById('filterDate').value || new Date().toISOString().split('T')[0];
+        document.getElementById('fBl').value = '';
+        document.getElementById('fMrn').value = '';
+        document.getElementById('fCustomer').value = '';
+        document.getElementById('fProduct').value = '';
+        document.getElementById('fQty').value = '';
+        document.getElementById('fWeight').value = '';
+        document.getElementById('fNotes').value = '';
+      }
+      document.getElementById('modalOverlay').classList.add('show');
+    }
+
+    function editRecord(id) {
+      const r = allRecords.find(x => x.id === id);
+      if (!r) return;
+      editId = id;
+      document.getElementById('modalTitle').textContent = '반입/출 수정';
+      document.getElementById('fType').value = r.record_type || '반입';
+      document.getElementById('fDate').value = r.record_date || '';
+      document.getElementById('fBl').value = r.bl_no || '';
+      document.getElementById('fMrn').value = r.mrn || '';
+      document.getElementById('fCustomer').value = r.customer || '';
+      document.getElementById('fProduct').value = r.product || '';
+      document.getElementById('fQty').value = r.quantity || '';
+      document.getElementById('fWeight').value = r.weight || '';
+      document.getElementById('fNotes').value = r.notes || '';
+      document.getElementById('modalOverlay').classList.add('show');
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('show');
+      editId = null;
+    }
+
+    async function saveRecord() {
+      const body = {
+        record_type: document.getElementById('fType').value,
+        record_date: document.getElementById('fDate').value,
+        bl_no: document.getElementById('fBl').value,
+        mrn: document.getElementById('fMrn').value,
+        customer: document.getElementById('fCustomer').value,
+        product: document.getElementById('fProduct').value,
+        quantity: document.getElementById('fQty').value,
+        weight: document.getElementById('fWeight').value,
+        notes: document.getElementById('fNotes').value,
+      };
+      if (!body.record_date) { alert('날짜를 입력해주세요.'); return; }
+      try {
+        let res;
+        if (editId) {
+          res = await fetch(`/api/bonded/${editId}`, { method:'PATCH', headers: authH(), body: JSON.stringify(body) });
+        } else {
+          res = await fetch('/api/bonded', { method:'POST', headers: authH(), body: JSON.stringify(body) });
+        }
+        if (res.ok) {
+          closeModal(); loadRecords();
+          showAlert('success', editId ? '수정되었습니다.' : '등록되었습니다.');
+        } else {
+          const e = await res.json();
+          showAlert('error', e.error||'저장 실패');
+        }
+      } catch(e) { showAlert('error', '오류: '+e.message); }
+    }
+
+    async function deleteRecord(id) {
+      const r = allRecords.find(x => x.id === id);
+      if (!confirm(`[${r?.bl_no||'이 항목'}] 을 삭제하시겠습니까?`)) return;
+      try {
+        const res = await fetch(`/api/bonded/${id}`, { method:'DELETE', headers: authH() });
+        if (res.ok) { loadRecords(); showAlert('success','삭제되었습니다.'); }
+      } catch(e) { showAlert('error','삭제 실패'); }
+    }
+
+    function showAlert(type, msg) {
+      const el = document.getElementById(type==='success'?'alertSuccess':'alertError');
+      const ml = document.getElementById(type==='success'?'alertSuccessMsg':'alertErrorMsg');
+      ml.textContent = msg; el.style.display = 'flex';
+      setTimeout(() => el.style.display='none', 3000);
+    }
+
+    document.getElementById('modalOverlay').addEventListener('click', e => {
+      if (e.target === document.getElementById('modalOverlay')) closeModal();
+    });
+
+    setToday();
+  </script>
+</body>
+</html>

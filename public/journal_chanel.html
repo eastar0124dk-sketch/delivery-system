@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>샤넬코리아 업무일지 - 토탈 물류</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="hub-nav.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Noto Sans KR',sans-serif;display:flex;min-height:100vh;background:#f0f4f8;}
+    .hub-main{margin-left:220px;padding:24px;flex:1;}
+    @media(max-width:768px){.hub-main{margin-left:0;padding:16px;}}
+
+    .page-title{font-size:20px;font-weight:700;color:#1a202c;display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+    .page-title i{color:#ed64a6;}
+    .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+
+    .date-nav{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+    .date-nav label{font-size:13px;font-weight:600;color:#4a5568;}
+    .date-nav input[type=date]{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;}
+
+    .btn{padding:9px 16px;border:none;border-radius:10px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
+    .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;}
+    .btn-primary:hover{transform:translateY(-1px);}
+    .btn-success{background:linear-gradient(135deg,#38a169,#2f855a);color:#fff;}
+    .btn-success:hover{transform:translateY(-1px);}
+    .btn-outline{background:#fff;color:#4a5568;border:1.5px solid #e2e8f0;}
+    .btn-excel{background:linear-gradient(135deg,#1d6f42,#155034);color:#fff;}
+
+    .save-status{font-size:12px;padding:6px 12px;border-radius:20px;font-weight:600;}
+    .save-status.saved{background:#d1fae5;color:#065f46;}
+    .save-status.unsaved{background:#fef3c7;color:#92400e;}
+    .save-status.saving{background:#dbeafe;color:#1e40af;}
+
+    .card{background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:24px;margin-bottom:20px;}
+    .card-title{font-size:15px;font-weight:700;color:#2d3748;display:flex;align-items:center;gap:8px;padding-bottom:14px;border-bottom:2px solid #f0f4f8;margin-bottom:20px;}
+
+    .info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+    @media(max-width:700px){.info-grid{grid-template-columns:1fr 1fr;}}
+    .form-group{display:flex;flex-direction:column;gap:5px;}
+    .form-group label{font-size:12px;font-weight:600;color:#4a5568;}
+    .form-group input,.form-group textarea{padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;transition:border .2s;}
+    .form-group input:focus,.form-group textarea:focus{outline:none;border-color:#667eea;background:#fff;}
+
+    /* 패션/화장품 그리드 */
+    .dual-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    @media(max-width:700px){.dual-grid{grid-template-columns:1fr;}}
+
+    .section-card{border-radius:12px;padding:20px;}
+    .section-card.fashion{background:linear-gradient(135deg,#f0fff4,#dcfce7);border:1.5px solid #9ae6b4;}
+    .section-card.cosmetics{background:linear-gradient(135deg,#fff5f7,#fed7e2);border:1.5px solid #fbb6ce;}
+    .section-label{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+    .section-label.fashion{color:#276749;}
+    .section-label.cosmetics{color:#9b2c2c;}
+
+    .sub-table{width:100%;border-collapse:collapse;font-size:13px;}
+    .sub-table th{background:rgba(0,0,0,.05);font-weight:700;padding:8px 10px;text-align:center;border:1px solid rgba(0,0,0,.08);}
+    .sub-table td{padding:6px 8px;border:1px solid rgba(0,0,0,.08);text-align:center;}
+    .sub-table td:first-child{font-weight:600;text-align:left;background:rgba(255,255,255,.5);}
+    .sub-table input{width:80px;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:6px;text-align:center;font-family:inherit;font-size:13px;}
+    .sub-table input:focus{outline:none;border-color:#667eea;}
+
+    /* 기타 현황 */
+    .extra-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+    @media(max-width:600px){.extra-grid{grid-template-columns:1fr 1fr;}}
+    .extra-item{background:#f7fafc;border-radius:10px;padding:12px;border:1.5px solid #e2e8f0;}
+    .extra-item label{font-size:11px;font-weight:600;color:#718096;display:block;margin-bottom:6px;}
+    .extra-item input{width:100%;padding:8px;border:1.5px solid #e2e8f0;border-radius:6px;font-family:inherit;font-size:14px;text-align:center;}
+    .extra-item input:focus{outline:none;border-color:#667eea;}
+
+    .special-notes{width:100%;min-height:80px;padding:12px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;background:#fafafa;}
+    .special-notes:focus{outline:none;border-color:#667eea;}
+
+    .alert{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:14px;display:none;align-items:center;gap:8px;}
+    .alert-success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;display:flex;}
+    .alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;display:flex;}
+  </style>
+</head>
+<body>
+  <div id="sidebar"></div>
+  <div class="hub-main">
+    <div class="page-header">
+      <div class="page-title"><i class="fas fa-spa"></i> 샤넬코리아 일일 업무일지</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <span class="save-status saved" id="saveStatus"><i class="fas fa-check-circle"></i> 저장됨</span>
+        <button class="btn btn-excel" onclick="downloadExcel()"><i class="fas fa-file-excel"></i> 엑셀 다운로드</button>
+        <button class="btn btn-success" onclick="saveJournal()"><i class="fas fa-save"></i> 저장</button>
+      </div>
+    </div>
+
+    <div class="alert alert-success" id="alertSuccess"><i class="fas fa-check-circle"></i> <span id="alertSuccessMsg"></span></div>
+    <div class="alert alert-error" id="alertError"><i class="fas fa-exclamation-circle"></i> <span id="alertErrorMsg"></span></div>
+
+    <!-- 날짜 선택 -->
+    <div class="date-nav">
+      <label><i class="fas fa-calendar-alt" style="color:#ed64a6;margin-right:5px;"></i> 작성일</label>
+      <input type="date" id="journalDate" onchange="loadJournal()">
+      <button class="btn btn-outline" onclick="goDate(-1)"><i class="fas fa-chevron-left"></i> 전날</button>
+      <button class="btn btn-outline" onclick="goDate(1)">다음날 <i class="fas fa-chevron-right"></i></button>
+      <button class="btn btn-primary" onclick="setToday()"><i class="fas fa-calendar-day"></i> 오늘</button>
+    </div>
+
+    <!-- 기본 정보 -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-info-circle" style="color:#ed64a6;"></i> 기본 정보</div>
+      <div class="info-grid">
+        <div class="form-group">
+          <label>작성자</label>
+          <input type="text" id="writer" placeholder="성명" oninput="markUnsaved()">
+        </div>
+        <div class="form-group">
+          <label>업무시작</label>
+          <input type="time" id="workStart" value="08:30" oninput="markUnsaved()">
+        </div>
+        <div class="form-group">
+          <label>업무종료</label>
+          <input type="time" id="workEnd" value="18:00" oninput="markUnsaved()">
+        </div>
+        <div class="form-group">
+          <label>인원 (명)</label>
+          <input type="number" id="staffCount" min="0" placeholder="0" oninput="markUnsaved()">
+        </div>
+      </div>
+    </div>
+
+    <!-- 패션 / 화장품 입출고 -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-boxes" style="color:#ed64a6;"></i> 입출고 현황</div>
+      <div class="dual-grid">
+        <!-- 패션 -->
+        <div class="section-card fashion">
+          <div class="section-label fashion"><i class="fas fa-tshirt"></i> 패션</div>
+          <table class="sub-table">
+            <thead>
+              <tr><th>구분</th><th>내국</th><th>보세</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>입고 (BOX)</td>
+                <td><input type="number" id="fa_in_dom_box" min="0" value="0" oninput="markUnsaved()"></td>
+                <td><input type="number" id="fa_in_bon_box" min="0" value="0" oninput="markUnsaved()"></td>
+              </tr>
+              <tr>
+                <td>입고 (PLT)</td>
+                <td><input type="number" id="fa_in_dom_plt" min="0" value="0" oninput="markUnsaved()"></td>
+                <td><input type="number" id="fa_in_bon_plt" min="0" value="0" oninput="markUnsaved()"></td>
+              </tr>
+            </tbody>
+          </table>
+          <table class="sub-table" style="margin-top:8px;">
+            <thead>
+              <tr><th>구분</th><th>건수</th><th>수량(BOX)</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>차량출고</td>
+                <td><input type="number" id="fa_out_veh_cnt" min="0" value="0" oninput="markUnsaved()"></td>
+                <td><input type="number" id="fa_out_veh_qty" min="0" value="0" oninput="markUnsaved()"></td>
+              </tr>
+              <tr>
+                <td>택배출고</td>
+                <td><input type="number" id="fa_out_cou_cnt" min="0" value="0" oninput="markUnsaved()"></td>
+                <td><input type="number" id="fa_out_cou_qty" min="0" value="0" oninput="markUnsaved()"></td>
+              </tr>
+            </tbody>
+          </table>
+          <table class="sub-table" style="margin-top:8px;">
+            <thead><tr><th colspan="2">현재고</th></tr></thead>
+            <tbody>
+              <tr><td>BOX</td><td><input type="number" id="fa_stk_box" min="0" value="0" oninput="markUnsaved()"></td></tr>
+              <tr><td>PLT</td><td><input type="number" id="fa_stk_plt" min="0" value="0" oninput="markUnsaved()"></td></tr>
+              <tr><td>어제재고(BOX)</td><td><input type="number" id="fa_yest_box" min="0" value="0" oninput="markUnsaved()"></td></tr>
+              <tr><td>어제재고(PLT)</td><td><input type="number" id="fa_yest_plt" min="0" value="0" oninput="markUnsaved()"></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 화장품 -->
+        <div class="section-card cosmetics">
+          <div class="section-label cosmetics"><i class="fas fa-kiss-wink-heart"></i> 화장품</div>
+          <table class="sub-table">
+            <thead>
+              <tr><th>구분</th><th>내국</th><th>보세</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>입고 (PCS)</td>
+                <td><input type="number" id="co_in_dom_pcs" min="0" value="0" oninput="markUnsaved()"></td>
+                <td><input type="number" id="co_in_bon_pcs" min="0" value="0" oninput="markUnsaved()"></td>
+              </tr>
+              <tr>
+                <td>입고 (PLT)</td>
+                <td><input type="number" id="co_in_dom_plt" min="0" value="0" oninput="markUnsaved()"></td>
+                <td><input type="number" id="co_in_bon_plt" min="0" value="0" oninput="markUnsaved()"></td>
+              </tr>
+            </tbody>
+          </table>
+          <table class="sub-table" style="margin-top:8px;">
+            <thead>
+              <tr><th>구분</th><th>건수</th><th>수량(PCS)</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>차량출고</td>
+                <td><input type="number" id="co_out_veh_cnt" min="0" value="0" oninput="markUnsaved()"></td>
+                <td><input type="number" id="co_out_veh_qty" min="0" value="0" oninput="markUnsaved()"></td>
+              </tr>
+              <tr>
+                <td>택배출고</td>
+                <td><input type="number" id="co_out_cou_cnt" min="0" value="0" oninput="markUnsaved()"></td>
+                <td><input type="number" id="co_out_cou_qty" min="0" value="0" oninput="markUnsaved()"></td>
+              </tr>
+            </tbody>
+          </table>
+          <table class="sub-table" style="margin-top:8px;">
+            <thead><tr><th colspan="2">현재고</th></tr></thead>
+            <tbody>
+              <tr><td>PCS</td><td><input type="number" id="co_stk_pcs" min="0" value="0" oninput="markUnsaved()"></td></tr>
+              <tr><td>PLT</td><td><input type="number" id="co_stk_plt" min="0" value="0" oninput="markUnsaved()"></td></tr>
+              <tr><td>어제재고(PCS)</td><td><input type="number" id="co_yest_pcs" min="0" value="0" oninput="markUnsaved()"></td></tr>
+              <tr><td>어제재고(PLT)</td><td><input type="number" id="co_yest_plt" min="0" value="0" oninput="markUnsaved()"></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 기타 현황 -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-chart-bar" style="color:#ed64a6;"></i> 기타 현황</div>
+      <div class="extra-grid">
+        <div class="extra-item">
+          <label>전산등록 X (PLT)</label>
+          <input type="number" id="ext_register_x" min="0" value="0" oninput="markUnsaved()">
+        </div>
+        <div class="extra-item">
+          <label>중복 (PLT)</label>
+          <input type="number" id="ext_duplicate" min="0" value="0" oninput="markUnsaved()">
+        </div>
+        <div class="extra-item">
+          <label>WMS 수량</label>
+          <input type="text" id="ext_wms_qty" placeholder="-" oninput="markUnsaved()">
+        </div>
+        <div class="extra-item">
+          <label>재고이동 (PLT)</label>
+          <input type="number" id="ext_stock_move" min="0" value="0" oninput="markUnsaved()">
+        </div>
+        <div class="extra-item">
+          <label>재고이동 중복</label>
+          <input type="number" id="ext_move_dup" min="0" value="0" oninput="markUnsaved()">
+        </div>
+        <div class="extra-item" style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#f6ad55;">
+          <label>패션+화장품 PLT 합계</label>
+          <input type="number" id="ext_total_plt" min="0" value="0" oninput="markUnsaved()" style="font-weight:700;font-size:16px;border-color:#f6ad55;">
+        </div>
+      </div>
+    </div>
+
+    <!-- 특이사항 -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-exclamation-circle" style="color:#ed64a6;"></i> 특이사항</div>
+      <textarea class="special-notes" id="specialNotes" placeholder="당일 특이사항을 입력하세요..." oninput="markUnsaved()"></textarea>
+    </div>
+
+    <!-- 로고 -->
+    <div style="text-align:center;padding:16px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);">
+      <span style="font-weight:700;color:#003366;font-size:13px;margin-right:12px;">[ KOREA AEO ]</span>
+      <span style="font-weight:700;color:#003366;font-size:14px;">ACT LOGISTICS Co., Ltd.</span>
+    </div>
+  </div>
+
+  <script>
+    const token = sessionStorage.getItem('adminToken');
+    if (!token) location.href = 'index.html';
+    const authH = () => ({ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` });
+    if (typeof initNav === 'function') initNav('journal_chanel');
+
+    let isUnsaved = false;
+
+    function setToday() {
+      document.getElementById('journalDate').value = new Date().toISOString().split('T')[0];
+      loadJournal();
+    }
+    function goDate(d) {
+      const dt = new Date(document.getElementById('journalDate').value);
+      dt.setDate(dt.getDate() + d);
+      document.getElementById('journalDate').value = dt.toISOString().split('T')[0];
+      loadJournal();
+    }
+    function markUnsaved() {
+      isUnsaved = true;
+      const s = document.getElementById('saveStatus');
+      s.className = 'save-status unsaved';
+      s.innerHTML = '<i class="fas fa-circle"></i> 미저장';
+    }
+    function markSaved() {
+      isUnsaved = false;
+      const s = document.getElementById('saveStatus');
+      s.className = 'save-status saved';
+      s.innerHTML = '<i class="fas fa-check-circle"></i> 저장됨';
+    }
+
+    const fields = [
+      'fa_in_dom_box','fa_in_bon_box','fa_in_dom_plt','fa_in_bon_plt',
+      'fa_out_veh_cnt','fa_out_veh_qty','fa_out_cou_cnt','fa_out_cou_qty',
+      'fa_stk_box','fa_stk_plt','fa_yest_box','fa_yest_plt',
+      'co_in_dom_pcs','co_in_bon_pcs','co_in_dom_plt','co_in_bon_plt',
+      'co_out_veh_cnt','co_out_veh_qty','co_out_cou_cnt','co_out_cou_qty',
+      'co_stk_pcs','co_stk_plt','co_yest_pcs','co_yest_plt',
+      'ext_register_x','ext_duplicate','ext_wms_qty','ext_stock_move','ext_move_dup','ext_total_plt'
+    ];
+
+    function getFormData() {
+      const g = id => document.getElementById(id).value;
+      const n = id => parseInt(g(id))||0;
+      return {
+        writer: g('writer'), work_start: g('workStart'), work_end: g('workEnd'),
+        staff_count: g('staffCount'),
+        fashion: {
+          import_domestic_box: n('fa_in_dom_box'), import_bonded_box: n('fa_in_bon_box'),
+          import_domestic_plt: n('fa_in_dom_plt'), import_bonded_plt: n('fa_in_bon_plt'),
+          export_vehicle_count: n('fa_out_veh_cnt'), export_vehicle_qty: n('fa_out_veh_qty'),
+          export_courier_count: n('fa_out_cou_cnt'), export_courier_qty: n('fa_out_cou_qty'),
+          stock_box: n('fa_stk_box'), stock_plt: n('fa_stk_plt'),
+          yesterday_stock: n('fa_yest_box'), yesterday_plt: n('fa_yest_plt')
+        },
+        cosmetics: {
+          import_domestic_pcs: n('co_in_dom_pcs'), import_bonded_pcs: n('co_in_bon_pcs'),
+          import_domestic_plt: n('co_in_dom_plt'), import_bonded_plt: n('co_in_bon_plt'),
+          export_vehicle_count: n('co_out_veh_cnt'), export_vehicle_qty: n('co_out_veh_qty'),
+          export_courier_count: n('co_out_cou_cnt'), export_courier_qty: n('co_out_cou_qty'),
+          stock_pcs: n('co_stk_pcs'), stock_plt: n('co_stk_plt'),
+          yesterday_stock: n('co_yest_pcs'), yesterday_plt: n('co_yest_plt')
+        },
+        extra: {
+          register_x: n('ext_register_x'), duplicate: n('ext_duplicate'),
+          wms_qty: g('ext_wms_qty'), stock_move: n('ext_stock_move'),
+          move_dup: n('ext_move_dup'), total_plt: n('ext_total_plt')
+        },
+        special_notes: g('specialNotes')
+      };
+    }
+
+    function setFormData(d) {
+      const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val||0; };
+      const sets = (id, val) => { const el = document.getElementById(id); if(el) el.value = val||''; };
+      sets('writer', d.writer); sets('workStart', d.work_start||'08:30'); sets('workEnd', d.work_end||'18:00');
+      sets('staffCount', d.staff_count);
+      const fa = d.fashion||{};
+      set('fa_in_dom_box', fa.import_domestic_box); set('fa_in_bon_box', fa.import_bonded_box);
+      set('fa_in_dom_plt', fa.import_domestic_plt); set('fa_in_bon_plt', fa.import_bonded_plt);
+      set('fa_out_veh_cnt', fa.export_vehicle_count); set('fa_out_veh_qty', fa.export_vehicle_qty);
+      set('fa_out_cou_cnt', fa.export_courier_count); set('fa_out_cou_qty', fa.export_courier_qty);
+      set('fa_stk_box', fa.stock_box); set('fa_stk_plt', fa.stock_plt);
+      set('fa_yest_box', fa.yesterday_stock); set('fa_yest_plt', fa.yesterday_plt);
+      const co = d.cosmetics||{};
+      set('co_in_dom_pcs', co.import_domestic_pcs); set('co_in_bon_pcs', co.import_bonded_pcs);
+      set('co_in_dom_plt', co.import_domestic_plt); set('co_in_bon_plt', co.import_bonded_plt);
+      set('co_out_veh_cnt', co.export_vehicle_count); set('co_out_veh_qty', co.export_vehicle_qty);
+      set('co_out_cou_cnt', co.export_courier_count); set('co_out_cou_qty', co.export_courier_qty);
+      set('co_stk_pcs', co.stock_pcs); set('co_stk_plt', co.stock_plt);
+      set('co_yest_pcs', co.yesterday_stock); set('co_yest_plt', co.yesterday_plt);
+      const ex = d.extra||{};
+      set('ext_register_x', ex.register_x); set('ext_duplicate', ex.duplicate);
+      sets('ext_wms_qty', ex.wms_qty); set('ext_stock_move', ex.stock_move);
+      set('ext_move_dup', ex.move_dup); set('ext_total_plt', ex.total_plt);
+      sets('specialNotes', d.special_notes);
+    }
+
+    async function loadJournal() {
+      const date = document.getElementById('journalDate').value;
+      if (!date) return;
+      try {
+        const res = await fetch(`/api/journals?client=chanel&date=${date}`, { headers: authH() });
+        const json = await res.json();
+        if (json.data && json.data.length > 0 && json.data[0].data) {
+          setFormData(json.data[0].data);
+        } else {
+          setFormData({});
+        }
+        markSaved();
+      } catch(e) { console.error(e); }
+    }
+
+    async function saveJournal() {
+      const date = document.getElementById('journalDate').value;
+      if (!date) { showAlert('error','날짜를 선택해주세요.'); return; }
+      const s = document.getElementById('saveStatus');
+      s.className = 'save-status saving'; s.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 저장중...';
+      try {
+        const res = await fetch('/api/journals', {
+          method:'POST', headers: authH(),
+          body: JSON.stringify({ client:'chanel', journal_date: date, data: getFormData() })
+        });
+        if (res.ok) { markSaved(); showAlert('success','업무일지가 저장되었습니다.'); }
+        else { const e = await res.json(); showAlert('error', e.error||'저장 실패'); }
+      } catch(e) { showAlert('error','저장 중 오류가 발생했습니다.'); }
+    }
+
+    async function downloadExcel() {
+      const date = document.getElementById('journalDate').value;
+      if (!date) { showAlert('error','날짜를 선택해주세요.'); return; }
+      if (isUnsaved) { await saveJournal(); }
+      try {
+        const res = await fetch(`/api/journals/excel?client=chanel&date=${date}`, { headers: authH() });
+        if (!res.ok) { const e = await res.json(); showAlert('error', e.error||'엑셀 생성 실패'); return; }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `샤넬코리아_업무일지_${date}.xlsx`;
+        a.click(); URL.revokeObjectURL(url);
+      } catch(e) { showAlert('error','엑셀 다운로드 실패: '+e.message); }
+    }
+
+    function showAlert(type, msg) {
+      const el = document.getElementById(type==='success'?'alertSuccess':'alertError');
+      const ml = document.getElementById(type==='success'?'alertSuccessMsg':'alertErrorMsg');
+      ml.textContent = msg; el.style.display = 'flex';
+      setTimeout(() => el.style.display='none', 3000);
+    }
+
+    setInterval(() => { if(isUnsaved) saveJournal(); }, 30000);
+    setToday();
+  </script>
+</body>
+</html>

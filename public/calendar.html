@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>캘린더 - 토탈 물류</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    body { display: flex; min-height: 100vh; background: #f0f4f8; margin: 0; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.08); padding: 24px; margin-bottom: 24px; }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2); color: #fff;
+      border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer;
+      font-family: inherit; font-size: 14px; font-weight: 600;
+    }
+    .btn-primary:hover { opacity: .9; }
+
+    .cal-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+    }
+    .cal-title { font-size: 20px; font-weight: 700; color: #1a202c; }
+    .cal-nav-btn {
+      background: #f7fafc; border: 1.5px solid #e2e8f0; border-radius: 8px;
+      padding: 6px 14px; cursor: pointer; font-size: 16px; color: #4a5568;
+    }
+    .cal-nav-btn:hover { background: #edf2f7; }
+
+    .cal-grid { width: 100%; border-collapse: collapse; }
+    .cal-grid th {
+      padding: 8px; text-align: center; font-size: 12px; font-weight: 600;
+      color: #718096; background: #f7fafc; border: 1px solid #e2e8f0;
+    }
+    .cal-grid td {
+      width: 14.28%; vertical-align: top; border: 1px solid #e2e8f0;
+      padding: 6px; min-height: 90px; cursor: pointer; transition: background .15s;
+    }
+    .cal-grid td:hover { background: #f0f4f8; }
+    .cal-grid td.today { background: #ebf4ff; }
+    .cal-grid td.selected { background: #e9d8fd; }
+    .cal-grid td.other-month .day-num { color: #cbd5e0; }
+    .day-num { font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 4px; }
+    .cal-grid td.today .day-num {
+      background: linear-gradient(135deg, #667eea, #764ba2); color: #fff;
+      border-radius: 50%; width: 24px; height: 24px; display: flex;
+      align-items: center; justify-content: center;
+    }
+    .event-dot {
+      font-size: 11px; border-radius: 4px; padding: 1px 5px; margin-bottom: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    }
+    .ev-general { background: #dbeafe; color: #1e40af; }
+    .ev-dispatch { background: #d1fae5; color: #065f46; }
+    .ev-deadline { background: #fee2e2; color: #991b1b; }
+    .ev-meeting  { background: #ede9fe; color: #5b21b6; }
+
+    .layout { display: flex; gap: 20px; }
+    .cal-section { flex: 1; }
+    .side-section { width: 280px; flex-shrink: 0; }
+
+    .event-list { display: flex; flex-direction: column; gap: 8px; }
+    .event-item {
+      padding: 10px 12px; border-radius: 10px; border-left: 4px solid #667eea;
+    }
+    .event-item.ev-general  { border-color: #3b82f6; background: #eff6ff; }
+    .event-item.ev-dispatch { border-color: #10b981; background: #f0fdf4; }
+    .event-item.ev-deadline { border-color: #ef4444; background: #fff5f5; }
+    .event-item.ev-meeting  { border-color: #8b5cf6; background: #faf5ff; }
+    .event-item-title { font-size: 14px; font-weight: 600; color: #2d3748; }
+    .event-item-meta  { font-size: 12px; color: #718096; margin-top: 2px; }
+    .event-item-actions { display: flex; gap: 6px; margin-top: 6px; }
+    .btn-sm {
+      padding: 3px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
+      border: 1.5px solid #e2e8f0; background: #fff; color: #718096; font-family: inherit;
+    }
+    .btn-sm:hover { background: #f7fafc; }
+    .btn-del-sm { border-color: #fc8181; color: #e53e3e; }
+    .btn-del-sm:hover { background: #fff5f5; }
+
+    .selected-date-title { font-size: 15px; font-weight: 700; color: #1a202c; margin-bottom: 12px; }
+
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 1000; align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 16px; padding: 28px; width: 460px;
+      max-width: 95vw; box-shadow: 0 8px 40px rgba(0,0,0,.2);
+    }
+    .modal-title { font-size: 18px; font-weight: 700; color: #1a202c; margin-bottom: 20px; }
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: #4a5568; margin-bottom: 6px; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; font-size: 14px; font-family: inherit; box-sizing: border-box;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #667eea; }
+    .form-textarea { resize: vertical; min-height: 70px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .btn-cancel { padding: 10px 20px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; color: #718096; cursor: pointer; font-family: inherit; font-size: 14px; }
+    .empty-msg { text-align: center; padding: 24px; color: #a0aec0; font-size: 13px; }
+
+    @media (max-width: 900px) {
+      .layout { flex-direction: column; }
+      .side-section { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar"></div>
+  <div class="hub-main">
+    <div class="hub-page-title">📅 캘린더</div>
+
+    <div class="layout">
+      <div class="cal-section">
+        <div class="card">
+          <div class="cal-header">
+            <button class="cal-nav-btn" onclick="changeMonth(-1)">&#8592;</button>
+            <div class="cal-title" id="calTitle"></div>
+            <button class="cal-nav-btn" onclick="changeMonth(1)">&#8594;</button>
+          </div>
+          <table class="cal-grid">
+            <thead>
+              <tr>
+                <th>일</th><th>월</th><th>화</th><th>수</th>
+                <th>목</th><th>금</th><th>토</th>
+              </tr>
+            </thead>
+            <tbody id="calBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="side-section">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div class="selected-date-title" id="selectedDateTitle">날짜를 선택하세요</div>
+            <button class="btn-primary" style="padding:8px 14px;font-size:13px;" onclick="openModal()">+ 추가</button>
+          </div>
+          <div class="event-list" id="eventList">
+            <div class="empty-msg">날짜를 클릭하면<br>일정이 표시됩니다.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 모달 -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-title" id="modalTitle">📅 일정 추가</div>
+      <div class="form-group">
+        <label class="form-label">제목 <span style="color:#ef4444">*</span></label>
+        <input type="text" class="form-input" id="inp-ev-title" placeholder="일정 제목">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">날짜</label>
+          <input type="date" class="form-input" id="inp-ev-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">시간</label>
+          <input type="time" class="form-input" id="inp-ev-time">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">타입</label>
+        <select class="form-select" id="inp-ev-type">
+          <option value="general">일반</option>
+          <option value="dispatch">배차</option>
+          <option value="deadline">마감</option>
+          <option value="meeting">회의</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">메모</label>
+        <textarea class="form-textarea" id="inp-ev-memo" placeholder="메모 (선택)"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">취소</button>
+        <button class="btn-primary" onclick="saveEvent()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="hub-nav.js"></script>
+  <script>
+    initNav('calendar.html');
+
+    const token = sessionStorage.getItem('adminToken');
+    const authH = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` });
+
+    let events = [];
+    let currentYear, currentMonth;
+    let selectedDate = null;
+    let editingId = null;
+
+    const typeLabel = { general: '일반', dispatch: '배차', deadline: '마감', meeting: '회의' };
+    const typeClass = { general: 'ev-general', dispatch: 'ev-dispatch', deadline: 'ev-deadline', meeting: 'ev-meeting' };
+
+    function init() {
+      const now = new Date();
+      currentYear = now.getFullYear();
+      currentMonth = now.getMonth();
+      loadEvents();
+    }
+
+    async function loadEvents() {
+      try {
+        const res = await fetch('/api/events', { headers: authH() });
+        if (!res.ok) throw new Error();
+        events = await res.json();
+      } catch {
+        events = [];
+      }
+      renderCalendar();
+    }
+
+    function changeMonth(dir) {
+      currentMonth += dir;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      if (currentMonth < 0)  { currentMonth = 11; currentYear--; }
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      const now = new Date();
+      const title = `${currentYear}년 ${currentMonth + 1}월`;
+      document.getElementById('calTitle').textContent = title;
+
+      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const prevLastDate = new Date(currentYear, currentMonth, 0).getDate();
+
+      let html = '';
+      let dayCount = 1;
+      let nextCount = 1;
+
+      for (let row = 0; row < 6; row++) {
+        html += '<tr>';
+        for (let col = 0; col < 7; col++) {
+          const cellIdx = row * 7 + col;
+          let dateStr, cls = '';
+          if (cellIdx < firstDay) {
+            const d = prevLastDate - firstDay + cellIdx + 1;
+            dateStr = `${currentYear}-${String(currentMonth === 0 ? 12 : currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            cls = 'other-month';
+          } else if (dayCount > lastDate) {
+            dateStr = `${currentYear}-${String(currentMonth + 2 > 12 ? 1 : currentMonth + 2).padStart(2,'0')}-${String(nextCount++).padStart(2,'0')}`;
+            cls = 'other-month';
+          } else {
+            dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2,'0')}-${String(dayCount).padStart(2,'0')}`;
+            const d = dayCount;
+            if (now.getFullYear() === currentYear && now.getMonth() === currentMonth && now.getDate() === d) cls += ' today';
+            if (selectedDate === dateStr) cls += ' selected';
+            dayCount++;
+          }
+          const dayEvs = events.filter(e => e.date === dateStr);
+          const dotsHtml = dayEvs.slice(0, 3).map(e =>
+            `<div class="event-dot ${typeClass[e.type] || 'ev-general'}">${escHtml(e.title)}</div>`
+          ).join('');
+          const numStr = dateStr.split('-')[2].replace(/^0/, '');
+          html += `<td class="${cls}" onclick="selectDate('${dateStr}')">
+            <div class="day-num">${numStr}</div>${dotsHtml}
+          </td>`;
+        }
+        html += '</tr>';
+        if (dayCount > lastDate && row >= 4) break;
+      }
+      document.getElementById('calBody').innerHTML = html;
+
+      if (selectedDate) renderEvents(selectedDate);
+    }
+
+    function selectDate(dateStr) {
+      selectedDate = dateStr;
+      renderCalendar();
+      renderEvents(dateStr);
+    }
+
+    function renderEvents(dateStr) {
+      const [y, m, d] = dateStr.split('-');
+      document.getElementById('selectedDateTitle').textContent = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+      const dayEvs = events.filter(e => e.date === dateStr);
+      if (dayEvs.length === 0) {
+        document.getElementById('eventList').innerHTML = '<div class="empty-msg">이 날의 일정이 없습니다.</div>';
+        return;
+      }
+      document.getElementById('eventList').innerHTML = dayEvs.map(ev => `
+        <div class="event-item ${typeClass[ev.type] || 'ev-general'}">
+          <div class="event-item-title">${escHtml(ev.title)}</div>
+          <div class="event-item-meta">
+            ${ev.time ? `<i class="fa fa-clock"></i> ${ev.time} &nbsp;` : ''}
+            <span>${typeLabel[ev.type] || ev.type}</span>
+          </div>
+          ${ev.memo ? `<div class="event-item-meta" style="margin-top:4px;">${escHtml(ev.memo)}</div>` : ''}
+          <div class="event-item-actions">
+            <button class="btn-sm" onclick="editEvent(${ev.id})">수정</button>
+            <button class="btn-sm btn-del-sm" onclick="deleteEvent(${ev.id})">삭제</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openModal(prefillDate) {
+      editingId = null;
+      document.getElementById('modalTitle').textContent = '📅 일정 추가';
+      document.getElementById('inp-ev-title').value = '';
+      document.getElementById('inp-ev-date').value = prefillDate || selectedDate || '';
+      document.getElementById('inp-ev-time').value = '';
+      document.getElementById('inp-ev-type').value = 'general';
+      document.getElementById('inp-ev-memo').value = '';
+      document.getElementById('modal').classList.add('show');
+    }
+
+    function editEvent(id) {
+      const ev = events.find(e => e.id === id);
+      if (!ev) return;
+      editingId = id;
+      document.getElementById('modalTitle').textContent = '📅 일정 수정';
+      document.getElementById('inp-ev-title').value = ev.title;
+      document.getElementById('inp-ev-date').value = ev.date;
+      document.getElementById('inp-ev-time').value = ev.time || '';
+      document.getElementById('inp-ev-type').value = ev.type || 'general';
+      document.getElementById('inp-ev-memo').value = ev.memo || '';
+      document.getElementById('modal').classList.add('show');
+    }
+
+    async function saveEvent() {
+      const title = document.getElementById('inp-ev-title').value.trim();
+      if (!title) { alert('제목을 입력하세요.'); return; }
+      const body = {
+        title,
+        date:  document.getElementById('inp-ev-date').value,
+        time:  document.getElementById('inp-ev-time').value || null,
+        type:  document.getElementById('inp-ev-type').value,
+        memo:  document.getElementById('inp-ev-memo').value.trim() || null
+      };
+      try {
+        let res;
+        if (editingId) {
+          res = await fetch(`/api/events/${editingId}`, { method: 'PUT', headers: authH(), body: JSON.stringify(body) });
+        } else {
+          res = await fetch('/api/events', { method: 'POST', headers: authH(), body: JSON.stringify(body) });
+        }
+        if (!res.ok) throw new Error();
+        closeModal();
+        await loadEvents();
+        if (body.date) selectDate(body.date);
+      } catch { alert('저장에 실패했습니다.'); }
+    }
+
+    async function deleteEvent(id) {
+      if (!confirm('삭제하시겠습니까?')) return;
+      try {
+        await fetch(`/api/events/${id}`, { method: 'DELETE', headers: authH() });
+        events = events.filter(e => e.id !== id);
+        renderCalendar();
+        if (selectedDate) renderEvents(selectedDate);
+      } catch { alert('삭제에 실패했습니다.'); }
+    }
+
+    function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    document.getElementById('modal').addEventListener('click', e => {
+      if (e.target === document.getElementById('modal')) closeModal();
+    });
+
+    init();
+  </script>
+</body>
+</html>
