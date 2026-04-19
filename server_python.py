@@ -779,6 +779,27 @@ class Handler(BaseHTTPRequestHandler):
         # ── OT 내역 ──
         if path == '/api/ot':
             if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
+            # 테이블이 완전히 비어있으면 시드 데이터 자동 삽입
+            try:
+                total_cnt = db_fetchall('SELECT COUNT(*) as cnt FROM ot_records')
+                cnt_val = int(total_cnt[0].get('cnt', 0)) if total_cnt else 0
+            except: cnt_val = 0
+            if cnt_val == 0:
+                ot_seed = [
+                    ('2026-03-25','18:00','20:10','메틀러토레도 입고', 2.2,'X'),
+                    ('2026-03-27','18:00','18:50','메틀러토레도 출고', 0.8,'X'),
+                    ('2026-03-31','18:00','18:50','메틀러토레도 입고', 0.8,'X'),
+                    ('2026-04-01','18:00','21:50','메틀러토레도 출고', 3.8,'O'),
+                    ('2026-04-13','18:00','18:50','캐논메디칼 출고',   0.8,'X'),
+                    ('2026-04-14','22:00','22:40','캐논메디칼 긴급출고',3.0,'X'),
+                    ('2026-04-15','18:30','19:00','캐논메디칼 긴급출고',3.0,'X'),
+                    ('2026-04-18','13:20','14:50','캐논메디칼 긴급출고',3.0,'X'),
+                    ('2026-04-19','07:30','09:00','캐논메디칼 긴급출고',3.0,'X'),
+                    ('2026-04-19','11:30','15:40','보세근무',           4.2,'O'),
+                ]
+                for d in ot_seed:
+                    db_insert(
+                        'INSERT INTO ot_records (work_date,start_time,end_time,work_content,ot_hours,meal_ticket) VALUES (?,?,?,?,?,?)', d)
             ym   = g('ym')    # YYYY-MM 월별 필터
             frm  = g('from')  # YYYY-MM-DD 시작일
             to   = g('to')    # YYYY-MM-DD 종료일
