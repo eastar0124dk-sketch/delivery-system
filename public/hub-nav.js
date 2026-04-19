@@ -86,12 +86,29 @@ function initNav(currentPage) {
     { href: 'billing.html', icon: '💰', label: '운송 청구서' },
   ];
 
+  // 추가 CSS: 홈버튼
+  const style2 = document.createElement('style');
+  style2.textContent = `
+    .hub-home-btn {
+      display: flex; align-items: center; gap: 8px; margin: 10px 12px 4px;
+      padding: 9px 14px; background: linear-gradient(135deg,#667eea,#764ba2);
+      color: #fff; border-radius: 10px; text-decoration: none;
+      font-size: 13px; font-weight: 700; transition: opacity .15s;
+    }
+    .hub-home-btn:hover { opacity: .88; }
+    .hub-home-btn.active { background: linear-gradient(135deg,#4c51bf,#553c9a); }
+  `;
+  document.head.appendChild(style2);
+
   let navHTML = `
     <div class="hub-logo">
       <div class="hub-logo-icon">🚛</div>
       <div class="hub-logo-title">토탈 물류</div>
       <div class="hub-logo-sub">Total Logistics</div>
     </div>
+    <a href="hub.html" class="hub-home-btn ${currentPage === 'hub.html' ? 'active' : ''}">
+      🏠 <span>대시보드 홈</span>
+    </a>
   `;
 
   navItems.forEach(item => {

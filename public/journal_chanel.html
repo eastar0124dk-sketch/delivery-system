@@ -10,18 +10,15 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:'Noto Sans KR',sans-serif;display:flex;min-height:100vh;background:#f0f4f8;}
-    .hub-main{margin-left:220px;padding:24px;flex:1;}
-    @media(max-width:768px){.hub-main{margin-left:0;padding:16px;}}
+    .hub-main{margin-left:220px;padding:20px;flex:1;min-width:0;}
+    @media(max-width:768px){.hub-main{margin-left:0;padding:12px;}}
 
-    .page-title{font-size:20px;font-weight:700;color:#1a202c;display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+    /* ── 상단 헤더 ── */
+    .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+    .page-title{font-size:19px;font-weight:700;color:#1a202c;display:flex;align-items:center;gap:10px;}
     .page-title i{color:#ed64a6;}
-    .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
 
-    .date-nav{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
-    .date-nav label{font-size:13px;font-weight:600;color:#4a5568;}
-    .date-nav input[type=date]{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;}
-
-    .btn{padding:9px 16px;border:none;border-radius:10px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
+    .btn{padding:8px 14px;border:none;border-radius:9px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px;}
     .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;}
     .btn-primary:hover{transform:translateY(-1px);}
     .btn-success{background:linear-gradient(135deg,#38a169,#2f855a);color:#fff;}
@@ -29,61 +26,122 @@
     .btn-outline{background:#fff;color:#4a5568;border:1.5px solid #e2e8f0;}
     .btn-excel{background:linear-gradient(135deg,#1d6f42,#155034);color:#fff;}
 
-    .save-status{font-size:12px;padding:6px 12px;border-radius:20px;font-weight:600;}
+    .save-status{font-size:12px;padding:5px 11px;border-radius:20px;font-weight:600;}
     .save-status.saved{background:#d1fae5;color:#065f46;}
     .save-status.unsaved{background:#fef3c7;color:#92400e;}
     .save-status.saving{background:#dbeafe;color:#1e40af;}
 
-    .card{background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:24px;margin-bottom:20px;}
-    .card-title{font-size:15px;font-weight:700;color:#2d3748;display:flex;align-items:center;gap:8px;padding-bottom:14px;border-bottom:2px solid #f0f4f8;margin-bottom:20px;}
+    .date-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+    .date-nav label{font-size:13px;font-weight:600;color:#4a5568;}
+    .date-nav input[type=date]{padding:7px 11px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;}
 
-    .info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
-    @media(max-width:700px){.info-grid{grid-template-columns:1fr 1fr;}}
-    .form-group{display:flex;flex-direction:column;gap:5px;}
-    .form-group label{font-size:12px;font-weight:600;color:#4a5568;}
-    .form-group input,.form-group textarea{padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;transition:border .2s;}
-    .form-group input:focus,.form-group textarea:focus{outline:none;border-color:#667eea;background:#fff;}
-
-    /* 패션/화장품 그리드 */
-    .dual-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-    @media(max-width:700px){.dual-grid{grid-template-columns:1fr;}}
-
-    .section-card{border-radius:12px;padding:20px;}
-    .section-card.fashion{background:linear-gradient(135deg,#f0fff4,#dcfce7);border:1.5px solid #9ae6b4;}
-    .section-card.cosmetics{background:linear-gradient(135deg,#fff5f7,#fed7e2);border:1.5px solid #fbb6ce;}
-    .section-label{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
-    .section-label.fashion{color:#276749;}
-    .section-label.cosmetics{color:#9b2c2c;}
-
-    .sub-table{width:100%;border-collapse:collapse;font-size:13px;}
-    .sub-table th{background:rgba(0,0,0,.05);font-weight:700;padding:8px 10px;text-align:center;border:1px solid rgba(0,0,0,.08);}
-    .sub-table td{padding:6px 8px;border:1px solid rgba(0,0,0,.08);text-align:center;}
-    .sub-table td:first-child{font-weight:600;text-align:left;background:rgba(255,255,255,.5);}
-    .sub-table input{width:80px;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:6px;text-align:center;font-family:inherit;font-size:13px;}
-    .sub-table input:focus{outline:none;border-color:#667eea;}
-
-    /* 기타 현황 */
-    .extra-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
-    @media(max-width:600px){.extra-grid{grid-template-columns:1fr 1fr;}}
-    .extra-item{background:#f7fafc;border-radius:10px;padding:12px;border:1.5px solid #e2e8f0;}
-    .extra-item label{font-size:11px;font-weight:600;color:#718096;display:block;margin-bottom:6px;}
-    .extra-item input{width:100%;padding:8px;border:1.5px solid #e2e8f0;border-radius:6px;font-family:inherit;font-size:14px;text-align:center;}
-    .extra-item input:focus{outline:none;border-color:#667eea;}
-
-    .special-notes{width:100%;min-height:80px;padding:12px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;background:#fafafa;}
-    .special-notes:focus{outline:none;border-color:#667eea;}
-
-    .alert{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:14px;display:none;align-items:center;gap:8px;}
+    .alert{padding:10px 14px;border-radius:9px;margin-bottom:12px;font-size:13px;display:none;align-items:center;gap:8px;}
     .alert-success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;display:flex;}
     .alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;display:flex;}
+
+    /* ── 좌우 분할 레이아웃 ── */
+    .split-layout{display:flex;gap:16px;align-items:flex-start;}
+    .panel-left{flex:0 0 55%;min-width:0;}
+    .panel-right{flex:0 0 calc(45% - 16px);min-width:0;}
+    @media(max-width:1100px){
+      .split-layout{flex-direction:column;}
+      .panel-left,.panel-right{flex:none;width:100%;}
+    }
+
+    /* ════════════════════════════════
+       왼쪽: Excel 스타일 표
+    ════════════════════════════════ */
+    .excel-wrap{background:#fff;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.09);overflow:hidden;}
+    .excel-table{width:100%;border-collapse:collapse;font-size:12px;}
+    .excel-table th,
+    .excel-table td{border:1px solid #bbb;padding:4px 6px;white-space:nowrap;}
+
+    /* 최상단 헤더 */
+    .excel-table .hd-main{background:#1a1a3e;color:#fff;text-align:center;font-size:14px;font-weight:700;letter-spacing:1px;padding:8px;}
+    /* 결재란 헤더 */
+    .excel-table .hd-approval{background:#2d3748;color:#fff;text-align:center;font-size:11px;font-weight:600;padding:5px;}
+    .excel-table .approval-cell{background:#f7fafc;text-align:center;font-size:11px;padding:8px 4px;color:#2d3748;font-weight:500;}
+
+    /* 작성일자/업무시작 등 기본 정보 행 */
+    .excel-table .row-info-label{background:#edf2f7;color:#2d3748;font-weight:700;text-align:center;font-size:11px;}
+    .excel-table .row-info-value{background:#fff;font-weight:700;text-align:center;font-size:12px;color:#1a202c;}
+
+    /* 섹션 헤더: 패션 */
+    .excel-table .sec-fa{background:#276749;color:#fff;font-weight:700;text-align:center;font-size:12px;padding:5px;}
+    /* 섹션 헤더: 화장품 */
+    .excel-table .sec-co{background:#9b2c2c;color:#fff;font-weight:700;text-align:center;font-size:12px;padding:5px;}
+
+    /* 서브 헤더 (입고/출고 구분) */
+    .excel-table .sub-hd-fa{background:#276749;color:#fff;font-weight:700;text-align:center;font-size:11px;padding:4px;}
+    .excel-table .sub-hd-co{background:#9b2c2c;color:#fff;font-weight:700;text-align:center;font-size:11px;padding:4px;}
+
+    /* 컬럼 레이블 (행 이름) */
+    .excel-table .row-label{background:#f0fff4;font-weight:700;color:#22543d;text-align:left;font-size:11px;padding-left:8px;}
+    .excel-table .row-label-co{background:#fff5f7;font-weight:700;color:#742a2a;text-align:left;font-size:11px;padding-left:8px;}
+    .excel-table .row-label-neutral{background:#f7fafc;font-weight:700;color:#2d3748;text-align:left;font-size:11px;padding-left:8px;}
+
+    /* 값 셀 */
+    .excel-table .val{background:#fff;font-weight:700;text-align:right;font-size:12px;padding-right:8px;color:#1a202c;}
+    .excel-table .val-fa{background:#f0fff4;font-weight:700;text-align:right;font-size:12px;padding-right:8px;color:#22543d;}
+    .excel-table .val-co{background:#fff5f7;font-weight:700;text-align:right;font-size:12px;padding-right:8px;color:#742a2a;}
+    .excel-table .val-sum{background:#fefcbf;font-weight:700;text-align:right;font-size:12px;padding-right:8px;color:#744210;}
+
+    /* 특이사항 */
+    .excel-table .notes-label{background:#e2e8f0;font-weight:700;text-align:center;color:#2d3748;font-size:11px;}
+    .excel-table .notes-value{background:#fff;font-size:11px;color:#2d3748;word-break:break-all;white-space:pre-wrap;}
+
+    /* ════════════════════════════════
+       오른쪽: 입력 패널
+    ════════════════════════════════ */
+    .card{background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:18px;margin-bottom:14px;}
+    .card-title{font-size:13px;font-weight:700;color:#2d3748;display:flex;align-items:center;gap:7px;padding-bottom:10px;border-bottom:2px solid #f0f4f8;margin-bottom:14px;}
+
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .form-group{display:flex;flex-direction:column;gap:4px;}
+    .form-group label{font-size:11px;font-weight:600;color:#4a5568;}
+    .form-group input,.form-group textarea{padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:13px;font-family:inherit;background:#fafafa;transition:border .2s;}
+    .form-group input:focus,.form-group textarea:focus{outline:none;border-color:#667eea;background:#fff;}
+
+    /* 입력 서브 섹션 */
+    .input-section{border-radius:10px;padding:14px;margin-bottom:12px;}
+    .input-section.fa{background:linear-gradient(135deg,#f0fff4,#dcfce7);border:1.5px solid #9ae6b4;}
+    .input-section.co{background:linear-gradient(135deg,#fff5f7,#fed7e2);border:1.5px solid #fbb6ce;}
+    .input-section.ex{background:#f7fafc;border:1.5px solid #e2e8f0;}
+    .input-section-title{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+    .input-section-title.fa{color:#276749;}
+    .input-section-title.co{color:#9b2c2c;}
+    .input-section-title.ex{color:#2d3748;}
+
+    /* 입력 테이블 */
+    .itbl{width:100%;border-collapse:collapse;font-size:12px;}
+    .itbl th{background:rgba(0,0,0,.06);font-weight:700;padding:6px 8px;text-align:center;border:1px solid rgba(0,0,0,.09);}
+    .itbl td{padding:5px 6px;border:1px solid rgba(0,0,0,.07);text-align:center;vertical-align:middle;}
+    .itbl td:first-child{font-weight:600;text-align:left;background:rgba(255,255,255,.55);font-size:11px;white-space:nowrap;}
+    .itbl input[type=number],.itbl input[type=text]{width:68px;padding:5px 6px;border:1.5px solid #e2e8f0;border-radius:5px;text-align:center;font-family:inherit;font-size:12px;background:#fff;}
+    .itbl input:focus{outline:none;border-color:#667eea;}
+    .itbl+.itbl{margin-top:8px;}
+
+    /* 기타 현황 그리드 */
+    .extra-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+    .extra-item{background:#f7fafc;border-radius:8px;padding:9px;border:1.5px solid #e2e8f0;}
+    .extra-item label{font-size:10px;font-weight:600;color:#718096;display:block;margin-bottom:5px;}
+    .extra-item input{width:100%;padding:7px 6px;border:1.5px solid #e2e8f0;border-radius:5px;font-family:inherit;font-size:13px;text-align:center;}
+    .extra-item input:focus{outline:none;border-color:#667eea;}
+    .extra-item.highlight{background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#f6ad55;}
+    .extra-item.highlight input{border-color:#f6ad55;font-weight:700;font-size:14px;}
+
+    .special-notes{width:100%;min-height:70px;padding:10px;border:1.5px solid #e2e8f0;border-radius:7px;font-family:inherit;font-size:13px;resize:vertical;background:#fafafa;}
+    .special-notes:focus{outline:none;border-color:#667eea;}
   </style>
 </head>
 <body>
   <div id="sidebar"></div>
   <div class="hub-main">
+
+    <!-- 페이지 헤더 -->
     <div class="page-header">
       <div class="page-title"><i class="fas fa-spa"></i> 샤넬코리아 일일 업무일지</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <span class="save-status saved" id="saveStatus"><i class="fas fa-check-circle"></i> 저장됨</span>
         <button class="btn btn-excel" onclick="downloadExcel()"><i class="fas fa-file-excel"></i> 엑셀 다운로드</button>
         <button class="btn btn-success" onclick="saveJournal()"><i class="fas fa-save"></i> 저장</button>
@@ -91,187 +149,401 @@
     </div>
 
     <div class="alert alert-success" id="alertSuccess"><i class="fas fa-check-circle"></i> <span id="alertSuccessMsg"></span></div>
-    <div class="alert alert-error" id="alertError"><i class="fas fa-exclamation-circle"></i> <span id="alertErrorMsg"></span></div>
+    <div class="alert alert-error"   id="alertError"><i class="fas fa-exclamation-circle"></i> <span id="alertErrorMsg"></span></div>
 
-    <!-- 날짜 선택 -->
+    <!-- 날짜 네비 -->
     <div class="date-nav">
-      <label><i class="fas fa-calendar-alt" style="color:#ed64a6;margin-right:5px;"></i> 작성일</label>
+      <label><i class="fas fa-calendar-alt" style="color:#ed64a6;margin-right:4px;"></i> 작성일</label>
       <input type="date" id="journalDate" onchange="loadJournal()">
       <button class="btn btn-outline" onclick="goDate(-1)"><i class="fas fa-chevron-left"></i> 전날</button>
       <button class="btn btn-outline" onclick="goDate(1)">다음날 <i class="fas fa-chevron-right"></i></button>
       <button class="btn btn-primary" onclick="setToday()"><i class="fas fa-calendar-day"></i> 오늘</button>
     </div>
 
-    <!-- 기본 정보 -->
-    <div class="card">
-      <div class="card-title"><i class="fas fa-info-circle" style="color:#ed64a6;"></i> 기본 정보</div>
-      <div class="info-grid">
-        <div class="form-group">
-          <label>작성자</label>
-          <input type="text" id="writer" placeholder="성명" oninput="markUnsaved()">
-        </div>
-        <div class="form-group">
-          <label>업무시작</label>
-          <input type="time" id="workStart" value="08:30" oninput="markUnsaved()">
-        </div>
-        <div class="form-group">
-          <label>업무종료</label>
-          <input type="time" id="workEnd" value="18:00" oninput="markUnsaved()">
-        </div>
-        <div class="form-group">
-          <label>인원 (명)</label>
-          <input type="number" id="staffCount" min="0" placeholder="0" oninput="markUnsaved()">
-        </div>
-      </div>
-    </div>
+    <!-- 좌우 레이아웃 -->
+    <div class="split-layout">
 
-    <!-- 패션 / 화장품 입출고 -->
-    <div class="card">
-      <div class="card-title"><i class="fas fa-boxes" style="color:#ed64a6;"></i> 입출고 현황</div>
-      <div class="dual-grid">
-        <!-- 패션 -->
-        <div class="section-card fashion">
-          <div class="section-label fashion"><i class="fas fa-tshirt"></i> 패션</div>
-          <table class="sub-table">
-            <thead>
-              <tr><th>구분</th><th>내국</th><th>보세</th></tr>
-            </thead>
+      <!-- ██████████ 왼쪽: Excel 표시 표 ██████████ -->
+      <div class="panel-left">
+        <div class="excel-wrap">
+          <table class="excel-table">
+
+            <!-- 헤더: 제목 + 결재란 -->
+            <colgroup>
+              <col style="width:18%"><col style="width:13%"><col style="width:13%">
+              <col style="width:13%"><col style="width:13%"><col style="width:15%"><col style="width:15%">
+            </colgroup>
             <tbody>
+
+              <!-- 타이틀 + 결재란 -->
               <tr>
-                <td>입고 (BOX)</td>
-                <td><input type="number" id="fa_in_dom_box" min="0" value="0" oninput="markUnsaved()"></td>
-                <td><input type="number" id="fa_in_bon_box" min="0" value="0" oninput="markUnsaved()"></td>
+                <td colspan="4" rowspan="2" class="hd-main">샤넬 업무일지</td>
+                <td class="hd-approval">자장</td>
+                <td class="hd-approval">이사</td>
+                <td class="hd-approval">대표이사</td>
               </tr>
               <tr>
-                <td>입고 (PLT)</td>
-                <td><input type="number" id="fa_in_dom_plt" min="0" value="0" oninput="markUnsaved()"></td>
-                <td><input type="number" id="fa_in_bon_plt" min="0" value="0" oninput="markUnsaved()"></td>
+                <td class="approval-cell" style="height:36px;"></td>
+                <td class="approval-cell"></td>
+                <td class="approval-cell"></td>
+              </tr>
+
+              <!-- 기본정보 행 -->
+              <tr>
+                <td class="row-info-label">작성일자</td>
+                <td class="row-info-value" id="d_date" colspan="1"></td>
+                <td class="row-info-label">업무시작</td>
+                <td class="row-info-value" id="d_work_start"></td>
+                <td class="row-info-label">작성자</td>
+                <td class="row-info-value" id="d_writer" colspan="2"></td>
+              </tr>
+              <tr>
+                <td class="row-info-label">인원(명)</td>
+                <td class="row-info-value" id="d_staff"></td>
+                <td class="row-info-label">업무종료</td>
+                <td class="row-info-value" id="d_work_end"></td>
+                <td colspan="3"></td>
+              </tr>
+
+              <!-- ── 패션 섹션 ── -->
+              <tr>
+                <td colspan="7" class="sec-fa"><i class="fas fa-tshirt"></i> 패션 (FASHION)</td>
+              </tr>
+
+              <!-- 패션 입고 헤더 -->
+              <tr>
+                <td class="sub-hd-fa">구분</td>
+                <td class="sub-hd-fa" colspan="2">내국</td>
+                <td class="sub-hd-fa" colspan="2">보세</td>
+                <td class="sub-hd-fa" colspan="2"></td>
+              </tr>
+              <!-- BOX 입고 -->
+              <tr>
+                <td class="row-label">입고 BOX</td>
+                <td class="val-fa" colspan="2" id="d_fa_in_dom_box">0</td>
+                <td class="val-fa" colspan="2" id="d_fa_in_bon_box">0</td>
+                <td class="row-label" colspan="1">어제재고(BOX)</td>
+                <td class="val-sum" id="d_fa_yest_box">0</td>
+              </tr>
+              <!-- PLT 입고 -->
+              <tr>
+                <td class="row-label">입고 PLT</td>
+                <td class="val-fa" colspan="2" id="d_fa_in_dom_plt">0</td>
+                <td class="val-fa" colspan="2" id="d_fa_in_bon_plt">0</td>
+                <td class="row-label" colspan="1">어제재고(PLT)</td>
+                <td class="val-sum" id="d_fa_yest_plt">0</td>
+              </tr>
+
+              <!-- 패션 출고 헤더 -->
+              <tr>
+                <td class="sub-hd-fa">구분</td>
+                <td class="sub-hd-fa" colspan="2">건수</td>
+                <td class="sub-hd-fa" colspan="2">수량(BOX)</td>
+                <td colspan="2"></td>
+              </tr>
+              <!-- 차량출고 -->
+              <tr>
+                <td class="row-label">차량출고</td>
+                <td class="val-fa" colspan="2" id="d_fa_out_veh_cnt">0</td>
+                <td class="val-fa" colspan="2" id="d_fa_out_veh_qty">0</td>
+                <td colspan="2"></td>
+              </tr>
+              <!-- 택배출고 -->
+              <tr>
+                <td class="row-label">택배출고</td>
+                <td class="val-fa" colspan="2" id="d_fa_out_cou_cnt">0</td>
+                <td class="val-fa" colspan="2" id="d_fa_out_cou_qty">0</td>
+                <td colspan="2"></td>
+              </tr>
+
+              <!-- 패션 현재고 -->
+              <tr>
+                <td class="sub-hd-fa" colspan="3">현재고 BOX</td>
+                <td class="sub-hd-fa" colspan="4">현재고 PLT</td>
+              </tr>
+              <tr>
+                <td class="row-label" colspan="1">BOX</td>
+                <td class="val-sum" colspan="2" id="d_fa_stk_box">0</td>
+                <td class="row-label" colspan="1">PLT</td>
+                <td class="val-sum" colspan="3" id="d_fa_stk_plt">0</td>
+              </tr>
+
+              <!-- ── 화장품 섹션 ── -->
+              <tr>
+                <td colspan="7" class="sec-co"><i class="fas fa-kiss-wink-heart"></i> 화장품 (COSMETICS)</td>
+              </tr>
+
+              <!-- 화장품 입고 헤더 -->
+              <tr>
+                <td class="sub-hd-co">구분</td>
+                <td class="sub-hd-co" colspan="2">내국</td>
+                <td class="sub-hd-co" colspan="2">보세</td>
+                <td class="sub-hd-co" colspan="2"></td>
+              </tr>
+              <!-- PCS 입고 -->
+              <tr>
+                <td class="row-label-co">입고 PCS</td>
+                <td class="val-co" colspan="2" id="d_co_in_dom_pcs">0</td>
+                <td class="val-co" colspan="2" id="d_co_in_bon_pcs">0</td>
+                <td class="row-label-co" colspan="1">어제재고(PCS)</td>
+                <td class="val-sum" id="d_co_yest_pcs">0</td>
+              </tr>
+              <!-- PLT 입고 -->
+              <tr>
+                <td class="row-label-co">입고 PLT</td>
+                <td class="val-co" colspan="2" id="d_co_in_dom_plt">0</td>
+                <td class="val-co" colspan="2" id="d_co_in_bon_plt">0</td>
+                <td class="row-label-co" colspan="1">어제재고(PLT)</td>
+                <td class="val-sum" id="d_co_yest_plt">0</td>
+              </tr>
+
+              <!-- 화장품 출고 헤더 -->
+              <tr>
+                <td class="sub-hd-co">구분</td>
+                <td class="sub-hd-co" colspan="2">건수</td>
+                <td class="sub-hd-co" colspan="2">수량(PCS)</td>
+                <td colspan="2"></td>
+              </tr>
+              <!-- 차량출고 -->
+              <tr>
+                <td class="row-label-co">차량출고</td>
+                <td class="val-co" colspan="2" id="d_co_out_veh_cnt">0</td>
+                <td class="val-co" colspan="2" id="d_co_out_veh_qty">0</td>
+                <td colspan="2"></td>
+              </tr>
+              <!-- 택배출고 -->
+              <tr>
+                <td class="row-label-co">택배출고</td>
+                <td class="val-co" colspan="2" id="d_co_out_cou_cnt">0</td>
+                <td class="val-co" colspan="2" id="d_co_out_cou_qty">0</td>
+                <td colspan="2"></td>
+              </tr>
+
+              <!-- 화장품 현재고 -->
+              <tr>
+                <td class="sub-hd-co" colspan="3">현재고 PCS</td>
+                <td class="sub-hd-co" colspan="4">현재고 PLT</td>
+              </tr>
+              <tr>
+                <td class="row-label-co" colspan="1">PCS</td>
+                <td class="val-sum" colspan="2" id="d_co_stk_pcs">0</td>
+                <td class="row-label-co" colspan="1">PLT</td>
+                <td class="val-sum" colspan="3" id="d_co_stk_plt">0</td>
+              </tr>
+
+              <!-- ── 기타 현황 ── -->
+              <tr>
+                <td colspan="7" style="background:#2d3748;color:#fff;font-weight:700;text-align:center;font-size:12px;padding:5px;">기타 현황</td>
+              </tr>
+              <tr>
+                <td class="row-label-neutral">전산등록X(PLT)</td>
+                <td class="val" id="d_register_x">0</td>
+                <td class="row-label-neutral">중복(PLT)</td>
+                <td class="val" id="d_duplicate">0</td>
+                <td class="row-label-neutral">WMS수량</td>
+                <td class="val" colspan="2" id="d_wms_qty">-</td>
+              </tr>
+              <tr>
+                <td class="row-label-neutral">재고이동</td>
+                <td class="val" id="d_stock_move">0</td>
+                <td class="row-label-neutral">재고이동중복</td>
+                <td class="val" id="d_move_dup">0</td>
+                <td class="row-label-neutral">패션+화장품PLT</td>
+                <td class="val-sum" colspan="2" id="d_total_plt">0</td>
+              </tr>
+
+              <!-- ── 특이사항 ── -->
+              <tr>
+                <td class="notes-label" colspan="1">특이사항</td>
+                <td class="notes-value" colspan="6" id="d_special_notes" style="min-height:40px;"></td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+      </div><!-- /panel-left -->
+
+      <!-- ██████████ 오른쪽: 입력 패널 ██████████ -->
+      <div class="panel-right">
+
+        <!-- 기본정보 -->
+        <div class="card">
+          <div class="card-title"><i class="fas fa-info-circle" style="color:#ed64a6;"></i> 기본 정보</div>
+          <div class="info-grid">
+            <div class="form-group">
+              <label>작성자</label>
+              <input type="text" id="writer" placeholder="성명" oninput="markUnsaved();syncDisplay()">
+            </div>
+            <div class="form-group">
+              <label>인원 (명)</label>
+              <input type="number" id="staffCount" min="0" placeholder="0" oninput="markUnsaved();syncDisplay()">
+            </div>
+            <div class="form-group">
+              <label>업무시작</label>
+              <input type="time" id="workStart" value="08:30" oninput="markUnsaved();syncDisplay()">
+            </div>
+            <div class="form-group">
+              <label>업무종료</label>
+              <input type="time" id="workEnd" value="18:00" oninput="markUnsaved();syncDisplay()">
+            </div>
+          </div>
+        </div>
+
+        <!-- 패션 입력 -->
+        <div class="input-section fa">
+          <div class="input-section-title fa"><i class="fas fa-tshirt"></i> 패션 입출고</div>
+
+          <!-- 입고 -->
+          <table class="itbl">
+            <thead><tr><th>구분</th><th>내국 BOX</th><th>보세 BOX</th><th>내국 PLT</th><th>보세 PLT</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>입고</td>
+                <td><input type="number" id="fa_in_dom_box" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="fa_in_bon_box" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="fa_in_dom_plt" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="fa_in_bon_plt" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
               </tr>
             </tbody>
           </table>
-          <table class="sub-table" style="margin-top:8px;">
-            <thead>
-              <tr><th>구분</th><th>건수</th><th>수량(BOX)</th></tr>
-            </thead>
+
+          <!-- 출고 -->
+          <table class="itbl">
+            <thead><tr><th>구분</th><th>건수</th><th>수량(BOX)</th></tr></thead>
             <tbody>
               <tr>
                 <td>차량출고</td>
-                <td><input type="number" id="fa_out_veh_cnt" min="0" value="0" oninput="markUnsaved()"></td>
-                <td><input type="number" id="fa_out_veh_qty" min="0" value="0" oninput="markUnsaved()"></td>
+                <td><input type="number" id="fa_out_veh_cnt" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="fa_out_veh_qty" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
               </tr>
               <tr>
                 <td>택배출고</td>
-                <td><input type="number" id="fa_out_cou_cnt" min="0" value="0" oninput="markUnsaved()"></td>
-                <td><input type="number" id="fa_out_cou_qty" min="0" value="0" oninput="markUnsaved()"></td>
+                <td><input type="number" id="fa_out_cou_cnt" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="fa_out_cou_qty" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
               </tr>
             </tbody>
           </table>
-          <table class="sub-table" style="margin-top:8px;">
-            <thead><tr><th colspan="2">현재고</th></tr></thead>
+
+          <!-- 현재고 / 어제재고 -->
+          <table class="itbl">
+            <thead><tr><th>구분</th><th>BOX/PCS</th><th>PLT</th></tr></thead>
             <tbody>
-              <tr><td>BOX</td><td><input type="number" id="fa_stk_box" min="0" value="0" oninput="markUnsaved()"></td></tr>
-              <tr><td>PLT</td><td><input type="number" id="fa_stk_plt" min="0" value="0" oninput="markUnsaved()"></td></tr>
-              <tr><td>어제재고(BOX)</td><td><input type="number" id="fa_yest_box" min="0" value="0" oninput="markUnsaved()"></td></tr>
-              <tr><td>어제재고(PLT)</td><td><input type="number" id="fa_yest_plt" min="0" value="0" oninput="markUnsaved()"></td></tr>
+              <tr>
+                <td>현재고</td>
+                <td><input type="number" id="fa_stk_box" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="fa_stk_plt" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+              </tr>
+              <tr>
+                <td>어제재고</td>
+                <td><input type="number" id="fa_yest_box" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="fa_yest_plt" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+              </tr>
             </tbody>
           </table>
         </div>
 
-        <!-- 화장품 -->
-        <div class="section-card cosmetics">
-          <div class="section-label cosmetics"><i class="fas fa-kiss-wink-heart"></i> 화장품</div>
-          <table class="sub-table">
-            <thead>
-              <tr><th>구분</th><th>내국</th><th>보세</th></tr>
-            </thead>
+        <!-- 화장품 입력 -->
+        <div class="input-section co">
+          <div class="input-section-title co"><i class="fas fa-kiss-wink-heart"></i> 화장품 입출고</div>
+
+          <!-- 입고 -->
+          <table class="itbl">
+            <thead><tr><th>구분</th><th>내국 PCS</th><th>보세 PCS</th><th>내국 PLT</th><th>보세 PLT</th></tr></thead>
             <tbody>
               <tr>
-                <td>입고 (PCS)</td>
-                <td><input type="number" id="co_in_dom_pcs" min="0" value="0" oninput="markUnsaved()"></td>
-                <td><input type="number" id="co_in_bon_pcs" min="0" value="0" oninput="markUnsaved()"></td>
-              </tr>
-              <tr>
-                <td>입고 (PLT)</td>
-                <td><input type="number" id="co_in_dom_plt" min="0" value="0" oninput="markUnsaved()"></td>
-                <td><input type="number" id="co_in_bon_plt" min="0" value="0" oninput="markUnsaved()"></td>
+                <td>입고</td>
+                <td><input type="number" id="co_in_dom_pcs" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="co_in_bon_pcs" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="co_in_dom_plt" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="co_in_bon_plt" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
               </tr>
             </tbody>
           </table>
-          <table class="sub-table" style="margin-top:8px;">
-            <thead>
-              <tr><th>구분</th><th>건수</th><th>수량(PCS)</th></tr>
-            </thead>
+
+          <!-- 출고 -->
+          <table class="itbl">
+            <thead><tr><th>구분</th><th>건수</th><th>수량(PCS)</th></tr></thead>
             <tbody>
               <tr>
                 <td>차량출고</td>
-                <td><input type="number" id="co_out_veh_cnt" min="0" value="0" oninput="markUnsaved()"></td>
-                <td><input type="number" id="co_out_veh_qty" min="0" value="0" oninput="markUnsaved()"></td>
+                <td><input type="number" id="co_out_veh_cnt" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="co_out_veh_qty" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
               </tr>
               <tr>
                 <td>택배출고</td>
-                <td><input type="number" id="co_out_cou_cnt" min="0" value="0" oninput="markUnsaved()"></td>
-                <td><input type="number" id="co_out_cou_qty" min="0" value="0" oninput="markUnsaved()"></td>
+                <td><input type="number" id="co_out_cou_cnt" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="co_out_cou_qty" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
               </tr>
             </tbody>
           </table>
-          <table class="sub-table" style="margin-top:8px;">
-            <thead><tr><th colspan="2">현재고</th></tr></thead>
+
+          <!-- 현재고 / 어제재고 -->
+          <table class="itbl">
+            <thead><tr><th>구분</th><th>PCS</th><th>PLT</th></tr></thead>
             <tbody>
-              <tr><td>PCS</td><td><input type="number" id="co_stk_pcs" min="0" value="0" oninput="markUnsaved()"></td></tr>
-              <tr><td>PLT</td><td><input type="number" id="co_stk_plt" min="0" value="0" oninput="markUnsaved()"></td></tr>
-              <tr><td>어제재고(PCS)</td><td><input type="number" id="co_yest_pcs" min="0" value="0" oninput="markUnsaved()"></td></tr>
-              <tr><td>어제재고(PLT)</td><td><input type="number" id="co_yest_plt" min="0" value="0" oninput="markUnsaved()"></td></tr>
+              <tr>
+                <td>현재고</td>
+                <td><input type="number" id="co_stk_pcs" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="co_stk_plt" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+              </tr>
+              <tr>
+                <td>어제재고</td>
+                <td><input type="number" id="co_yest_pcs" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+                <td><input type="number" id="co_yest_plt" min="0" value="0" oninput="markUnsaved();syncDisplay()"></td>
+              </tr>
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
 
-    <!-- 기타 현황 -->
-    <div class="card">
-      <div class="card-title"><i class="fas fa-chart-bar" style="color:#ed64a6;"></i> 기타 현황</div>
-      <div class="extra-grid">
-        <div class="extra-item">
-          <label>전산등록 X (PLT)</label>
-          <input type="number" id="ext_register_x" min="0" value="0" oninput="markUnsaved()">
+        <!-- 기타 현황 -->
+        <div class="card">
+          <div class="card-title"><i class="fas fa-chart-bar" style="color:#ed64a6;"></i> 기타 현황</div>
+          <div class="extra-grid">
+            <div class="extra-item">
+              <label>전산등록 X (PLT)</label>
+              <input type="number" id="ext_register_x" min="0" value="0" oninput="markUnsaved();syncDisplay()">
+            </div>
+            <div class="extra-item">
+              <label>중복 (PLT)</label>
+              <input type="number" id="ext_duplicate" min="0" value="0" oninput="markUnsaved();syncDisplay()">
+            </div>
+            <div class="extra-item">
+              <label>WMS 수량</label>
+              <input type="text" id="ext_wms_qty" placeholder="-" oninput="markUnsaved();syncDisplay()">
+            </div>
+            <div class="extra-item">
+              <label>재고이동 (PLT)</label>
+              <input type="number" id="ext_stock_move" min="0" value="0" oninput="markUnsaved();syncDisplay()">
+            </div>
+            <div class="extra-item">
+              <label>재고이동 중복</label>
+              <input type="number" id="ext_move_dup" min="0" value="0" oninput="markUnsaved();syncDisplay()">
+            </div>
+            <div class="extra-item highlight">
+              <label>패션+화장품 PLT합계</label>
+              <input type="number" id="ext_total_plt" min="0" value="0" oninput="markUnsaved();syncDisplay()">
+            </div>
+          </div>
         </div>
-        <div class="extra-item">
-          <label>중복 (PLT)</label>
-          <input type="number" id="ext_duplicate" min="0" value="0" oninput="markUnsaved()">
-        </div>
-        <div class="extra-item">
-          <label>WMS 수량</label>
-          <input type="text" id="ext_wms_qty" placeholder="-" oninput="markUnsaved()">
-        </div>
-        <div class="extra-item">
-          <label>재고이동 (PLT)</label>
-          <input type="number" id="ext_stock_move" min="0" value="0" oninput="markUnsaved()">
-        </div>
-        <div class="extra-item">
-          <label>재고이동 중복</label>
-          <input type="number" id="ext_move_dup" min="0" value="0" oninput="markUnsaved()">
-        </div>
-        <div class="extra-item" style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#f6ad55;">
-          <label>패션+화장품 PLT 합계</label>
-          <input type="number" id="ext_total_plt" min="0" value="0" oninput="markUnsaved()" style="font-weight:700;font-size:16px;border-color:#f6ad55;">
-        </div>
-      </div>
-    </div>
 
-    <!-- 특이사항 -->
-    <div class="card">
-      <div class="card-title"><i class="fas fa-exclamation-circle" style="color:#ed64a6;"></i> 특이사항</div>
-      <textarea class="special-notes" id="specialNotes" placeholder="당일 특이사항을 입력하세요..." oninput="markUnsaved()"></textarea>
-    </div>
+        <!-- 특이사항 -->
+        <div class="card">
+          <div class="card-title"><i class="fas fa-exclamation-circle" style="color:#ed64a6;"></i> 특이사항</div>
+          <textarea class="special-notes" id="specialNotes" placeholder="당일 특이사항을 입력하세요..." oninput="markUnsaved();syncDisplay()"></textarea>
+        </div>
 
-    <!-- 로고 -->
-    <div style="text-align:center;padding:16px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);">
-      <span style="font-weight:700;color:#003366;font-size:13px;margin-right:12px;">[ KOREA AEO ]</span>
-      <span style="font-weight:700;color:#003366;font-size:14px;">ACT LOGISTICS Co., Ltd.</span>
-    </div>
-  </div>
+        <!-- 로고 -->
+        <div style="text-align:center;padding:14px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);">
+          <span style="font-weight:700;color:#003366;font-size:12px;margin-right:10px;">[ KOREA AEO ]</span>
+          <span style="font-weight:700;color:#003366;font-size:13px;">ACT LOGISTICS Co., Ltd.</span>
+        </div>
+
+      </div><!-- /panel-right -->
+    </div><!-- /split-layout -->
+  </div><!-- /hub-main -->
 
   <script>
+    /* ── 인증 ── */
     const token = sessionStorage.getItem('adminToken');
     if (!token) location.href = 'index.html';
     const authH = () => ({ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` });
@@ -279,6 +551,7 @@
 
     let isUnsaved = false;
 
+    /* ── 날짜 이동 ── */
     function setToday() {
       document.getElementById('journalDate').value = new Date().toISOString().split('T')[0];
       loadJournal();
@@ -289,6 +562,8 @@
       document.getElementById('journalDate').value = dt.toISOString().split('T')[0];
       loadJournal();
     }
+
+    /* ── 저장 상태 표시 ── */
     function markUnsaved() {
       isUnsaved = true;
       const s = document.getElementById('saveStatus');
@@ -302,19 +577,74 @@
       s.innerHTML = '<i class="fas fa-check-circle"></i> 저장됨';
     }
 
-    const fields = [
-      'fa_in_dom_box','fa_in_bon_box','fa_in_dom_plt','fa_in_bon_plt',
-      'fa_out_veh_cnt','fa_out_veh_qty','fa_out_cou_cnt','fa_out_cou_qty',
-      'fa_stk_box','fa_stk_plt','fa_yest_box','fa_yest_plt',
-      'co_in_dom_pcs','co_in_bon_pcs','co_in_dom_plt','co_in_bon_plt',
-      'co_out_veh_cnt','co_out_veh_qty','co_out_cou_cnt','co_out_cou_qty',
-      'co_stk_pcs','co_stk_plt','co_yest_pcs','co_yest_plt',
-      'ext_register_x','ext_duplicate','ext_wms_qty','ext_stock_move','ext_move_dup','ext_total_plt'
-    ];
+    /* ── 입력값 → 왼쪽 표 실시간 동기화 ── */
+    function gv(id) { return document.getElementById(id)?.value || ''; }
+    function gn(id) { return parseInt(document.getElementById(id)?.value) || 0; }
+    function setDisp(id, val) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = (val === '' || val === null || val === undefined) ? '' : val;
+    }
 
+    function syncDisplay() {
+      const date = document.getElementById('journalDate').value;
+      setDisp('d_date',       date ? date.replace(/-/g, '.') : '');
+      setDisp('d_writer',     gv('writer'));
+      setDisp('d_work_start', gv('workStart'));
+      setDisp('d_work_end',   gv('workEnd'));
+      setDisp('d_staff',      gv('staffCount'));
+
+      // 패션 입고
+      setDisp('d_fa_in_dom_box', gn('fa_in_dom_box'));
+      setDisp('d_fa_in_bon_box', gn('fa_in_bon_box'));
+      setDisp('d_fa_in_dom_plt', gn('fa_in_dom_plt'));
+      setDisp('d_fa_in_bon_plt', gn('fa_in_bon_plt'));
+      setDisp('d_fa_yest_box',   gn('fa_yest_box'));
+      setDisp('d_fa_yest_plt',   gn('fa_yest_plt'));
+
+      // 패션 출고
+      setDisp('d_fa_out_veh_cnt', gn('fa_out_veh_cnt'));
+      setDisp('d_fa_out_veh_qty', gn('fa_out_veh_qty'));
+      setDisp('d_fa_out_cou_cnt', gn('fa_out_cou_cnt'));
+      setDisp('d_fa_out_cou_qty', gn('fa_out_cou_qty'));
+
+      // 패션 현재고
+      setDisp('d_fa_stk_box', gn('fa_stk_box'));
+      setDisp('d_fa_stk_plt', gn('fa_stk_plt'));
+
+      // 화장품 입고
+      setDisp('d_co_in_dom_pcs', gn('co_in_dom_pcs'));
+      setDisp('d_co_in_bon_pcs', gn('co_in_bon_pcs'));
+      setDisp('d_co_in_dom_plt', gn('co_in_dom_plt'));
+      setDisp('d_co_in_bon_plt', gn('co_in_bon_plt'));
+      setDisp('d_co_yest_pcs',   gn('co_yest_pcs'));
+      setDisp('d_co_yest_plt',   gn('co_yest_plt'));
+
+      // 화장품 출고
+      setDisp('d_co_out_veh_cnt', gn('co_out_veh_cnt'));
+      setDisp('d_co_out_veh_qty', gn('co_out_veh_qty'));
+      setDisp('d_co_out_cou_cnt', gn('co_out_cou_cnt'));
+      setDisp('d_co_out_cou_qty', gn('co_out_cou_qty'));
+
+      // 화장품 현재고
+      setDisp('d_co_stk_pcs', gn('co_stk_pcs'));
+      setDisp('d_co_stk_plt', gn('co_stk_plt'));
+
+      // 기타
+      setDisp('d_register_x',  gn('ext_register_x'));
+      setDisp('d_duplicate',   gn('ext_duplicate'));
+      setDisp('d_wms_qty',     gv('ext_wms_qty') || '-');
+      setDisp('d_stock_move',  gn('ext_stock_move'));
+      setDisp('d_move_dup',    gn('ext_move_dup'));
+      setDisp('d_total_plt',   gn('ext_total_plt'));
+
+      // 특이사항
+      setDisp('d_special_notes', gv('specialNotes'));
+    }
+
+    /* ── 폼 데이터 직렬화 ── */
     function getFormData() {
       const g = id => document.getElementById(id).value;
-      const n = id => parseInt(g(id))||0;
+      const n = id => parseInt(g(id)) || 0;
       return {
         writer: g('writer'), work_start: g('workStart'), work_end: g('workEnd'),
         staff_count: g('staffCount'),
@@ -343,37 +673,62 @@
       };
     }
 
+    /* ── 폼 데이터 로드 ── */
     function setFormData(d) {
-      const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val||0; };
-      const sets = (id, val) => { const el = document.getElementById(id); if(el) el.value = val||''; };
-      sets('writer', d.writer); sets('workStart', d.work_start||'08:30'); sets('workEnd', d.work_end||'18:00');
+      const set  = (id, val) => { const el = document.getElementById(id); if(el) el.value = (val !== undefined && val !== null) ? val : 0; };
+      const sets = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
+      sets('writer', d.writer);
+      sets('workStart', d.work_start || '08:30');
+      sets('workEnd',   d.work_end   || '18:00');
       sets('staffCount', d.staff_count);
-      const fa = d.fashion||{};
-      set('fa_in_dom_box', fa.import_domestic_box); set('fa_in_bon_box', fa.import_bonded_box);
-      set('fa_in_dom_plt', fa.import_domestic_plt); set('fa_in_bon_plt', fa.import_bonded_plt);
-      set('fa_out_veh_cnt', fa.export_vehicle_count); set('fa_out_veh_qty', fa.export_vehicle_qty);
-      set('fa_out_cou_cnt', fa.export_courier_count); set('fa_out_cou_qty', fa.export_courier_qty);
-      set('fa_stk_box', fa.stock_box); set('fa_stk_plt', fa.stock_plt);
-      set('fa_yest_box', fa.yesterday_stock); set('fa_yest_plt', fa.yesterday_plt);
-      const co = d.cosmetics||{};
-      set('co_in_dom_pcs', co.import_domestic_pcs); set('co_in_bon_pcs', co.import_bonded_pcs);
-      set('co_in_dom_plt', co.import_domestic_plt); set('co_in_bon_plt', co.import_bonded_plt);
-      set('co_out_veh_cnt', co.export_vehicle_count); set('co_out_veh_qty', co.export_vehicle_qty);
-      set('co_out_cou_cnt', co.export_courier_count); set('co_out_cou_qty', co.export_courier_qty);
-      set('co_stk_pcs', co.stock_pcs); set('co_stk_plt', co.stock_plt);
-      set('co_yest_pcs', co.yesterday_stock); set('co_yest_plt', co.yesterday_plt);
-      const ex = d.extra||{};
-      set('ext_register_x', ex.register_x); set('ext_duplicate', ex.duplicate);
-      sets('ext_wms_qty', ex.wms_qty); set('ext_stock_move', ex.stock_move);
-      set('ext_move_dup', ex.move_dup); set('ext_total_plt', ex.total_plt);
-      sets('specialNotes', d.special_notes);
+
+      const fa = d.fashion || {};
+      set('fa_in_dom_box', fa.import_domestic_box);
+      set('fa_in_bon_box', fa.import_bonded_box);
+      set('fa_in_dom_plt', fa.import_domestic_plt);
+      set('fa_in_bon_plt', fa.import_bonded_plt);
+      set('fa_out_veh_cnt', fa.export_vehicle_count);
+      set('fa_out_veh_qty', fa.export_vehicle_qty);
+      set('fa_out_cou_cnt', fa.export_courier_count);
+      set('fa_out_cou_qty', fa.export_courier_qty);
+      set('fa_stk_box', fa.stock_box);
+      set('fa_stk_plt', fa.stock_plt);
+      set('fa_yest_box', fa.yesterday_stock);
+      set('fa_yest_plt', fa.yesterday_plt);
+
+      const co = d.cosmetics || {};
+      set('co_in_dom_pcs', co.import_domestic_pcs);
+      set('co_in_bon_pcs', co.import_bonded_pcs);
+      set('co_in_dom_plt', co.import_domestic_plt);
+      set('co_in_bon_plt', co.import_bonded_plt);
+      set('co_out_veh_cnt', co.export_vehicle_count);
+      set('co_out_veh_qty', co.export_vehicle_qty);
+      set('co_out_cou_cnt', co.export_courier_count);
+      set('co_out_cou_qty', co.export_courier_qty);
+      set('co_stk_pcs', co.stock_pcs);
+      set('co_stk_plt', co.stock_plt);
+      set('co_yest_pcs', co.yesterday_stock);
+      set('co_yest_plt', co.yesterday_plt);
+
+      const ex = d.extra || {};
+      set('ext_register_x', ex.register_x);
+      set('ext_duplicate',  ex.duplicate);
+      sets('ext_wms_qty',   ex.wms_qty);
+      set('ext_stock_move', ex.stock_move);
+      set('ext_move_dup',   ex.move_dup);
+      set('ext_total_plt',  ex.total_plt);
+      sets('specialNotes',  d.special_notes);
+
+      syncDisplay();
     }
 
+    /* ── API: 로드 ── */
     async function loadJournal() {
       const date = document.getElementById('journalDate').value;
       if (!date) return;
+      syncDisplay(); // 날짜 표시 즉시 업데이트
       try {
-        const res = await fetch(`/api/journals?client=chanel&date=${date}`, { headers: authH() });
+        const res  = await fetch(`/api/journals?client=chanel&date=${date}`, { headers: authH() });
         const json = await res.json();
         if (json.data && json.data.length > 0 && json.data[0].data) {
           setFormData(json.data[0].data);
@@ -384,44 +739,51 @@
       } catch(e) { console.error(e); }
     }
 
+    /* ── API: 저장 ── */
     async function saveJournal() {
       const date = document.getElementById('journalDate').value;
       if (!date) { showAlert('error','날짜를 선택해주세요.'); return; }
       const s = document.getElementById('saveStatus');
-      s.className = 'save-status saving'; s.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 저장중...';
+      s.className = 'save-status saving';
+      s.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 저장중...';
       try {
         const res = await fetch('/api/journals', {
-          method:'POST', headers: authH(),
+          method: 'POST', headers: authH(),
           body: JSON.stringify({ client:'chanel', journal_date: date, data: getFormData() })
         });
         if (res.ok) { markSaved(); showAlert('success','업무일지가 저장되었습니다.'); }
-        else { const e = await res.json(); showAlert('error', e.error||'저장 실패'); }
-      } catch(e) { showAlert('error','저장 중 오류가 발생했습니다.'); }
+        else { const e = await res.json(); showAlert('error', e.error || '저장 실패'); markUnsaved(); }
+      } catch(e) { showAlert('error','저장 중 오류가 발생했습니다.'); markUnsaved(); }
     }
 
+    /* ── API: 엑셀 다운로드 ── */
     async function downloadExcel() {
       const date = document.getElementById('journalDate').value;
       if (!date) { showAlert('error','날짜를 선택해주세요.'); return; }
-      if (isUnsaved) { await saveJournal(); }
+      if (isUnsaved) await saveJournal();
       try {
         const res = await fetch(`/api/journals/excel?client=chanel&date=${date}`, { headers: authH() });
-        if (!res.ok) { const e = await res.json(); showAlert('error', e.error||'엑셀 생성 실패'); return; }
+        if (!res.ok) { const e = await res.json(); showAlert('error', e.error || '엑셀 생성 실패'); return; }
         const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
         a.href = url; a.download = `샤넬코리아_업무일지_${date}.xlsx`;
         a.click(); URL.revokeObjectURL(url);
-      } catch(e) { showAlert('error','엑셀 다운로드 실패: '+e.message); }
+      } catch(e) { showAlert('error','엑셀 다운로드 실패: ' + e.message); }
     }
 
+    /* ── 알림 표시 ── */
     function showAlert(type, msg) {
-      const el = document.getElementById(type==='success'?'alertSuccess':'alertError');
-      const ml = document.getElementById(type==='success'?'alertSuccessMsg':'alertErrorMsg');
+      const el = document.getElementById(type === 'success' ? 'alertSuccess' : 'alertError');
+      const ml = document.getElementById(type === 'success' ? 'alertSuccessMsg' : 'alertErrorMsg');
       ml.textContent = msg; el.style.display = 'flex';
-      setTimeout(() => el.style.display='none', 3000);
+      setTimeout(() => el.style.display = 'none', 3000);
     }
 
+    /* ── 30초 자동저장 ── */
     setInterval(() => { if(isUnsaved) saveJournal(); }, 30000);
+
+    /* ── 초기화 ── */
     setToday();
   </script>
 </body>

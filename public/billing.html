@@ -135,11 +135,15 @@
 
 <div class="topbar">
   <div class="left">
+    <a href="hub.html" title="대시보드 홈" style="background:rgba(255,255,255,.2);padding:5px 10px;border-radius:8px;margin-right:4px;"><i class="fas fa-home"></i></a>
     <a href="index.html"><i class="fas fa-arrow-left"></i></a>
     <h1><i class="fas fa-file-invoice-dollar"></i> 운송 청구서</h1>
     <span id="clientLabel" style="font-size:11px;background:rgba(255,255,255,.2);padding:3px 10px;border-radius:10px;font-weight:600;"></span>
   </div>
-  <a href="admin.html">오더관리</a>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <a href="admin.html" style="color:#fff;font-size:13px;font-weight:600;opacity:.85;">오더관리</a>
+    <a href="list.html" style="color:#fff;font-size:13px;font-weight:600;opacity:.85;">조회/출력</a>
+  </div>
 </div>
 
 <div class="wrap" id="mainWrap" style="display:none;">
@@ -317,7 +321,7 @@
 <script>
   // 화주 표시
   (function(){
-    const CNAMES={mettler:'메틀러토레도',canon:'캐논메디칼시스템즈'};
+    const CNAMES={mettler:'메틀러토레도',chanel:'샤넬코리아',canon:'캐논메디칼시스템즈'};
     const c=localStorage.getItem('selectedClient');
     const el=document.getElementById('clientLabel');
     if(el&&c&&CNAMES[c]) el.textContent=CNAMES[c];
@@ -348,7 +352,7 @@
   function initApp(){
     document.getElementById('mainWrap').style.display='block';
     loadRates(); renderRateTable();
-    setQuick('today');
+    setQuick('thismonth');
     // 청구서 타이틀 자동
     const cn=document.getElementById('clientName').value;
     const el=document.getElementById('billTitleMain');
