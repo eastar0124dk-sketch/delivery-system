@@ -208,9 +208,18 @@
 
     async function loadEvents() {
       try {
-        const res = await fetch('/api/events', { headers: authH() });
+        const res = await fetch('/api/calendar', { headers: authH() });
         if (!res.ok) throw new Error();
-        events = await res.json();
+        const raw = await res.json();
+        // 서버 필드명(event_date 등) → 클라이언트 필드명(date 등)으로 정규화
+        events = raw.map(e => ({
+          id:    e.id,
+          title: e.title,
+          date:  e.event_date  || e.date  || '',
+          time:  e.event_time  || e.time  || '',
+          type:  e.event_type  || e.type  || 'general',
+          memo:  e.notes       || e.memo  || ''
+        }));
       } catch {
         events = [];
       }
@@ -330,31 +339,33 @@
     async function saveEvent() {
       const title = document.getElementById('inp-ev-title').value.trim();
       if (!title) { alert('제목을 입력하세요.'); return; }
+      const dateVal = document.getElementById('inp-ev-date').value;
+      // 서버가 기대하는 필드명으로 전송
       const body = {
         title,
-        date:  document.getElementById('inp-ev-date').value,
-        time:  document.getElementById('inp-ev-time').value || null,
-        type:  document.getElementById('inp-ev-type').value,
-        memo:  document.getElementById('inp-ev-memo').value.trim() || null
+        event_date: dateVal,
+        event_time: document.getElementById('inp-ev-time').value || null,
+        event_type: document.getElementById('inp-ev-type').value,
+        notes:      document.getElementById('inp-ev-memo').value.trim() || null
       };
       try {
         let res;
         if (editingId) {
-          res = await fetch(`/api/events/${editingId}`, { method: 'PUT', headers: authH(), body: JSON.stringify(body) });
+          res = await fetch(`/api/calendar/${editingId}`, { method: 'PATCH', headers: authH(), body: JSON.stringify(body) });
         } else {
-          res = await fetch('/api/events', { method: 'POST', headers: authH(), body: JSON.stringify(body) });
+          res = await fetch('/api/calendar', { method: 'POST', headers: authH(), body: JSON.stringify(body) });
         }
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error(await res.text());
         closeModal();
         await loadEvents();
-        if (body.date) selectDate(body.date);
-      } catch { alert('저장에 실패했습니다.'); }
+        if (dateVal) selectDate(dateVal);
+      } catch(e) { alert('저장에 실패했습니다.\n' + e.message); }
     }
 
     async function deleteEvent(id) {
       if (!confirm('삭제하시겠습니까?')) return;
       try {
-        await fetch(`/api/events/${id}`, { method: 'DELETE', headers: authH() });
+        await fetch(`/api/calendar/${id}`, { method: 'DELETE', headers: authH() });
         events = events.filter(e => e.id !== id);
         renderCalendar();
         if (selectedDate) renderEvents(selectedDate);
