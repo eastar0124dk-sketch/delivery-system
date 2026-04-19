@@ -779,10 +779,10 @@ class Handler(BaseHTTPRequestHandler):
         # ── OT 내역 ──
         if path == '/api/ot':
             if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
-            # 테이블이 완전히 비어있으면 시드 데이터 자동 삽입
+            # 3~4월 기간 OT 시드 데이터 없으면 자동 삽입
             try:
-                total_cnt = db_fetchall('SELECT COUNT(*) as cnt FROM ot_records')
-                cnt_val = int(total_cnt[0].get('cnt', 0)) if total_cnt else 0
+                seed_chk = db_fetchall("SELECT COUNT(*) as cnt FROM ot_records WHERE work_date >= ? AND work_date <= ?", ('2026-03-01','2026-04-30'))
+                cnt_val = int(seed_chk[0].get('cnt', 0)) if seed_chk else 0
             except: cnt_val = 0
             if cnt_val == 0:
                 ot_seed = [
