@@ -421,7 +421,7 @@ function renderWmsButton() {
     return;
   }
   const isUrl = cfg.path.startsWith('http://') || cfg.path.startsWith('https://');
-  const subLabel = isUrl ? '🌐 웹 브라우저로 열기' : '💻 로컬 프로그램 실행';
+  const subLabel = isUrl ? '🌐 웹 브라우저로 열기' : '🖥️ 클릭 한 번으로 실행';
   wrap.innerHTML = `
     <button class="hub-wms-btn" onclick="hubWmsOpen()">
       <div class="hub-wms-btn-icon">🖥️</div>
@@ -433,7 +433,7 @@ function renderWmsButton() {
     <button class="hub-wms-cfg-btn" onclick="event.stopPropagation();hubWmsSetup()" title="WMS 설정 변경">⚙️ 설정</button>`;
 }
 
-async function hubWmsOpen() {
+function hubWmsOpen() {
   const cfg = getWmsConfig();
   if (!cfg) { hubWmsSetup(); return; }
 
@@ -443,26 +443,8 @@ async function hubWmsOpen() {
     return;
   }
 
-  // 로컬 프로그램 실행
-  const token = sessionStorage.getItem('adminToken');
-  try {
-    const res = await fetch(`/api/open-file?path=${encodeURIComponent(cfg.path)}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      if (data.error === 'LOCAL_ONLY') {
-        alert('⚠️ WMS 실행은 로컬 서버에서만 가능합니다.\n\n시작_Python.bat 으로 서버를 실행한 후\n브라우저에서 localhost:3000 으로 접속해 주세요.');
-      } else if (res.status === 404) {
-        alert('❌ WMS 프로그램을 찾을 수 없습니다.\n\n경로를 확인해 주세요:\n' + cfg.path);
-      } else {
-        alert('WMS 실행 실패: ' + (data.error || '알 수 없는 오류'));
-      }
-    }
-    // 성공 시 WMS가 열림 — 별도 알림 없음
-  } catch (e) {
-    alert('서버 연결 오류: ' + e.message);
-  }
+  // 로컬 프로그램 → wms:// 커스텀 프로토콜로 실행 (어디서든 동작)
+  window.location.href = 'wms://launch';
 }
 
 function hubWmsSetup() {
