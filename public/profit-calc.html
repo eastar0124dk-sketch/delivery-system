@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>수익율 계산기 - 토탈 물류</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { display: flex; min-height: 100vh; background: #f0f4f8; font-family: 'Noto Sans KR', sans-serif; }
+
+    /* ── 빠른 계산기 카드 ── */
+    .quick-calc {
+      background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+      border-radius: 16px; padding: 24px 28px; margin-bottom: 20px;
+      display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; align-items: end;
+    }
+    .qc-group label { display: block; font-size: 11px; font-weight: 700; color: #a0aec0; margin-bottom: 6px; letter-spacing: .04em; }
+    .qc-input {
+      width: 100%; padding: 12px 14px; background: #374151; border: 1.5px solid #4a5568;
+      border-radius: 10px; color: #fff; font-size: 15px; font-weight: 700; font-family: inherit;
+      text-align: right;
+    }
+    .qc-input:focus { outline: none; border-color: #667eea; background: #2d3748; }
+    .qc-result {
+      background: rgba(255,255,255,.07); border: 1.5px solid rgba(255,255,255,.12);
+      border-radius: 10px; padding: 11px 14px; text-align: right;
+    }
+    .qc-result-label { font-size: 11px; color: #a0aec0; font-weight: 600; }
+    .qc-result-val { font-size: 20px; font-weight: 800; margin-top: 2px; }
+    .qc-result-val.positive { color: #68d391; }
+    .qc-result-val.negative { color: #fc8181; }
+    .qc-result-val.neutral  { color: #e2e8f0; }
+
+    /* ── 툴바 ── */
+    .toolbar {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .toolbar-left { display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap; }
+    .period-input {
+      padding: 7px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+      font-size: 13px; font-family: inherit; color: #1a202c; background: #fff;
+    }
+    .period-input:focus { outline: none; border-color: #667eea; }
+    .client-input {
+      padding: 7px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+      font-size: 13px; font-family: inherit; color: #1a202c; background: #fff; width: 160px;
+    }
+    .client-input:focus { outline: none; border-color: #667eea; }
+    .btn-primary {
+      padding: 8px 16px; border-radius: 9px; border: none; cursor: pointer;
+      font-family: inherit; font-size: 13px; font-weight: 700;
+      background: linear-gradient(135deg, #667eea, #764ba2); color: #fff;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn-primary:hover { opacity: .88; }
+    .btn-green {
+      padding: 8px 14px; border-radius: 9px; border: none; cursor: pointer;
+      font-family: inherit; font-size: 13px; font-weight: 700;
+      background: linear-gradient(135deg, #38a169, #276749); color: #fff;
+    }
+    .btn-green:hover { opacity: .88; }
+    .btn-outline {
+      padding: 7px 14px; border-radius: 9px; border: 1.5px solid #e2e8f0;
+      background: #fff; color: #4a5568; cursor: pointer; font-family: inherit; font-size: 13px;
+    }
+    .btn-outline:hover { background: #f7fafc; }
+
+    /* ── 합계 요약 바 ── */
+    .summary-bar {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px;
+    }
+    .sum-card {
+      background: #fff; border-radius: 12px; padding: 14px 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+    .sum-card-label { font-size: 11px; color: #718096; font-weight: 600; margin-bottom: 4px; }
+    .sum-card-val { font-size: 18px; font-weight: 800; color: #1a202c; }
+    .sum-card-val.green  { color: #38a169; }
+    .sum-card-val.red    { color: #e53e3e; }
+    .sum-card-val.purple { color: #667eea; }
+    .sum-card-sub { font-size: 11px; color: #a0aec0; margin-top: 2px; }
+
+    /* ── 테이블 ── */
+    .table-wrap {
+      background: #fff; border-radius: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06); overflow: hidden;
+    }
+    .tbl {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .tbl thead th {
+      background: #1a202c; color: #e2e8f0; padding: 10px 8px;
+      text-align: center; font-weight: 700; font-size: 11px; white-space: nowrap;
+    }
+    .tbl thead th.carrier-head { background: #2c5282; }
+    .tbl thead th.shipper-head { background: #276749; }
+    .tbl thead th.result-head  { background: #553c9a; }
+    .tbl tbody tr { border-bottom: 1px solid #f0f4f8; transition: background .1s; }
+    .tbl tbody tr:hover { background: #f7fafc; }
+    .tbl tbody tr.total-row { background: #f8fafc; font-weight: 700; border-top: 2px solid #e2e8f0; }
+    .tbl td { padding: 8px 6px; text-align: center; vertical-align: middle; }
+    .tbl td.left { text-align: left; }
+    .tbl td.right { text-align: right; }
+    .tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* 인라인 입력 셀 */
+    .tbl-input {
+      width: 100%; border: none; background: transparent; font-family: inherit;
+      font-size: 12px; text-align: right; color: #1a202c; padding: 2px 4px;
+      border-radius: 4px;
+    }
+    .tbl-input:focus { outline: none; background: #ebf4ff; }
+    .tbl-input.left { text-align: left; }
+    .tbl-input.center { text-align: center; }
+
+    /* 차액/수익율 뱃지 */
+    .diff-plus  { color: #276749; font-weight: 700; }
+    .diff-minus { color: #c53030; font-weight: 700; }
+    .rate-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    }
+    .rate-high   { background: #c6f6d5; color: #276749; }
+    .rate-mid    { background: #fefcbf; color: #744210; }
+    .rate-low    { background: #fed7d7; color: #9b2c2c; }
+    .rate-zero   { background: #e2e8f0; color: #718096; }
+    .rate-neg    { background: #fed7d7; color: #9b2c2c; }
+
+    .btn-del-row {
+      width: 24px; height: 24px; border-radius: 6px; border: 1.5px solid #fca5a5;
+      background: #fff; color: #dc2626; cursor: pointer; font-size: 12px;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .btn-del-row:hover { background: #fff5f5; }
+
+    /* ── 모달 ── */
+    .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center; }
+    .modal-overlay.show { display:flex; }
+    .modal { background:#fff;border-radius:16px;padding:28px;width:520px;max-width:96vw;box-shadow:0 8px 40px rgba(0,0,0,.2); max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size:17px;font-weight:800;color:#1a202c;margin-bottom:20px; }
+    .form-group { margin-bottom:12px; }
+    .form-label { display:block;font-size:12px;font-weight:700;color:#4a5568;margin-bottom:5px; }
+    .form-input,.form-select { width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit; }
+    .form-input:focus,.form-select:focus { outline:none;border-color:#667eea; }
+    .form-row { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+    .form-row3 { display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px; }
+    .modal-actions { display:flex;gap:8px;justify-content:flex-end;margin-top:18px; }
+    .btn-cancel { padding:9px 18px;border-radius:9px;border:1.5px solid #e2e8f0;background:#fff;color:#718096;cursor:pointer;font-family:inherit;font-size:13px; }
+    .btn-save   { padding:9px 18px;border-radius:9px;border:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700; }
+
+    /* 구분선 */
+    .section-divider {
+      height: 2px; margin: 4px 0;
+      background: linear-gradient(90deg, #667eea22, #764ba222);
+    }
+
+    /* 모달 내 미리보기 */
+    .calc-preview {
+      background: #f8fafc; border-radius: 10px; padding: 14px 16px; margin-top: 14px;
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+    }
+    .cp-item label { font-size: 10px; color: #718096; font-weight: 600; }
+    .cp-item .cp-val { font-size: 15px; font-weight: 800; color: #1a202c; margin-top: 2px; }
+    .cp-item .cp-val.green  { color: #276749; }
+    .cp-item .cp-val.red    { color: #c53030; }
+    .cp-item .cp-val.purple { color: #667eea; }
+
+    @media (max-width: 1100px) {
+      .quick-calc { grid-template-columns: 1fr 1fr; }
+      .summary-bar { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .quick-calc { grid-template-columns: 1fr; }
+      .summary-bar { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar"></div>
+  <div class="hub-main">
+    <div class="hub-page-title">📊 운송 수익율 계산기</div>
+
+    <!-- ── 빠른 계산기 ── -->
+    <div class="quick-calc">
+      <div class="qc-group">
+        <label>🚛 운송사 청구금액 (원)</label>
+        <input type="text" class="qc-input" id="qc-carrier" placeholder="0" oninput="quickCalc()" onblur="fmtQc(this)">
+      </div>
+      <div class="qc-group">
+        <label>🏢 화주 청구금액 (원)</label>
+        <input type="text" class="qc-input" id="qc-shipper" placeholder="0" oninput="quickCalc()" onblur="fmtQc(this)">
+      </div>
+      <div class="qc-result" id="qc-diff-card">
+        <div class="qc-result-label">💰 차액 (화주 - 운송사)</div>
+        <div class="qc-result-val neutral" id="qc-diff">—</div>
+      </div>
+      <div class="qc-result" id="qc-rate-card">
+        <div class="qc-result-label">📈 수익율</div>
+        <div class="qc-result-val neutral" id="qc-rate">—</div>
+      </div>
+    </div>
+
+    <!-- ── 툴바 ── -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <input type="month" class="period-input" id="filterPeriod" onchange="loadData()">
+        <input type="text" class="client-input" id="filterClient" placeholder="화주 (예: 메틀러토레도)" onchange="loadData()">
+        <button class="btn-outline" onclick="filterPeriod.value='';filterClient.value='';loadData();">전체 보기</button>
+      </div>
+      <button class="btn-green" onclick="exportExcel()">📥 엑셀</button>
+      <button class="btn-primary" onclick="openModal()">＋ 내역 추가</button>
+    </div>
+
+    <!-- ── 합계 요약 바 ── -->
+    <div class="summary-bar">
+      <div class="sum-card">
+        <div class="sum-card-label">📋 건수</div>
+        <div class="sum-card-val purple" id="sum-count">0건</div>
+        <div class="sum-card-sub" id="sum-period">전체</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-card-label">🚛 운송사 합계</div>
+        <div class="sum-card-val" id="sum-carrier">0원</div>
+        <div class="sum-card-sub">기본 + 추가비용</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-card-label">🏢 화주 합계</div>
+        <div class="sum-card-val" id="sum-shipper">0원</div>
+        <div class="sum-card-sub">기본 + 추가비용</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-card-label">💰 차액 합계</div>
+        <div class="sum-card-val green" id="sum-diff">0원</div>
+        <div class="sum-card-sub">화주 - 운송사</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-card-label">📈 전체 수익율</div>
+        <div class="sum-card-val purple" id="sum-rate">—</div>
+        <div class="sum-card-sub">차액 ÷ 화주합계</div>
+      </div>
+    </div>
+
+    <!-- ── 상세 테이블 ── -->
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th rowspan="2" style="width:32px;">No</th>
+            <th rowspan="2" style="width:88px;">날짜</th>
+            <th rowspan="2">구간</th>
+            <th rowspan="2" style="width:60px;">차종</th>
+            <th colspan="3" class="carrier-head">🚛 운송사 청구</th>
+            <th colspan="3" class="shipper-head">🏢 화주 청구</th>
+            <th colspan="2" class="result-head">📊 수익</th>
+            <th rowspan="2" style="width:100px;">비고</th>
+            <th rowspan="2" style="width:32px;"></th>
+          </tr>
+          <tr>
+            <th class="carrier-head" style="width:80px;">기본운임</th>
+            <th class="carrier-head" style="width:70px;">추가비용</th>
+            <th class="carrier-head" style="width:80px;">합계</th>
+            <th class="shipper-head" style="width:80px;">기본운임</th>
+            <th class="shipper-head" style="width:70px;">추가비용</th>
+            <th class="shipper-head" style="width:80px;">합계</th>
+            <th class="result-head" style="width:80px;">차액</th>
+            <th class="result-head" style="width:64px;">수익율</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr>
+            <td colspan="14" style="padding:40px;text-align:center;color:#a0aec0;font-size:13px;">
+              <i class="fa fa-chart-line" style="font-size:32px;margin-bottom:10px;display:block;"></i>
+              내역을 추가하거나 엑셀을 업로드하세요.
+            </td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr class="total-row" id="totalRow" style="display:none;">
+            <td colspan="4" style="text-align:center;font-size:13px;font-weight:800;color:#1a202c;">합 계</td>
+            <td class="num" id="tot-c-base">—</td>
+            <td class="num" id="tot-c-extra">—</td>
+            <td class="num" id="tot-c-sum" style="color:#2c5282;">—</td>
+            <td class="num" id="tot-s-base">—</td>
+            <td class="num" id="tot-s-extra">—</td>
+            <td class="num" id="tot-s-sum" style="color:#276749;">—</td>
+            <td class="num" id="tot-diff">—</td>
+            <td id="tot-rate">—</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── 추가/수정 모달 ── -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-title" id="modalTitle">📊 운송 내역 추가</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">날짜 <span style="color:#ef4444">*</span></label>
+          <input type="date" class="form-input" id="m-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">화주</label>
+          <input type="text" class="form-input" id="m-client" placeholder="예: 메틀러토레도">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">구간 (출발→도착)</label>
+          <input type="text" class="form-input" id="m-route" placeholder="예: 김포 ACT → 송파 메틀러토레도">
+        </div>
+        <div class="form-group">
+          <label class="form-label">차종</label>
+          <select class="form-select" id="m-vehicle">
+            <option value="다마스">다마스</option>
+            <option value="오토바이">오토바이</option>
+            <option value="1톤" selected>1톤</option>
+            <option value="2.5톤">2.5톤</option>
+            <option value="3.5톤">3.5톤</option>
+            <option value="5톤">5톤</option>
+            <option value="11톤">11톤</option>
+            <option value="지역간">지역간</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="background:#eff6ff;border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:700;color:#1e40af;margin-bottom:10px;">🚛 운송사 청구 운임</div>
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">기본운임</label>
+            <input type="number" class="form-input" id="m-c-base" placeholder="0" oninput="updatePreview()" min="0">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">추가비용</label>
+            <input type="number" class="form-input" id="m-c-extra" placeholder="0" oninput="updatePreview()" min="0">
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#f0fdf4;border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:700;color:#166534;margin-bottom:10px;">🏢 화주 청구 운임</div>
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">기본운임</label>
+            <input type="number" class="form-input" id="m-s-base" placeholder="0" oninput="updatePreview()" min="0">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">추가비용</label>
+            <input type="number" class="form-input" id="m-s-extra" placeholder="0" oninput="updatePreview()" min="0">
+          </div>
+        </div>
+      </div>
+
+      <!-- 실시간 미리보기 -->
+      <div class="calc-preview">
+        <div class="cp-item">
+          <label>🚛 운송사 합계</label>
+          <div class="cp-val" id="prev-carrier">0원</div>
+        </div>
+        <div class="cp-item">
+          <label>🏢 화주 합계</label>
+          <div class="cp-val" id="prev-shipper">0원</div>
+        </div>
+        <div class="cp-item">
+          <label>💰 차액</label>
+          <div class="cp-val" id="prev-diff">0원</div>
+        </div>
+        <div class="cp-item">
+          <label>📈 수익율</label>
+          <div class="cp-val purple" id="prev-rate">—</div>
+        </div>
+        <div class="cp-item">
+          <label>📋 DN No. / 메모</label>
+          <input type="text" class="form-input" id="m-memo" placeholder="DN번호 또는 메모" style="margin-top:4px;font-size:12px;padding:6px 10px;">
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">취소</button>
+        <button class="btn-save" onclick="saveRecord()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="hub-nav.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+  <script>
+    initNav('profit-calc.html');
+
+    // ──────────────────────────────────────────
+    //  데이터 (localStorage)
+    // ──────────────────────────────────────────
+    const STORE_KEY = 'profit_records_v1';
+    let records = [];
+    let editingId = null;
+    let filteredData = [];
+
+    function loadData() {
+      const raw = localStorage.getItem(STORE_KEY);
+      records = raw ? JSON.parse(raw) : [];
+
+      const period = document.getElementById('filterPeriod').value;   // "2026-03"
+      const client = document.getElementById('filterClient').value.trim().toLowerCase();
+
+      filteredData = records.filter(r => {
+        if (period && !r.date.startsWith(period)) return false;
+        if (client && !(r.client || '').toLowerCase().includes(client) && !(r.route || '').toLowerCase().includes(client)) return false;
+        return true;
+      });
+
+      renderTable();
+      updateSummary();
+    }
+
+    function saveData() {
+      localStorage.setItem(STORE_KEY, JSON.stringify(records));
+    }
+
+    // ──────────────────────────────────────────
+    //  렌더링
+    // ──────────────────────────────────────────
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      if (!filteredData.length) {
+        tbody.innerHTML = `<tr><td colspan="14" style="padding:40px;text-align:center;color:#a0aec0;font-size:13px;">
+          <i class="fa fa-chart-line" style="font-size:32px;margin-bottom:10px;display:block;"></i>
+          내역을 추가하거나 위의 빠른 계산기를 이용하세요.
+        </td></tr>`;
+        document.getElementById('totalRow').style.display = 'none';
+        return;
+      }
+
+      // 날짜 정렬
+      const sorted = [...filteredData].sort((a, b) => a.date.localeCompare(b.date));
+
+      tbody.innerHTML = sorted.map((r, i) => {
+        const cSum  = (r.cBase || 0) + (r.cExtra || 0);
+        const sSum  = (r.sBase || 0) + (r.sExtra || 0);
+        const diff  = sSum - cSum;
+        const rate  = sSum > 0 ? (diff / sSum * 100) : null;
+
+        const diffCls = diff >= 0 ? 'diff-plus' : 'diff-minus';
+        const diffTxt = (diff >= 0 ? '+' : '') + fmt(diff) + '원';
+
+        let rateBadge = '';
+        if (rate === null)       rateBadge = `<span class="rate-badge rate-zero">—</span>`;
+        else if (rate < 0)       rateBadge = `<span class="rate-badge rate-neg">${rate.toFixed(1)}%</span>`;
+        else if (rate < 8)       rateBadge = `<span class="rate-badge rate-low">${rate.toFixed(1)}%</span>`;
+        else if (rate < 15)      rateBadge = `<span class="rate-badge rate-mid">${rate.toFixed(1)}%</span>`;
+        else                     rateBadge = `<span class="rate-badge rate-high">${rate.toFixed(1)}%</span>`;
+
+        return `<tr>
+          <td>${i + 1}</td>
+          <td>${r.date}</td>
+          <td class="left" style="font-size:11px;">${esc(r.route || '')}</td>
+          <td>${esc(r.vehicle || '')}</td>
+          <td class="num">${r.cBase ? fmt(r.cBase) : '—'}</td>
+          <td class="num">${r.cExtra ? fmt(r.cExtra) : '—'}</td>
+          <td class="num" style="font-weight:700;color:#1e40af;">${fmt(cSum)}</td>
+          <td class="num">${r.sBase ? fmt(r.sBase) : '—'}</td>
+          <td class="num">${r.sExtra ? fmt(r.sExtra) : '—'}</td>
+          <td class="num" style="font-weight:700;color:#276749;">${fmt(sSum)}</td>
+          <td class="num ${diffCls}">${diffTxt}</td>
+          <td style="text-align:center;">${rateBadge}</td>
+          <td class="left" style="font-size:11px;color:#718096;">${esc(r.memo || '')}</td>
+          <td><button class="btn-del-row" onclick="editRecord('${r.id}')">✏️</button>
+              <button class="btn-del-row" onclick="deleteRecord('${r.id}')" style="margin-left:2px;">✕</button></td>
+        </tr>`;
+      }).join('');
+
+      document.getElementById('totalRow').style.display = '';
+      updateFooter(sorted);
+    }
+
+    function updateFooter(data) {
+      let tcb = 0, tce = 0, tsb = 0, tse = 0;
+      data.forEach(r => {
+        tcb += r.cBase  || 0;
+        tce += r.cExtra || 0;
+        tsb += r.sBase  || 0;
+        tse += r.sExtra || 0;
+      });
+      const tcSum = tcb + tce, tsSum = tsb + tse;
+      const tdiff = tsSum - tcSum;
+      const trate = tsSum > 0 ? (tdiff / tsSum * 100) : null;
+
+      document.getElementById('tot-c-base').textContent  = fmt(tcb);
+      document.getElementById('tot-c-extra').textContent = fmt(tce);
+      document.getElementById('tot-c-sum').textContent   = fmt(tcSum);
+      document.getElementById('tot-s-base').textContent  = fmt(tsb);
+      document.getElementById('tot-s-extra').textContent = fmt(tse);
+      document.getElementById('tot-s-sum').textContent   = fmt(tsSum);
+      document.getElementById('tot-diff').textContent    = (tdiff >= 0 ? '+' : '') + fmt(tdiff);
+      document.getElementById('tot-diff').className      = 'num ' + (tdiff >= 0 ? 'diff-plus' : 'diff-minus');
+      document.getElementById('tot-rate').innerHTML =
+        trate !== null
+          ? `<span class="rate-badge ${rateClass(trate)}">${trate.toFixed(2)}%</span>`
+          : '—';
+    }
+
+    function updateSummary() {
+      let tcSum = 0, tsSum = 0;
+      filteredData.forEach(r => {
+        tcSum += (r.cBase || 0) + (r.cExtra || 0);
+        tsSum += (r.sBase || 0) + (r.sExtra || 0);
+      });
+      const diff  = tsSum - tcSum;
+      const rate  = tsSum > 0 ? (diff / tsSum * 100) : null;
+      const period = document.getElementById('filterPeriod').value;
+
+      document.getElementById('sum-count').textContent   = filteredData.length + '건';
+      document.getElementById('sum-carrier').textContent = fmt(tcSum) + '원';
+      document.getElementById('sum-shipper').textContent = fmt(tsSum) + '원';
+      document.getElementById('sum-diff').textContent    = (diff >= 0 ? '+' : '') + fmt(diff) + '원';
+      document.getElementById('sum-diff').className      = 'sum-card-val ' + (diff >= 0 ? 'green' : 'red');
+      document.getElementById('sum-rate').textContent    = rate !== null ? rate.toFixed(2) + '%' : '—';
+      document.getElementById('sum-rate').className      = 'sum-card-val ' + (rate !== null && rate >= 10 ? 'green' : rate !== null && rate < 0 ? 'red' : 'purple');
+      document.getElementById('sum-period').textContent  = period ? period.replace('-', '년 ') + '월' : '전체';
+    }
+
+    // ──────────────────────────────────────────
+    //  빠른 계산기
+    // ──────────────────────────────────────────
+    function quickCalc() {
+      const carrier = parseNum(document.getElementById('qc-carrier').value);
+      const shipper = parseNum(document.getElementById('qc-shipper').value);
+      if (!carrier && !shipper) {
+        document.getElementById('qc-diff').textContent = '—';
+        document.getElementById('qc-diff').className = 'qc-result-val neutral';
+        document.getElementById('qc-rate').textContent = '—';
+        document.getElementById('qc-rate').className = 'qc-result-val neutral';
+        return;
+      }
+      const diff = shipper - carrier;
+      const rate = shipper > 0 ? (diff / shipper * 100) : null;
+      const diffEl = document.getElementById('qc-diff');
+      const rateEl = document.getElementById('qc-rate');
+      diffEl.textContent = (diff >= 0 ? '+' : '') + fmt(diff) + '원';
+      diffEl.className = 'qc-result-val ' + (diff >= 0 ? 'positive' : 'negative');
+      rateEl.textContent = rate !== null ? rate.toFixed(2) + '%' : '—';
+      rateEl.className = 'qc-result-val ' + (rate !== null && rate >= 0 ? 'positive' : 'negative');
+    }
+
+    function fmtQc(el) {
+      const val = parseNum(el.value);
+      if (val) el.value = val.toLocaleString('ko-KR');
+    }
+
+    // ──────────────────────────────────────────
+    //  모달 CRUD
+    // ──────────────────────────────────────────
+    function openModal() {
+      editingId = null;
+      document.getElementById('modalTitle').textContent = '📊 운송 내역 추가';
+      document.getElementById('m-date').value    = today();
+      document.getElementById('m-client').value  = document.getElementById('filterClient').value || '';
+      document.getElementById('m-route').value   = '';
+      document.getElementById('m-vehicle').value = '1톤';
+      document.getElementById('m-c-base').value  = '';
+      document.getElementById('m-c-extra').value = '';
+      document.getElementById('m-s-base').value  = '';
+      document.getElementById('m-s-extra').value = '';
+      document.getElementById('m-memo').value    = '';
+      updatePreview();
+      document.getElementById('modal').classList.add('show');
+    }
+
+    function editRecord(id) {
+      const r = records.find(x => x.id === id); if (!r) return;
+      editingId = id;
+      document.getElementById('modalTitle').textContent = '📊 운송 내역 수정';
+      document.getElementById('m-date').value    = r.date;
+      document.getElementById('m-client').value  = r.client || '';
+      document.getElementById('m-route').value   = r.route || '';
+      document.getElementById('m-vehicle').value = r.vehicle || '1톤';
+      document.getElementById('m-c-base').value  = r.cBase  || '';
+      document.getElementById('m-c-extra').value = r.cExtra || '';
+      document.getElementById('m-s-base').value  = r.sBase  || '';
+      document.getElementById('m-s-extra').value = r.sExtra || '';
+      document.getElementById('m-memo').value    = r.memo   || '';
+      updatePreview();
+      document.getElementById('modal').classList.add('show');
+    }
+
+    function saveRecord() {
+      const date = document.getElementById('m-date').value;
+      if (!date) { alert('날짜를 입력하세요.'); return; }
+      const rec = {
+        id:      editingId || Date.now().toString(),
+        date,
+        client:  document.getElementById('m-client').value.trim(),
+        route:   document.getElementById('m-route').value.trim(),
+        vehicle: document.getElementById('m-vehicle').value,
+        cBase:   parseInt(document.getElementById('m-c-base').value)  || 0,
+        cExtra:  parseInt(document.getElementById('m-c-extra').value) || 0,
+        sBase:   parseInt(document.getElementById('m-s-base').value)  || 0,
+        sExtra:  parseInt(document.getElementById('m-s-extra').value) || 0,
+        memo:    document.getElementById('m-memo').value.trim(),
+      };
+      if (editingId) {
+        const idx = records.findIndex(x => x.id === editingId);
+        if (idx !== -1) records[idx] = rec;
+      } else {
+        records.push(rec);
+      }
+      saveData();
+      closeModal();
+      loadData();
+    }
+
+    function deleteRecord(id) {
+      if (!confirm('삭제하시겠습니까?')) return;
+      records = records.filter(r => r.id !== id);
+      saveData();
+      loadData();
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('show');
+    }
+    document.getElementById('modal').addEventListener('click', e => {
+      if (e.target === document.getElementById('modal')) closeModal();
+    });
+
+    function updatePreview() {
+      const cb = parseInt(document.getElementById('m-c-base').value)  || 0;
+      const ce = parseInt(document.getElementById('m-c-extra').value) || 0;
+      const sb = parseInt(document.getElementById('m-s-base').value)  || 0;
+      const se = parseInt(document.getElementById('m-s-extra').value) || 0;
+      const cs = cb + ce, ss = sb + se, diff = ss - cs;
+      const rate = ss > 0 ? (diff / ss * 100) : null;
+      document.getElementById('prev-carrier').textContent = fmt(cs) + '원';
+      document.getElementById('prev-shipper').textContent = fmt(ss) + '원';
+      const dEl = document.getElementById('prev-diff');
+      dEl.textContent = (diff >= 0 ? '+' : '') + fmt(diff) + '원';
+      dEl.className = 'cp-val ' + (diff >= 0 ? 'green' : 'red');
+      document.getElementById('prev-rate').textContent = rate !== null ? rate.toFixed(2) + '%' : '—';
+    }
+
+    // ──────────────────────────────────────────
+    //  엑셀 내보내기
+    // ──────────────────────────────────────────
+    function exportExcel() {
+      if (!filteredData.length) { alert('데이터가 없습니다.'); return; }
+      const period = document.getElementById('filterPeriod').value || 'all';
+      const client = document.getElementById('filterClient').value || '전체';
+
+      const rows = [
+        [`운송 수익율 계산서 - ${client} (${period})`],
+        [],
+        ['No', '날짜', '화주', '구간', '차종',
+         '운송사_기본', '운송사_추가', '운송사_합계',
+         '화주_기본', '화주_추가', '화주_합계',
+         '차액', '수익율(%)', '비고']
+      ];
+      const sorted = [...filteredData].sort((a, b) => a.date.localeCompare(b.date));
+      sorted.forEach((r, i) => {
+        const cs = (r.cBase||0)+(r.cExtra||0), ss = (r.sBase||0)+(r.sExtra||0);
+        const diff = ss - cs;
+        const rate = ss > 0 ? +(diff / ss * 100).toFixed(2) : '';
+        rows.push([
+          i+1, r.date, r.client||'', r.route||'', r.vehicle||'',
+          r.cBase||0, r.cExtra||0, cs,
+          r.sBase||0, r.sExtra||0, ss,
+          diff, rate, r.memo||''
+        ]);
+      });
+
+      // 합계 행
+      let tcb=0,tce=0,tsb=0,tse=0;
+      sorted.forEach(r => { tcb+=r.cBase||0; tce+=r.cExtra||0; tsb+=r.sBase||0; tse+=r.sExtra||0; });
+      const tcs=tcb+tce, tss=tsb+tse, td=tss-tcs;
+      rows.push([]);
+      rows.push(['합 계','','','','', tcb, tce, tcs, tsb, tse, tss, td, tss>0?+(td/tss*100).toFixed(2):'', '']);
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{wch:4},{wch:11},{wch:12},{wch:30},{wch:6},
+        {wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:8},{wch:20}];
+      ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:13} }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '수익율계산');
+      XLSX.writeFile(wb, `운송수익율_${period}_${client}.xlsx`);
+    }
+
+    // ──────────────────────────────────────────
+    //  유틸
+    // ──────────────────────────────────────────
+    function fmt(n) { return Math.abs(n).toLocaleString('ko-KR'); }
+    function parseNum(s) { return parseInt(String(s).replace(/[^0-9-]/g, '')) || 0; }
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function today() { return new Date().toISOString().slice(0,10); }
+    function rateClass(r) {
+      if (r < 0)  return 'rate-neg';
+      if (r < 8)  return 'rate-low';
+      if (r < 15) return 'rate-mid';
+      return 'rate-high';
+    }
+
+    // 기간 기본값: 이번 달
+    document.getElementById('filterPeriod').value = today().slice(0,7);
+
+    loadData();
+  </script>
+</body>
+</html>

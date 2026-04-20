@@ -85,7 +85,8 @@ function initNav(currentPage) {
     { section: '📦 오더 시스템' },
     { href: 'admin.html',   icon: '🗂️', label: '오더 관리' },
     { href: 'list.html',    icon: '🔍', label: '조회/출력' },
-    { href: 'billing.html', icon: '💰', label: '운송 청구서' },
+    { href: 'billing.html',      icon: '💰', label: '운송 청구서' },
+    { href: 'profit-calc.html', icon: '📊', label: '수익율 계산기' },
   ];
 
   // 추가 CSS: 홈버튼
