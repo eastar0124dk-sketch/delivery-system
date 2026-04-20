@@ -62,19 +62,19 @@ function initNav(currentPage) {
       text-align: right;
     }
     .hub-clock-date-str {
-      font-size: 12px; color: #a0aec0; font-weight: 600; letter-spacing: .03em;
+      font-size: 14px; color: #a0aec0; font-weight: 600; letter-spacing: .03em;
     }
     .hub-clock-day {
-      font-size: 13px; color: #e2e8f0; font-weight: 700; margin-top: 1px;
+      font-size: 15px; color: #e2e8f0; font-weight: 700; margin-top: 2px;
     }
     .hub-clock-time {
-      font-size: 26px; font-weight: 900; color: #fff;
+      font-size: 36px; font-weight: 900; color: #fff;
       font-variant-numeric: tabular-nums; letter-spacing: .05em;
-      background: rgba(255,255,255,.07); padding: 6px 14px;
-      border-radius: 10px; border: 1px solid rgba(255,255,255,.1);
+      background: rgba(255,255,255,.07); padding: 8px 18px;
+      border-radius: 12px; border: 1px solid rgba(255,255,255,.1);
     }
     .hub-clock-sec {
-      font-size: 18px; color: #a0aec0; font-weight: 700;
+      font-size: 24px; color: #a0aec0; font-weight: 700;
     }
     @media (max-width: 768px) {
       .hub-sidebar { transform: translateX(-220px); transition: transform .3s; }
