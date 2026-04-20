@@ -94,6 +94,8 @@
     .ev-bonded   { background:#e0e7ff;color:#3730a3; }
     .ev-canon    { background:#fce7f3;color:#9d174d; }
     .ev-mettler  { background:#f0fdf4;color:#166534; }
+    .ev-ot       { background:#fef9c3;color:#854d0e; }
+    .ev-work     { background:#e0f2fe;color:#0c4a6e; }
 
     /* ── 사이드 패널 ── */
     .side-card { background: #fff; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.07); padding: 18px; }
@@ -113,6 +115,8 @@
     .event-item.ev-bonded    { border-color:#6366f1;background:#eef2ff; }
     .event-item.ev-canon     { border-color:#ec4899;background:#fdf2f8; }
     .event-item.ev-mettler   { border-color:#22c55e;background:#f0fdf4; }
+    .event-item.ev-ot        { border-color:#f59e0b;background:#fffbeb; }
+    .event-item.ev-work      { border-color:#0ea5e9;background:#f0f9ff; }
     .ei-title   { font-size: 13px; font-weight: 700; color: #1e293b; }
     .ei-meta    { font-size: 11px; color: #718096; margin-top: 2px; }
     .ei-memo    { font-size: 11px; color: #94a3b8; margin-top: 3px; }
@@ -174,6 +178,8 @@
             <button class="today-btn" onclick="goToday()">오늘</button>
           </div>
           <div class="cal-legend">
+            <span class="leg"><span class="leg-dot" style="background:#fef9c3;border:1px solid #f59e0b;"></span>OT</span>
+            <span class="leg"><span class="leg-dot" style="background:#e0f2fe;border:1px solid #0ea5e9;"></span>업무</span>
             <span class="leg"><span class="leg-dot" style="background:#d1fae5;border:1px solid #10b981;"></span>입고/출고</span>
             <span class="leg"><span class="leg-dot" style="background:#e0e7ff;border:1px solid #6366f1;"></span>보세</span>
             <span class="leg"><span class="leg-dot" style="background:#fce7f3;border:1px solid #ec4899;"></span>캐논</span>
@@ -226,14 +232,27 @@
           <label class="form-label">날짜</label>
           <input type="date" class="form-input" id="inp-ev-date">
         </div>
-        <div class="form-group">
+        <div class="form-group" id="time-single-wrap">
           <label class="form-label">시간</label>
           <input type="time" class="form-input" id="inp-ev-time">
         </div>
       </div>
+      <!-- OT / 업무 전용: 시작~마감 시간 -->
+      <div class="form-row" id="time-range-wrap" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">시작 시간 <span style="color:#ef4444">*</span></label>
+          <input type="time" class="form-input" id="inp-ev-start">
+        </div>
+        <div class="form-group">
+          <label class="form-label">마감 시간 <span style="color:#ef4444">*</span></label>
+          <input type="time" class="form-input" id="inp-ev-end">
+        </div>
+      </div>
       <div class="form-group">
         <label class="form-label">타입</label>
-        <select class="form-select" id="inp-ev-type">
+        <select class="form-select" id="inp-ev-type" onchange="onTypeChange(this.value)">
+          <option value="ot">⏱️ OT</option>
+          <option value="work">💼 업무</option>
           <option value="inbound">📦 입고</option>
           <option value="outbound">🚚 출고</option>
           <option value="transfer">🔄 재고이동</option>
@@ -380,13 +399,16 @@
     const typeLabel = {
       inbound:'📦 입고', outbound:'🚚 출고', transfer:'🔄 재고이동', issue:'🚨 이슈',
       bonded:'🚢 보세', canon:'🖨️ 캐논', mettler:'⚖️ 메틀러',
-      dispatch:'🚗 배차', deadline:'⏰ 마감', meeting:'💬 회의', general:'📌 일반'
+      dispatch:'🚗 배차', deadline:'⏰ 마감', meeting:'💬 회의', general:'📌 일반',
+      ot:'⏱️ OT', work:'💼 업무'
     };
     const typeClass = {
       inbound:'ev-inbound', outbound:'ev-outbound', transfer:'ev-transfer', issue:'ev-issue',
       bonded:'ev-bonded', canon:'ev-canon', mettler:'ev-mettler',
-      dispatch:'ev-dispatch', deadline:'ev-deadline', meeting:'ev-meeting', general:'ev-general'
+      dispatch:'ev-dispatch', deadline:'ev-deadline', meeting:'ev-meeting', general:'ev-general',
+      ot:'ev-ot', work:'ev-work'
     };
+    const TIME_RANGE_TYPES = ['ot', 'work']; // 시작~마감 시간 표시 타입
 
     /* ════════════════════════════════════════
        초기화 & 데이터 로드
@@ -492,7 +514,10 @@
           const maxShow = 3;
           dayEvs.slice(0, maxShow).forEach(e => {
             const cls = typeClass[e.type] || 'ev-general';
-            evHtml += `<span class="ev-chip ${cls}">${escHtml(e.title)}</span>`;
+            const isRange = TIME_RANGE_TYPES.includes(e.type);
+            const tp = parseTime(e.time);
+            const timePfx = isRange && tp.start ? `${tp.start}~ ` : (e.time ? `${e.time} ` : '');
+            evHtml += `<span class="ev-chip ${cls}">${timePfx}${escHtml(e.title)}</span>`;
           });
           if (dayEvs.length > maxShow) {
             evHtml += `<div class="ev-more">+${dayEvs.length - maxShow}개 더</div>`;
@@ -535,11 +560,21 @@
       if (!dayEvs.length && !holiday) {
         html += '<div class="empty-msg">이 날의 일정이 없습니다.</div>';
       } else {
-        html += dayEvs.map(ev => `
+        html += dayEvs.map(ev => {
+          const isRange = TIME_RANGE_TYPES.includes(ev.type);
+          const tp = parseTime(ev.time);
+          let timeTxt = '';
+          if (ev.time) {
+            if (isRange && tp.start && tp.end)
+              timeTxt = `<i class="fa fa-clock"></i> ${tp.start} ~ ${tp.end} &nbsp;`;
+            else
+              timeTxt = `<i class="fa fa-clock"></i> ${ev.time} &nbsp;`;
+          }
+          return `
           <div class="event-item ${typeClass[ev.type]||'ev-general'}">
             <div class="ei-title">${escHtml(ev.title)}</div>
             <div class="ei-meta">
-              ${ev.time ? `<i class="fa fa-clock"></i> ${ev.time} &nbsp;` : ''}
+              ${timeTxt}
               ${typeLabel[ev.type] || ev.type}
             </div>
             ${ev.memo ? `<div class="ei-memo">${escHtml(ev.memo)}</div>` : ''}
@@ -548,7 +583,7 @@
               <button class="btn-sm btn-del-sm" onclick="deleteEvent(${ev.id})">삭제</button>
             </div>
           </div>
-        `).join('');
+        `; }).join('');
       }
       document.getElementById('eventList').innerHTML = html;
     }
@@ -556,14 +591,31 @@
     /* ════════════════════════════════════════
        CRUD
     ════════════════════════════════════════ */
+    /* 타입 변경 시 시간 입력 필드 토글 */
+    function onTypeChange(type) {
+      const isRange = TIME_RANGE_TYPES.includes(type);
+      document.getElementById('time-single-wrap').style.display = isRange ? 'none' : '';
+      document.getElementById('time-range-wrap').style.display  = isRange ? '' : 'none';
+    }
+
+    /* event_time 파싱: "09:00~18:00" → {start, end} / "09:00" → {start, end:''} */
+    function parseTime(t) {
+      if (!t) return { start:'', end:'' };
+      const parts = t.split('~');
+      return { start: parts[0]||'', end: parts[1]||'' };
+    }
+
     function openModal(date) {
       editingId = null;
       document.getElementById('modalTitle').textContent = '📅 일정 추가';
       document.getElementById('inp-ev-title').value = '';
       document.getElementById('inp-ev-date').value  = date || selectedDate || '';
       document.getElementById('inp-ev-time').value  = '';
-      document.getElementById('inp-ev-type').value  = 'inbound';
+      document.getElementById('inp-ev-start').value = '';
+      document.getElementById('inp-ev-end').value   = '';
+      document.getElementById('inp-ev-type').value  = 'ot';
       document.getElementById('inp-ev-memo').value  = '';
+      onTypeChange('ot');
       document.getElementById('modal').classList.add('show');
     }
     function editEvent(id) {
@@ -572,19 +624,35 @@
       document.getElementById('modalTitle').textContent = '📅 일정 수정';
       document.getElementById('inp-ev-title').value = ev.title;
       document.getElementById('inp-ev-date').value  = ev.date;
-      document.getElementById('inp-ev-time').value  = ev.time || '';
       document.getElementById('inp-ev-type').value  = ev.type || 'general';
       document.getElementById('inp-ev-memo').value  = ev.memo || '';
+      const isRange = TIME_RANGE_TYPES.includes(ev.type);
+      const tp = parseTime(ev.time);
+      document.getElementById('inp-ev-time').value  = isRange ? '' : (ev.time || '');
+      document.getElementById('inp-ev-start').value = tp.start;
+      document.getElementById('inp-ev-end').value   = tp.end;
+      onTypeChange(ev.type);
       document.getElementById('modal').classList.add('show');
     }
     async function saveEvent() {
       const title = document.getElementById('inp-ev-title').value.trim();
       if (!title) { alert('제목을 입력하세요.'); return; }
       const dateVal = document.getElementById('inp-ev-date').value;
+      const type    = document.getElementById('inp-ev-type').value;
+      const isRange = TIME_RANGE_TYPES.includes(type);
+      let timeVal = null;
+      if (isRange) {
+        const s = document.getElementById('inp-ev-start').value;
+        const e = document.getElementById('inp-ev-end').value;
+        if (s && e) timeVal = `${s}~${e}`;
+        else if (s)  timeVal = s;
+      } else {
+        timeVal = document.getElementById('inp-ev-time').value || null;
+      }
       const body = {
         title, event_date: dateVal,
-        event_time: document.getElementById('inp-ev-time').value || null,
-        event_type: document.getElementById('inp-ev-type').value,
+        event_time: timeVal,
+        event_type: type,
         notes:      document.getElementById('inp-ev-memo').value.trim() || null
       };
       try {
