@@ -42,7 +42,39 @@ function initNav(currentPage) {
     }
     .hub-page-title {
       font-size: 22px; font-weight: 700; color: #1a202c;
-      margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+      margin-bottom: 0; display: flex; align-items: center; gap: 10px;
+    }
+    /* ── 상단 시계 바 ── */
+    .hub-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+      border-radius: 14px; padding: 14px 22px; margin-bottom: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.15);
+    }
+    .hub-topbar-title {
+      font-size: 20px; font-weight: 800; color: #fff;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .hub-clock-wrap {
+      display: flex; align-items: center; gap: 18px;
+    }
+    .hub-clock-date {
+      text-align: right;
+    }
+    .hub-clock-date-str {
+      font-size: 12px; color: #a0aec0; font-weight: 600; letter-spacing: .03em;
+    }
+    .hub-clock-day {
+      font-size: 13px; color: #e2e8f0; font-weight: 700; margin-top: 1px;
+    }
+    .hub-clock-time {
+      font-size: 26px; font-weight: 900; color: #fff;
+      font-variant-numeric: tabular-nums; letter-spacing: .05em;
+      background: rgba(255,255,255,.07); padding: 6px 14px;
+      border-radius: 10px; border: 1px solid rgba(255,255,255,.1);
+    }
+    .hub-clock-sec {
+      font-size: 18px; color: #a0aec0; font-weight: 700;
     }
     @media (max-width: 768px) {
       .hub-sidebar { transform: translateX(-220px); transition: transform .3s; }
@@ -161,6 +193,60 @@ function initNav(currentPage) {
     sidebar.classList.remove('open');
     overlay.classList.remove('show');
   });
+
+  // ── 상단 시계 바 주입 ──
+  function injectClockBar() {
+    const pageTitleEl = document.querySelector('.hub-page-title');
+    if (!pageTitleEl) return;
+
+    // 기존 페이지 타이틀 내용 가져오기
+    const titleContent = pageTitleEl.innerHTML;
+
+    // 상단 바로 교체
+    const bar = document.createElement('div');
+    bar.className = 'hub-topbar';
+    bar.innerHTML = `
+      <div class="hub-topbar-title">${titleContent}</div>
+      <div class="hub-clock-wrap">
+        <div class="hub-clock-date">
+          <div class="hub-clock-date-str" id="nav-clock-date">—</div>
+          <div class="hub-clock-day" id="nav-clock-day">—</div>
+        </div>
+        <div class="hub-clock-time">
+          <span id="nav-clock-hm">--:--</span><span class="hub-clock-sec">:<span id="nav-clock-s">--</span></span>
+        </div>
+      </div>
+    `;
+
+    // 페이지 타이틀을 바로 교체
+    pageTitleEl.replaceWith(bar);
+
+    // 시계 시작
+    const DAYS = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
+    function tick() {
+      const n = new Date();
+      const pad = v => String(v).padStart(2,'0');
+      const hmEl = document.getElementById('nav-clock-hm');
+      const sEl  = document.getElementById('nav-clock-s');
+      const dtEl = document.getElementById('nav-clock-date');
+      const dyEl = document.getElementById('nav-clock-day');
+      if (!hmEl) return;
+      hmEl.textContent = `${pad(n.getHours())}:${pad(n.getMinutes())}`;
+      sEl.textContent  = pad(n.getSeconds());
+      dtEl.textContent = `${n.getFullYear()}.${pad(n.getMonth()+1)}.${pad(n.getDate())}`;
+      dyEl.textContent = DAYS[n.getDay()];
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+
+  // DOM 준비 후 실행
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectClockBar);
+  } else {
+    // 약간 지연 — 각 페이지의 hub-page-title이 렌더링된 후
+    setTimeout(injectClockBar, 0);
+  }
 }
 
 function hubLogout() {
