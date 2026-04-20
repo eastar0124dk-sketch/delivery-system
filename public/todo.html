@@ -193,7 +193,7 @@
                 </span>
                 ${dueHtml}
               </div>
-              ${t.memo ? `<div class="todo-memo">${escHtml(t.memo)}</div>` : ''}
+              ${t.notes ? `<div class="todo-memo">${escHtml(t.notes)}</div>` : ''}
             </div>
             <button class="btn-del" onclick="deleteTodo(${t.id})" title="삭제"><i class="fa fa-trash"></i></button>
           </div>
@@ -230,7 +230,7 @@
         title,
         priority: document.getElementById('inp-priority').value,
         due_date: document.getElementById('inp-due').value || null,
-        memo:     document.getElementById('inp-memo').value.trim() || null
+        notes:    document.getElementById('inp-memo').value.trim() || null
       };
       try {
         const res = await fetch('/api/todos', { method: 'POST', headers: authH(), body: JSON.stringify(body) });
@@ -275,7 +275,7 @@
         priorityLabel[t.priority] || t.priority || '',
         t.due_date || '',
         t.category || '',
-        t.memo || '',
+        t.notes || '',
         t.done ? '완료' : '미완료'
       ]));
       const ws = XLSX.utils.aoa_to_sheet(rows);

@@ -210,8 +210,8 @@
       const tType = document.getElementById('typeFilter').value;
 
       let filtered = vendors;
-      if (q)     filtered = filtered.filter(v => (v.name||'').toLowerCase().includes(q) || (v.manager||'').toLowerCase().includes(q));
-      if (tType) filtered = filtered.filter(v => v.type === tType);
+      if (q)     filtered = filtered.filter(v => (v.name||'').toLowerCase().includes(q) || (v.contact||'').toLowerCase().includes(q));
+      if (tType) filtered = filtered.filter(v => v.vendor_type === tType);
 
       document.getElementById('countLabel').textContent = `${filtered.length}개 업체`;
 
@@ -224,11 +224,11 @@
       document.getElementById('vendorTable').innerHTML = filtered.map(v => `
         <tr>
           <td><strong>${escHtml(v.name || '-')}</strong></td>
-          <td><span class="badge ${typeClass[v.type] || 'badge-other'}">${typeLabel[v.type] || v.type || '-'}</span></td>
-          <td>${escHtml(v.manager || '-')}</td>
+          <td><span class="badge ${typeClass[v.vendor_type] || 'badge-other'}">${typeLabel[v.vendor_type] || v.vendor_type || '-'}</span></td>
+          <td>${escHtml(v.contact || '-')}</td>
           <td>${v.phone ? `<a href="tel:${escHtml(v.phone)}" style="color:#667eea;text-decoration:none;">${escHtml(v.phone)}</a>` : '-'}</td>
           <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(v.address || '-')}</td>
-          <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#718096;">${escHtml(v.memo || '-')}</td>
+          <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#718096;">${escHtml(v.notes || '-')}</td>
           <td>
             <div style="display:flex;gap:6px;">
               <button class="btn-edit" onclick="editVendor(${v.id})">수정</button>
@@ -241,12 +241,12 @@
 
     function openModal(vendor = null) {
       document.getElementById('inp-id').value      = vendor ? vendor.id : '';
-      document.getElementById('inp-name').value    = vendor ? (vendor.name || '')    : '';
-      document.getElementById('inp-type').value    = vendor ? (vendor.type || 'transport') : 'transport';
-      document.getElementById('inp-manager').value = vendor ? (vendor.manager || '') : '';
-      document.getElementById('inp-phone').value   = vendor ? (vendor.phone || '')   : '';
-      document.getElementById('inp-address').value = vendor ? (vendor.address || '') : '';
-      document.getElementById('inp-memo').value    = vendor ? (vendor.memo || '')    : '';
+      document.getElementById('inp-name').value    = vendor ? (vendor.name || '')            : '';
+      document.getElementById('inp-type').value    = vendor ? (vendor.vendor_type || 'transport') : 'transport';
+      document.getElementById('inp-manager').value = vendor ? (vendor.contact || '')         : '';
+      document.getElementById('inp-phone').value   = vendor ? (vendor.phone || '')           : '';
+      document.getElementById('inp-address').value = vendor ? (vendor.address || '')         : '';
+      document.getElementById('inp-memo').value    = vendor ? (vendor.notes || '')           : '';
       document.getElementById('modalTitle').textContent = vendor ? '🏢 업체 수정' : '🏢 업체 추가';
       document.getElementById('modal').classList.add('show');
     }
@@ -263,17 +263,17 @@
       const id = document.getElementById('inp-id').value;
       const body = {
         name,
-        type:    document.getElementById('inp-type').value,
-        manager: document.getElementById('inp-manager').value.trim() || null,
-        phone:   document.getElementById('inp-phone').value.trim() || null,
-        address: document.getElementById('inp-address').value.trim() || null,
-        memo:    document.getElementById('inp-memo').value.trim() || null
+        vendor_type: document.getElementById('inp-type').value,
+        contact:     document.getElementById('inp-manager').value.trim() || null,
+        phone:       document.getElementById('inp-phone').value.trim() || null,
+        address:     document.getElementById('inp-address').value.trim() || null,
+        notes:       document.getElementById('inp-memo').value.trim() || null
       };
 
       try {
         let res;
         if (id) {
-          res = await fetch(`/api/vendors/${id}`, { method: 'PUT', headers: authH(), body: JSON.stringify(body) });
+          res = await fetch(`/api/vendors/${id}`, { method: 'PATCH', headers: authH(), body: JSON.stringify(body) });
         } else {
           res = await fetch('/api/vendors', { method: 'POST', headers: authH(), body: JSON.stringify(body) });
         }
@@ -308,8 +308,8 @@
       const typeLabel = { transport:'운송사', shipper:'화주', forwarder:'포워더', other:'기타' };
       const rows = [['업체명', '구분', '담당자', '전화번호', '주소', '메모']];
       vendors.forEach(v => rows.push([
-        v.name || '', typeLabel[v.type] || v.type || '',
-        v.manager || '', v.phone || '', v.address || '', v.memo || ''
+        v.name || '', typeLabel[v.vendor_type] || v.vendor_type || '',
+        v.contact || '', v.phone || '', v.address || '', v.notes || ''
       ]));
       const ws = XLSX.utils.aoa_to_sheet(rows);
       ws['!cols'] = [{wch:20},{wch:8},{wch:12},{wch:14},{wch:30},{wch:30}];
