@@ -6,6 +6,7 @@
   <title>오더 관리 - 관리자</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <script src="rates.js"></script>
+  <script src="clients.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;}
@@ -152,6 +153,13 @@
 
 <div class="wrap" id="mainWrap" style="display:none;">
   <div id="alertBox" class="alert"></div>
+
+  <!-- ── 화주 선택 바 ── -->
+  <div id="clientBar" style="background:#fff;border-radius:14px;padding:14px 18px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.07);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span style="font-size:12px;font-weight:700;color:#4a5568;white-space:nowrap;">🏢 화주 선택</span>
+    <div id="clientChips" style="display:flex;gap:6px;flex-wrap:wrap;flex:1;"></div>
+    <button onclick="ClientsLib.openManageModal()" style="padding:5px 12px;border-radius:20px;border:1.5px solid #e2e8f0;background:#fff;color:#718096;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">⚙️ 화주 관리</button>
+  </div>
 
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('register')"><i class="fas fa-plus-circle"></i> 오더 등록</button>
@@ -391,6 +399,7 @@
           <button class="btn btn-secondary btn-sm" onclick="clearSearchDates()">전체기간</button>
         </div>
         <div class="search-bar">
+          <select id="searchClientFilter" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;background:#fafafa;"></select>
           <input type="text" id="searchInput" placeholder="DN번호, 고객사, 제품명, 수취인 검색">
           <button class="btn btn-primary btn-sm" onclick="searchOrders()"><i class="fas fa-search"></i> 조회</button>
         </div>
@@ -681,7 +690,31 @@
     // 관리자만 비밀번호 변경 버튼 표시
     const btn = document.getElementById('pwChangeBtn');
     if(btn) btn.style.display = userRole === 'admin' ? '' : 'none';
+    renderClientBar();
   }
+
+  // ── 화주 선택 바 ──
+  function renderClientBar() {
+    const chips = document.getElementById('clientChips');
+    if (!chips || typeof ClientsLib === 'undefined') return;
+    const cur = ClientsLib.getCurrentCode();
+    chips.innerHTML = ClientsLib.buildChips(cur, 'selectClient');
+    // 조회탭 셀렉트도 갱신
+    const sel = document.getElementById('searchClientFilter');
+    if (sel) sel.innerHTML = ClientsLib.buildOptions(cur, { includeAll: true, allLabel: '전체 화주' });
+  }
+
+  function selectClient(code) {
+    ClientsLib.setCurrentCode(code);
+    renderClientBar();
+    // 화주 표시 라벨 갱신
+    const cl = ClientsLib.getClient(code);
+    const label = document.getElementById('clientLabel');
+    if (label) label.textContent = cl ? cl.name : '';
+  }
+
+  // 화주 목록 변경 시 칩 갱신
+  window.onClientsUpdated = renderClientBar;
 
   function authHeader() {
     return { 'Content-Type':'application/json', 'Authorization': `Bearer ${adminToken}` };
@@ -943,7 +976,8 @@
           dest_sido:   document.getElementById('dest_sido').value,
           dest_sigun:  document.getElementById('dest_sigun').value,
           origin_sido:  document.getElementById('origin_sido') ? document.getElementById('origin_sido').value : '',
-          origin_sigun: document.getElementById('origin_sigun') ? document.getElementById('origin_sigun').value : ''
+          origin_sigun: document.getElementById('origin_sigun') ? document.getElementById('origin_sigun').value : '',
+          client_code: (typeof ClientsLib !== 'undefined') ? ClientsLib.getCurrentCode() : ''
         })
       });
       const data = await res.json();
@@ -1050,10 +1084,12 @@
     const q=document.getElementById('searchInput').value.trim();
     const from=document.getElementById('searchDateFrom').value;
     const to=document.getElementById('searchDateTo').value;
+    const cc=document.getElementById('searchClientFilter').value;
     let url='/api/records?limit=500';
-    if(q) url+=`&search=${encodeURIComponent(q)}`;
+    if(q)  url+=`&search=${encodeURIComponent(q)}`;
     if(from) url+=`&dateFrom=${from}`;
-    if(to) url+=`&dateTo=${to}`;
+    if(to)   url+=`&dateTo=${to}`;
+    if(cc)   url+=`&client_code=${cc}`;
     const res=await fetch(url,{headers:{'Authorization':`Bearer ${adminToken}`}}).then(r=>r.json());
     renderTable(res.data||[]);
   }

@@ -163,7 +163,11 @@
       </div>
       <div class="fg">
         <label>청구처 (화주)</label>
-        <input type="text" id="clientName" placeholder="예: 메틀러토레도" style="min-width:150px;">
+        <div style="display:flex;gap:6px;align-items:center;">
+          <select id="clientCodeSel" style="padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;font-family:inherit;background:#fafafa;min-width:150px;" onchange="applyClientFromCode(this.value)"></select>
+          <button type="button" onclick="if(typeof ClientsLib!=='undefined')ClientsLib.openManageModal()" style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:12px;" title="화주 관리">⚙️</button>
+        </div>
+        <input type="hidden" id="clientName">
       </div>
       <div class="fg">
         <label>운송업체</label>
@@ -318,15 +322,17 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="rates.js"></script>
+<script src="clients.js"></script>
 <script>
-  // 화주 표시
+  // 화주 초기화
   (function(){
-    const CNAMES={mettler:'메틀러토레도',chanel:'샤넬코리아',canon:'캐논메디칼시스템즈'};
-    const c=localStorage.getItem('selectedClient');
-    const el=document.getElementById('clientLabel');
-    if(el&&c&&CNAMES[c]) el.textContent=CNAMES[c];
-    const cn=document.getElementById('clientName');
-    if(cn&&c&&CNAMES[c]) cn.value=CNAMES[c];
+    document.addEventListener('DOMContentLoaded', function() {
+      const sel = document.getElementById('clientCodeSel');
+      if (!sel || typeof ClientsLib === 'undefined') return;
+      sel.innerHTML = ClientsLib.buildOptions(ClientsLib.getCurrentCode(), { includeAll: false, placeholder: '-- 화주 선택 --' });
+      const code = ClientsLib.getCurrentCode();
+      if (code) { sel.value = code; applyClientFromCode(code); }
+    });
   })();
 
   let adminToken = sessionStorage.getItem('adminToken')||'';
@@ -353,10 +359,36 @@
     document.getElementById('mainWrap').style.display='block';
     loadRates(); renderRateTable();
     setQuick('thismonth');
-    // 청구서 타이틀 자동
-    const cn=document.getElementById('clientName').value;
-    const el=document.getElementById('billTitleMain');
-    if(cn) el.textContent=cn+' 월별 운송비 청구서';
+    // 화주 드롭다운 초기화
+    if(typeof ClientsLib !== 'undefined'){
+      const sel = document.getElementById('clientCodeSel');
+      if(sel){
+        sel.innerHTML = ClientsLib.buildOptions(ClientsLib.getCurrentCode(), { includeAll: false });
+        const code = ClientsLib.getCurrentCode();
+        if(code) applyClientFromCode(code);
+      }
+    }
+    window.onClientsUpdated = function(){
+      const sel = document.getElementById('clientCodeSel');
+      if(sel && typeof ClientsLib !== 'undefined'){
+        const cur = document.getElementById('clientCodeSel').value;
+        sel.innerHTML = ClientsLib.buildOptions(cur, { includeAll: false });
+      }
+    };
+  }
+
+  function applyClientFromCode(code) {
+    if(!code || typeof ClientsLib === 'undefined') return;
+    ClientsLib.setCurrentCode(code);
+    const cl = ClientsLib.getClient(code);
+    const name = cl ? cl.name : code;
+    document.getElementById('clientName').value = name;
+    const lbl = document.getElementById('clientLabel');
+    if(lbl) lbl.textContent = name;
+    const billDisp = document.getElementById('billClientDisp');
+    if(billDisp && !billDisp.value) billDisp.value = name;
+    const billTitle = document.getElementById('billTitleMain');
+    if(billTitle) billTitle.textContent = name + ' 월별 운송비 청구서';
   }
 
   // ── 빠른 날짜 ──
@@ -619,7 +651,10 @@
     const to=document.getElementById('dateTo').value;
     if(!from||!to){ alert('청구 기간을 설정해 주세요.'); return; }
 
-    const res=await fetch(`/api/records?limit=2000&dateFrom=${from}&dateTo=${to}`,{headers:authH()}).then(r=>r.json()).catch(()=>({data:[]}));
+    const cc = document.getElementById('clientCodeSel').value;
+    let apiUrl=`/api/records?limit=2000&dateFrom=${from}&dateTo=${to}`;
+    if(cc) apiUrl+=`&client_code=${cc}`;
+    const res=await fetch(apiUrl,{headers:authH()}).then(r=>r.json()).catch(()=>({data:[]}));
     const data=res.data||[];
 
     billingRows=data.map((r,i)=>{
