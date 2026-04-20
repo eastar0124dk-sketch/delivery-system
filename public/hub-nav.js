@@ -121,7 +121,7 @@ function initNav(currentPage) {
     { href: 'profit-calc.html', icon: '📊', label: '수익율 계산기' },
   ];
 
-  // 추가 CSS: 홈버튼
+  // 추가 CSS: 홈버튼 + WMS + 파일 바로가기
   const style2 = document.createElement('style');
   style2.textContent = `
     .hub-home-btn {
@@ -132,6 +132,44 @@ function initNav(currentPage) {
     }
     .hub-home-btn:hover { opacity: .88; }
     .hub-home-btn.active { background: linear-gradient(135deg,#4c51bf,#553c9a); }
+    /* ── WMS 런처 ── */
+    .hub-wms-wrap {
+      margin: 4px 12px 6px; position: relative;
+    }
+    .hub-wms-btn {
+      display: flex; align-items: center; gap: 9px; width: 100%;
+      padding: 10px 14px; background: linear-gradient(135deg,#2f855a,#276749);
+      color: #fff; border-radius: 10px; border: none; font-family: inherit;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      transition: all .15s; text-align: left; position: relative;
+      box-shadow: 0 2px 8px rgba(47,133,90,.35);
+    }
+    .hub-wms-btn:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(47,133,90,.45); }
+    .hub-wms-btn:active { transform: translateY(0); }
+    .hub-wms-btn-icon {
+      width: 28px; height: 28px; background: rgba(255,255,255,.18);
+      border-radius: 7px; display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .hub-wms-btn-text { flex: 1; min-width: 0; }
+    .hub-wms-btn-label { font-size: 13px; font-weight: 700; line-height: 1.2; }
+    .hub-wms-btn-sub { font-size: 10px; color: rgba(255,255,255,.65); margin-top: 1px; font-weight: 400; }
+    .hub-wms-cfg-btn {
+      opacity: 0; position: absolute; top: 6px; right: 8px;
+      background: rgba(255,255,255,.15); border: none; border-radius: 5px;
+      color: #fff; font-size: 11px; padding: 2px 6px; cursor: pointer;
+      font-family: inherit; transition: opacity .15s, background .15s;
+    }
+    .hub-wms-wrap:hover .hub-wms-cfg-btn { opacity: 1; }
+    .hub-wms-cfg-btn:hover { background: rgba(255,255,255,.3); }
+    .hub-wms-add-btn {
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      width: 100%; padding: 9px 14px; background: rgba(47,133,90,.15);
+      border: 1px dashed #2f855a; color: #68d391; border-radius: 10px;
+      font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: all .15s;
+    }
+    .hub-wms-add-btn:hover { background: rgba(47,133,90,.3); border-style: solid; }
     /* 파일 바로가기 */
     .hub-file-item {
       display: flex; align-items: center; gap: 8px; padding: 7px 16px;
@@ -161,6 +199,7 @@ function initNav(currentPage) {
     <a href="hub.html" class="hub-home-btn ${currentPage === 'hub.html' ? 'active' : ''}">
       🏠 <span>대시보드 홈</span>
     </a>
+    <div class="hub-wms-wrap" id="hub-wms-wrap"></div>
   `;
 
   navItems.forEach(item => {
@@ -195,6 +234,7 @@ function initNav(currentPage) {
   const sidebarEl = document.getElementById('sidebar');
   if (sidebarEl) {
     sidebarEl.innerHTML = `<nav class="hub-sidebar">${navHTML}</nav>`;
+    renderWmsButton();
     renderHubFileShortcuts();
   }
 
@@ -353,4 +393,106 @@ function hubFileDelete(idx) {
   list.splice(idx, 1);
   saveFileShortcuts(list);
   renderHubFileShortcuts();
+}
+
+/* ════════════════════════════════════════
+   WMS 런처
+════════════════════════════════════════ */
+const WMS_CONFIG_KEY = 'hub_wms_config_v1';
+
+function getWmsConfig() {
+  try { return JSON.parse(localStorage.getItem(WMS_CONFIG_KEY) || 'null'); } catch { return null; }
+}
+function saveWmsConfig(cfg) {
+  if (cfg) localStorage.setItem(WMS_CONFIG_KEY, JSON.stringify(cfg));
+  else localStorage.removeItem(WMS_CONFIG_KEY);
+}
+
+function renderWmsButton() {
+  const wrap = document.getElementById('hub-wms-wrap');
+  if (!wrap) return;
+  const cfg = getWmsConfig();
+  if (!cfg) {
+    wrap.innerHTML = `
+      <button class="hub-wms-add-btn" onclick="hubWmsSetup()">
+        <span style="font-size:16px;">🖥️</span>
+        <span>WMS 프로그램 등록</span>
+      </button>`;
+    return;
+  }
+  const isUrl = cfg.path.startsWith('http://') || cfg.path.startsWith('https://');
+  const subLabel = isUrl ? '🌐 웹 브라우저로 열기' : '💻 로컬 프로그램 실행';
+  wrap.innerHTML = `
+    <button class="hub-wms-btn" onclick="hubWmsOpen()">
+      <div class="hub-wms-btn-icon">🖥️</div>
+      <div class="hub-wms-btn-text">
+        <div class="hub-wms-btn-label">${cfg.name}</div>
+        <div class="hub-wms-btn-sub">${subLabel}</div>
+      </div>
+    </button>
+    <button class="hub-wms-cfg-btn" onclick="event.stopPropagation();hubWmsSetup()" title="WMS 설정 변경">⚙️ 설정</button>`;
+}
+
+async function hubWmsOpen() {
+  const cfg = getWmsConfig();
+  if (!cfg) { hubWmsSetup(); return; }
+
+  // 웹 URL 이면 새 탭으로 열기
+  if (cfg.path.startsWith('http://') || cfg.path.startsWith('https://')) {
+    window.open(cfg.path, '_blank');
+    return;
+  }
+
+  // 로컬 프로그램 실행
+  const token = sessionStorage.getItem('adminToken');
+  try {
+    const res = await fetch(`/api/open-file?path=${encodeURIComponent(cfg.path)}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'LOCAL_ONLY') {
+        alert('⚠️ WMS 실행은 로컬 서버에서만 가능합니다.\n\n시작_Python.bat 으로 서버를 실행한 후\n브라우저에서 localhost:3000 으로 접속해 주세요.');
+      } else if (res.status === 404) {
+        alert('❌ WMS 프로그램을 찾을 수 없습니다.\n\n경로를 확인해 주세요:\n' + cfg.path);
+      } else {
+        alert('WMS 실행 실패: ' + (data.error || '알 수 없는 오류'));
+      }
+    }
+    // 성공 시 WMS가 열림 — 별도 알림 없음
+  } catch (e) {
+    alert('서버 연결 오류: ' + e.message);
+  }
+}
+
+function hubWmsSetup() {
+  const cfg = getWmsConfig();
+  const defaultName = cfg ? cfg.name : 'WMS';
+  const name = prompt(
+    'WMS 표시 이름을 입력하세요\n(예: 우리WMS, CJ WMS, 이카운트ERP)',
+    defaultName
+  );
+  if (name === null) return;  // 취소
+  if (!name.trim()) { alert('이름을 입력해주세요.'); return; }
+
+  const defaultPath = cfg ? cfg.path : '';
+  const path = prompt(
+    'WMS 경로를 입력하세요\n\n' +
+    '【웹 주소】 http://192.168.1.100:8080/wms\n' +
+    '【실행파일】 C:\\WMS\\launcher.exe\n\n' +
+    '웹 주소(http://)를 입력하면 브라우저에서 열립니다.\n' +
+    '실행파일 경로를 입력하면 로컬 서버에서 프로그램을 실행합니다.',
+    defaultPath
+  );
+  if (path === null) return;  // 취소
+  if (!path.trim()) { alert('경로를 입력해주세요.'); return; }
+
+  saveWmsConfig({ name: name.trim(), path: path.trim() });
+  renderWmsButton();
+}
+
+function hubWmsRemove() {
+  if (!confirm('WMS 설정을 삭제하시겠습니까?')) return;
+  saveWmsConfig(null);
+  renderWmsButton();
 }
