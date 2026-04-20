@@ -37,7 +37,8 @@ function initNav(currentPage) {
     }
     .hub-logout-btn:hover { background: #c53030; }
     .hub-main {
-      margin-left: 220px; padding: 24px; min-height: 100vh; background: #f0f4f8;
+      margin-left: 220px; padding: 24px 28px; min-height: 100vh; background: #f0f4f8;
+      flex: 1; min-width: 0; width: calc(100% - 220px);
     }
     .hub-page-title {
       font-size: 22px; font-weight: 700; color: #1a202c;
