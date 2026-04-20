@@ -198,7 +198,7 @@
       try {
         const res = await fetch('/api/vendors', { headers: authH() });
         if (!res.ok) throw new Error();
-        vendors = await res.json();
+        vendors = (await res.json()).data || [];
       } catch {
         vendors = [];
       }

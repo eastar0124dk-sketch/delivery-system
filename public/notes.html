@@ -143,7 +143,7 @@
       try {
         const res = await fetch('/api/memos', { headers: authH() });
         if (!res.ok) throw new Error();
-        notes = await res.json();
+        notes = (await res.json()).data || [];
       } catch {
         notes = [];
       }

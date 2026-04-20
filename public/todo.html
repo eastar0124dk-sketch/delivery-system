@@ -156,7 +156,7 @@
       try {
         const res = await fetch('/api/todos', { headers: authH() });
         if (!res.ok) throw new Error();
-        todos = await res.json();
+        todos = (await res.json()).data || [];
         renderTodos();
       } catch {
         document.getElementById('todoList').innerHTML = '<div class="empty-msg" style="color:#fc8181">데이터를 불러올 수 없습니다.</div>';
@@ -234,12 +234,10 @@
       };
       try {
         const res = await fetch('/api/todos', { method: 'POST', headers: authH(), body: JSON.stringify(body) });
-        if (!res.ok) throw new Error();
-        const newTodo = await res.json();
-        todos.unshift(newTodo);
-        renderTodos();
+        if (!res.ok) { const e = await res.json().catch(()=>({error:res.status})); throw new Error(e.error||res.status); }
         closeModal();
-      } catch { alert('추가에 실패했습니다.'); }
+        await loadTodos();
+      } catch(e) { alert('추가에 실패했습니다: ' + e.message); }
     }
 
     function setFilter(f, el) {

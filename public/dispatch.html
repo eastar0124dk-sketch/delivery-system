@@ -459,7 +459,7 @@
   async function loadData() {
     try {
       const res  = await fetch(`/api/dispatch?client=${currentClient}`, { headers: authH() });
-      dispatchData = await res.json();
+      dispatchData = (await res.json()).data || [];
       renderTable();
       renderSummary();
     } catch (e) {

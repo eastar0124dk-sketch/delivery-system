@@ -244,7 +244,7 @@
         if (!res.ok) throw new Error();
         const raw = await res.json();
         // 서버 필드명(event_date 등) → 클라이언트 필드명(date 등)으로 정규화
-        events = raw.map(e => ({
+        events = (raw.data || raw).map(e => ({
           id:    e.id,
           title: e.title,
           date:  e.event_date  || e.date  || '',
