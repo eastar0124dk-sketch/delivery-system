@@ -320,7 +320,16 @@ async function hubFileOpen(idx) {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await res.json();
-    if (!res.ok) alert('파일 열기 실패: ' + (data.error || '알 수 없는 오류'));
+    if (!res.ok) {
+      if (data.error === 'LOCAL_ONLY') {
+        alert('⚠️ 파일 열기는 로컬 서버에서만 가능합니다.\n\n시작_Python.bat 으로 서버를 실행한 후\n브라우저에서 localhost:3000 으로 접속해 주세요.');
+      } else if (res.status === 404) {
+        alert('❌ 파일을 찾을 수 없습니다.\n\n경로를 확인해 주세요:\n' + f.path);
+      } else {
+        alert('파일 열기 실패: ' + (data.error || '알 수 없는 오류'));
+      }
+    }
+    // 성공 시 별도 알림 없음 (파일이 그냥 열림)
   } catch (e) {
     alert('서버 연결 오류: ' + e.message);
   }

@@ -664,17 +664,39 @@ class Handler(BaseHTTPRequestHandler):
             fpath = g('path', '')
             if not fpath:
                 return self.send_json({'error': '파일 경로가 없습니다.'}, 400)
+            import sys as _sys
+            if _sys.platform != 'win32':
+                return self.send_json({'error': 'LOCAL_ONLY', 'msg': '이 기능은 로컬 PC 서버에서만 사용 가능합니다.\n시작.bat으로 서버를 실행 후 localhost:3000 에서 접속하세요.'}, 400)
+            if not os.path.exists(fpath):
+                return self.send_json({'error': f'파일을 찾을 수 없습니다:\n{fpath}'}, 404)
             try:
-                import subprocess, sys
-                if sys.platform == 'win32':
-                    os.startfile(fpath)
-                elif sys.platform == 'darwin':
-                    subprocess.Popen(['open', fpath])
-                else:
-                    subprocess.Popen(['xdg-open', fpath])
+                os.startfile(fpath)
                 return self.send_json({'ok': True, 'path': fpath})
             except Exception as e:
                 return self.send_json({'error': str(e)}, 500)
+
+        # ── 로컬 파일 다운로드 (브라우저에서 직접 열기용) ──
+        if path == '/api/download-file':
+            if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
+            fpath = g('path', '')
+            if not fpath: return self.send_json({'error': '경로 없음'}, 400)
+            import sys as _sys2
+            if _sys2.platform != 'win32':
+                return self.send_json({'error': 'LOCAL_ONLY'}, 400)
+            if not os.path.exists(fpath):
+                return self.send_json({'error': f'파일 없음: {fpath}'}, 404)
+            try:
+                fname = os.path.basename(fpath)
+                with open(fpath, 'rb') as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                self.send_header('Content-Disposition', f'attachment; filename*=UTF-8\'\'{urllib.parse.quote(fname)}')
+                self.send_header('Content-Length', str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            except Exception as e:
+                self.send_json({'error': str(e)}, 500)
 
         if path == '/api/auth/check':
             if self.token_ok(): return self.send_json({'ok': True})
