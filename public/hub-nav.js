@@ -132,6 +132,23 @@ function initNav(currentPage) {
     }
     .hub-home-btn:hover { opacity: .88; }
     .hub-home-btn.active { background: linear-gradient(135deg,#4c51bf,#553c9a); }
+    /* 파일 바로가기 */
+    .hub-file-item {
+      display: flex; align-items: center; gap: 8px; padding: 7px 16px;
+      color: #9ae6b4; font-size: 12px; cursor: pointer;
+      transition: all .15s; border: none; background: none;
+      width: 100%; text-align: left; font-family: inherit;
+    }
+    .hub-file-item:hover { background: #2d3748; color: #68d391; }
+    .hub-file-item .file-name {
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .hub-file-edit-btn {
+      opacity: 0; font-size: 10px; color: #718096; padding: 1px 5px;
+      border: none; background: none; cursor: pointer; border-radius: 4px;
+    }
+    .hub-file-item:hover .hub-file-edit-btn { opacity: 1; }
+    .hub-file-edit-btn:hover { color: #fc8181; }
   `;
   document.head.appendChild(style2);
 
@@ -160,6 +177,15 @@ function initNav(currentPage) {
     }
   });
 
+  // ── 파일 바로가기 섹션 ──
+  navHTML += `<div class="hub-section">📁 파일 바로가기</div>`;
+  navHTML += `<div id="hub-file-shortcuts"></div>`;
+  navHTML += `
+    <button class="hub-nav-item" onclick="hubFileAdd()" style="color:#68d391;font-size:12px;">
+      <span class="nav-icon">＋</span><span>파일 추가</span>
+    </button>
+  `;
+
   navHTML += `
     <div class="hub-logout">
       <button class="hub-logout-btn" onclick="hubLogout()">🚪 로그아웃</button>
@@ -169,6 +195,7 @@ function initNav(currentPage) {
   const sidebarEl = document.getElementById('sidebar');
   if (sidebarEl) {
     sidebarEl.innerHTML = `<nav class="hub-sidebar">${navHTML}</nav>`;
+    renderHubFileShortcuts();
   }
 
   // Mobile toggle button
@@ -252,4 +279,69 @@ function initNav(currentPage) {
 function hubLogout() {
   sessionStorage.clear();
   location.href = 'index.html';
+}
+
+/* ════════════════════════════════════════
+   파일 바로가기 (로컬 파일 열기)
+════════════════════════════════════════ */
+const FILE_SHORTCUTS_KEY = 'hub_file_shortcuts_v1';
+
+function getFileShortcuts() {
+  try { return JSON.parse(localStorage.getItem(FILE_SHORTCUTS_KEY) || '[]'); } catch { return []; }
+}
+function saveFileShortcuts(list) {
+  localStorage.setItem(FILE_SHORTCUTS_KEY, JSON.stringify(list));
+}
+
+function renderHubFileShortcuts() {
+  const wrap = document.getElementById('hub-file-shortcuts');
+  if (!wrap) return;
+  const list = getFileShortcuts();
+  if (!list.length) {
+    wrap.innerHTML = `<div style="padding:6px 16px;font-size:11px;color:#4a5568;">등록된 파일이 없습니다</div>`;
+    return;
+  }
+  wrap.innerHTML = list.map((f, i) => `
+    <button class="hub-file-item" onclick="hubFileOpen(${i})" title="${f.path}">
+      <span style="font-size:14px;">📊</span>
+      <span class="file-name">${f.name}</span>
+      <button class="hub-file-edit-btn" onclick="event.stopPropagation();hubFileDelete(${i})" title="삭제">✕</button>
+    </button>
+  `).join('');
+}
+
+async function hubFileOpen(idx) {
+  const list = getFileShortcuts();
+  const f = list[idx];
+  if (!f) return;
+  const token = sessionStorage.getItem('adminToken');
+  try {
+    const res = await fetch(`/api/open-file?path=${encodeURIComponent(f.path)}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) alert('파일 열기 실패: ' + (data.error || '알 수 없는 오류'));
+  } catch (e) {
+    alert('서버 연결 오류: ' + e.message);
+  }
+}
+
+function hubFileAdd() {
+  const name = prompt('표시 이름 (예: 보세 반출입 내역)');
+  if (!name) return;
+  const path = prompt('파일 전체 경로\n예: C:\\Users\\dkchoi\\Desktop\\업무\\bonded.xlsx');
+  if (!path) return;
+  const list = getFileShortcuts();
+  list.push({ name: name.trim(), path: path.trim() });
+  saveFileShortcuts(list);
+  renderHubFileShortcuts();
+}
+
+function hubFileDelete(idx) {
+  const list = getFileShortcuts();
+  const f = list[idx];
+  if (!confirm(`"${f.name}" 바로가기를 삭제하시겠습니까?`)) return;
+  list.splice(idx, 1);
+  saveFileShortcuts(list);
+  renderHubFileShortcuts();
 }

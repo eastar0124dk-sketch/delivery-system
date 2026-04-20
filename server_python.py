@@ -69,7 +69,8 @@ if DATABASE_URL:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         for col in ['work_fee TEXT','return_fee TEXT','delivery_note TEXT','vehicle_type TEXT',
                     'origin TEXT','origin_address TEXT','contact_person TEXT','contact_phone TEXT',
-                    'transport_type TEXT','dest_sido TEXT','dest_sigun TEXT','origin_sido TEXT','origin_sigun TEXT']:
+                    'transport_type TEXT','dest_sido TEXT','dest_sigun TEXT','origin_sido TEXT','origin_sigun TEXT',
+                    'client_code TEXT']:
             try: cur.execute(f"ALTER TABLE delivery_records ADD COLUMN IF NOT EXISTS {col}")
             except: pass
         cur.execute('''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)''')
@@ -193,7 +194,8 @@ else:
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
         for col in ['work_fee TEXT','return_fee TEXT','delivery_note TEXT','vehicle_type TEXT',
                     'origin TEXT','origin_address TEXT','contact_person TEXT','contact_phone TEXT',
-                    'transport_type TEXT','dest_sido TEXT','dest_sigun TEXT','origin_sido TEXT','origin_sigun TEXT']:
+                    'transport_type TEXT','dest_sido TEXT','dest_sigun TEXT','origin_sido TEXT','origin_sigun TEXT',
+                    'client_code TEXT']:
             try: c.execute(f'ALTER TABLE delivery_records ADD COLUMN {col}'); c.commit()
             except: pass
         c.execute('''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)''')
@@ -656,6 +658,24 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/config':
             return self.send_json({'companyName': COMPANY})
 
+        # ── 로컬 파일 열기 (Windows os.startfile) ──
+        if path == '/api/open-file':
+            if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
+            fpath = g('path', '')
+            if not fpath:
+                return self.send_json({'error': '파일 경로가 없습니다.'}, 400)
+            try:
+                import subprocess, sys
+                if sys.platform == 'win32':
+                    os.startfile(fpath)
+                elif sys.platform == 'darwin':
+                    subprocess.Popen(['open', fpath])
+                else:
+                    subprocess.Popen(['xdg-open', fpath])
+                return self.send_json({'ok': True, 'path': fpath})
+            except Exception as e:
+                return self.send_json({'error': str(e)}, 500)
+
         if path == '/api/auth/check':
             if self.token_ok(): return self.send_json({'ok': True})
             return self.send_json({'error':'Unauthorized'}, 401)
@@ -723,16 +743,18 @@ class Handler(BaseHTTPRequestHandler):
             if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
             search = g('search'); dn = g('dn'); company = g('company')
             date_from = g('dateFrom'); date_to = g('dateTo'); status = g('status')
+            client_code = g('client_code')
             limit = int(g('limit','1000') or 1000)
             sql = 'SELECT * FROM delivery_records WHERE 1=1'; params = []
             if search:
                 sql += ' AND (order_no LIKE ? OR customer_company LIKE ? OR receiver_name LIKE ? OR product_name LIKE ?)'
                 s = f'%{search}%'; params += [s,s,s,s]
-            if dn:        sql += ' AND order_no LIKE ?';         params.append(f'%{dn}%')
-            if company:   sql += ' AND customer_company LIKE ?'; params.append(f'%{company}%')
-            if date_from: sql += ' AND delivery_date >= ?';      params.append(date_from)
-            if date_to:   sql += ' AND delivery_date <= ?';      params.append(date_to)
-            if status:    sql += ' AND status=?';                params.append(status)
+            if dn:          sql += ' AND order_no LIKE ?';         params.append(f'%{dn}%')
+            if company:     sql += ' AND customer_company LIKE ?'; params.append(f'%{company}%')
+            if date_from:   sql += ' AND delivery_date >= ?';      params.append(date_from)
+            if date_to:     sql += ' AND delivery_date <= ?';      params.append(date_to)
+            if status:      sql += ' AND status=?';                params.append(status)
+            if client_code: sql += ' AND client_code=?';           params.append(client_code)
             sql += ' ORDER BY created_at DESC LIMIT ?'; params.append(limit)
             return self.send_json({'data': db_fetchall(sql, params)})
 
@@ -928,8 +950,8 @@ class Handler(BaseHTTPRequestHandler):
                          driver_name,driver_phone,vehicle_no,wait_time,work_time,
                          waste_collection,extra_locations,notes,
                          delivery_note,vehicle_type,
-                         origin,origin_address,contact_person,contact_phone)
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                         origin,origin_address,contact_person,contact_phone,client_code)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
                     (body['order_no'], body.get('delivery_date'), body.get('arrival_time'),
                      body.get('product_name'), body.get('quantity'), body.get('customer_company'),
                      body.get('customer_address'), body.get('receiver_name'), body.get('receiver_phone'),
@@ -938,7 +960,8 @@ class Handler(BaseHTTPRequestHandler):
                      body.get('extra_locations'), body.get('notes'),
                      body.get('delivery_note'), body.get('vehicle_type'),
                      body.get('origin'), body.get('origin_address'),
-                     body.get('contact_person'), body.get('contact_phone')))
+                     body.get('contact_person'), body.get('contact_phone'),
+                     body.get('client_code', '')))
                 return self.send_json({'id': new_id, **body})
             except INTEGRITY_EXC:
                 return self.send_json({'error': f"DN번호 [{body.get('order_no')}]이 이미 등록되어 있습니다."}, 400)
