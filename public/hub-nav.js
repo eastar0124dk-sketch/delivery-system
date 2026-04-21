@@ -114,6 +114,7 @@ function initNav(currentPage) {
     { href: 'journal_chanel.html',  icon: '💄', label: '샤넬 업무일지' },
     { href: 'bonded.html',          icon: '🚢', label: '보세 반입/출' },
     { href: 'ot.html',              icon: '⏰', label: 'OT 내역 관리' },
+    { href: 'ot_fee.html',         icon: '⏱️', label: 'OT Fee 관리 (MT)' },
     { section: '📦 오더 시스템' },
     { href: 'admin.html',   icon: '🗂️', label: '오더 관리' },
     { href: 'list.html',    icon: '🔍', label: '조회/출력' },
