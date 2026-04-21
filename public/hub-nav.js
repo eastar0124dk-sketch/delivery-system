@@ -209,11 +209,9 @@ function initNav(currentPage) {
     .hub-section-collapsible:hover { color: #a0aec0; }
     .hub-group-arrow { font-size: 10px; transition: transform .22s ease; flex-shrink: 0; }
     .hub-group-arrow.open { transform: rotate(90deg); }
-    .hub-group-wrap {
-      overflow: hidden; transition: max-height .25s ease, opacity .2s;
-    }
-    .hub-group-open  { max-height: 400px; opacity: 1; }
-    .hub-group-closed { max-height: 0;    opacity: 0; }
+    .hub-group-wrap { overflow: hidden; }
+    .hub-group-open  { display: block !important; }
+    .hub-group-closed { display: none !important; }
   `;
   document.head.appendChild(style2);
 
@@ -548,8 +546,12 @@ function sidebarGroupIsOpen(key, currentPage, groups) {
   // 직접 저장된 상태 우선
   if (key in states) return states[key];
   // 현재 페이지가 이 그룹 소속이면 자동으로 열기
-  if (groups && groups[key] && groups[key].includes(currentPage)) return true;
-  return false; // 기본: 접힌 상태
+  // (.html 유무 모두 허용: 'journal_mettler' 또는 'journal_mettler.html')
+  if (groups && groups[key]) {
+    const normalized = currentPage.endsWith('.html') ? currentPage : currentPage + '.html';
+    if (groups[key].includes(currentPage) || groups[key].includes(normalized)) return true;
+  }
+  return true; // 기본: 열린 상태 (처음 접속 시 메뉴 보이게)
 }
 
 function toggleSidebarGroup(key) {
