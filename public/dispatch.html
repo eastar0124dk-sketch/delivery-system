@@ -28,7 +28,7 @@
       justify-content: space-between;
       margin-bottom: 24px;
     }
-    .page-title {
+    .hub-page-title {
       font-size: 22px;
       font-weight: 700;
       background: linear-gradient(135deg, #667eea, #764ba2);
@@ -76,14 +76,17 @@
       gap: 16px;
       margin-bottom: 24px;
     }
+    .summary-cards.chanel {
+      grid-template-columns: repeat(5, 1fr);
+    }
     .summary-card {
       background: white;
       border-radius: 16px;
       box-shadow: 0 2px 12px rgba(0,0,0,.08);
-      padding: 24px;
+      padding: 20px;
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
     }
     .summary-icon {
       width: 48px;
@@ -96,12 +99,19 @@
       color: white;
       flex-shrink: 0;
     }
+    /* Mettler icons */
     .icon-carrier { background: linear-gradient(135deg, #667eea, #764ba2); }
     .icon-shipper { background: linear-gradient(135deg, #f093fb, #f5576c); }
     .icon-margin  { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+    /* Chanel icons */
+    .icon-act     { background: linear-gradient(135deg, #11998e, #38ef7d); }
+    .icon-k1      { background: linear-gradient(135deg, #f7971e, #ffd200); }
+    .icon-pass    { background: linear-gradient(135deg, #8e2de2, #4a00e0); }
+    .icon-diff    { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+    .icon-rate    { background: linear-gradient(135deg, #43e97b, #38f9d7); }
     .summary-info { min-width: 0; }
     .summary-label { font-size: 12px; color: #888; margin-bottom: 4px; }
-    .summary-value { font-size: 20px; font-weight: 700; color: #222; }
+    .summary-value { font-size: 18px; font-weight: 700; color: #222; }
     /* 툴바 */
     .toolbar {
       display: flex;
@@ -269,9 +279,19 @@
       border: none;
     }
     .btn-cancel:hover { background: #e0e7f0; }
+    /* 자동계산 필드 */
+    .calc-field {
+      background: #f8f9fa;
+      color: #667eea;
+      font-weight: 600;
+    }
     /* 반응형 */
+    @media (max-width: 1200px) {
+      .summary-cards.chanel { grid-template-columns: repeat(3, 1fr); }
+    }
     @media (max-width: 900px) {
       .summary-cards { grid-template-columns: 1fr; }
+      .summary-cards.chanel { grid-template-columns: 1fr; }
       .form-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 600px) {
@@ -286,7 +306,7 @@
 
 <main class="hub-main">
   <div class="page-header">
-    <h1 class="page-title"><i class="fa fa-truck" style="margin-right:8px;"></i>차량 배차 관리</h1>
+    <h1 class="hub-page-title"><i class="fa fa-truck" style="margin-right:8px;"></i>차량 배차 관리</h1>
   </div>
 
   <!-- 클라이언트 탭 -->
@@ -295,8 +315,9 @@
     <button class="client-tab" id="tab-chanel" onclick="switchClient('chanel')">샤넬코리아</button>
   </div>
 
-  <!-- 요약 카드 -->
-  <div class="summary-cards">
+  <!-- 요약 카드 영역 (JS로 교체) -->
+  <div class="summary-cards" id="summary-cards-area">
+    <!-- Mettler 카드 (기본) -->
     <div class="summary-card">
       <div class="summary-icon icon-carrier"><i class="fa fa-truck"></i></div>
       <div class="summary-info">
@@ -332,7 +353,7 @@
   <!-- 테이블 -->
   <div class="table-wrap">
     <table id="dispatch-table">
-      <thead>
+      <thead id="dispatch-table-head">
         <tr>
           <th>날짜</th>
           <th>출발지</th>
@@ -364,70 +385,161 @@
       <button class="modal-close" onclick="closeModal()"><i class="fa fa-times"></i></button>
     </div>
     <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-group">
-          <label>날짜</label>
-          <input type="date" id="f-date" />
-        </div>
-        <div class="form-group">
-          <label>차량종류</label>
-          <select id="f-vehicle">
-            <option value="">선택</option>
-            <option>1톤</option>
-            <option>2.5톤</option>
-            <option>5톤</option>
-            <option>11톤</option>
-            <option>윙바디</option>
-            <option>탑차</option>
-            <option>오토바이</option>
-            <option>기타</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>출발지</label>
-          <input type="text" id="f-origin" placeholder="출발지 입력" />
-        </div>
-        <div class="form-group">
-          <label>도착지</label>
-          <input type="text" id="f-destination" placeholder="도착지 입력" />
-        </div>
-        <div class="form-group full">
-          <label>화물내용</label>
-          <input type="text" id="f-cargo" placeholder="화물 내용 입력" />
-        </div>
-        <div class="form-group">
-          <label>운송사운임 (원)</label>
-          <input type="text" id="f-carrier-fee" placeholder="0" inputmode="numeric" />
-        </div>
-        <div class="form-group">
-          <label>운송사작업비 (원)</label>
-          <input type="text" id="f-carrier-work" placeholder="0" inputmode="numeric" />
-        </div>
-        <div class="form-group">
-          <label>화주운임 (원)</label>
-          <input type="text" id="f-shipper-fee" placeholder="0" inputmode="numeric" />
-        </div>
-        <div class="form-group">
-          <label>화주작업비 (원)</label>
-          <input type="text" id="f-shipper-work" placeholder="0" inputmode="numeric" />
-        </div>
-        <div class="form-group">
-          <label>담당자</label>
-          <input type="text" id="f-assigned" placeholder="담당자명" />
-        </div>
-        <div class="form-group">
-          <label>연락처</label>
-          <input type="text" id="f-contact" placeholder="010-0000-0000" />
-        </div>
-        <div class="form-group">
-          <label>운송사명</label>
-          <input type="text" id="f-carrier-name" placeholder="운송사명" />
-        </div>
-        <div class="form-group full">
-          <label>비고</label>
-          <textarea id="f-notes" placeholder="기타 메모"></textarea>
+
+      <!-- ===== 메틀러토레도 폼 ===== -->
+      <div id="form-mettler">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>날짜</label>
+            <input type="date" id="f-date" />
+          </div>
+          <div class="form-group">
+            <label>차량종류</label>
+            <select id="f-vehicle">
+              <option value="">선택</option>
+              <option>1톤</option>
+              <option>2.5톤</option>
+              <option>5톤</option>
+              <option>11톤</option>
+              <option>윙바디</option>
+              <option>탑차</option>
+              <option>오토바이</option>
+              <option>기타</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>출발지</label>
+            <input type="text" id="f-origin" placeholder="출발지 입력" />
+          </div>
+          <div class="form-group">
+            <label>도착지</label>
+            <input type="text" id="f-destination" placeholder="도착지 입력" />
+          </div>
+          <div class="form-group full">
+            <label>화물내용</label>
+            <input type="text" id="f-cargo" placeholder="화물 내용 입력" />
+          </div>
+          <div class="form-group">
+            <label>운송사운임 (원)</label>
+            <input type="text" id="f-carrier-fee" placeholder="0" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label>운송사작업비 (원)</label>
+            <input type="text" id="f-carrier-work" placeholder="0" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label>화주운임 (원)</label>
+            <input type="text" id="f-shipper-fee" placeholder="0" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label>화주작업비 (원)</label>
+            <input type="text" id="f-shipper-work" placeholder="0" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label>담당자</label>
+            <input type="text" id="f-assigned" placeholder="담당자명" />
+          </div>
+          <div class="form-group">
+            <label>연락처</label>
+            <input type="text" id="f-contact" placeholder="010-0000-0000" />
+          </div>
+          <div class="form-group">
+            <label>운송사명</label>
+            <input type="text" id="f-carrier-name" placeholder="운송사명" />
+          </div>
+          <div class="form-group full">
+            <label>비고</label>
+            <textarea id="f-notes" placeholder="기타 메모"></textarea>
+          </div>
         </div>
       </div>
+
+      <!-- ===== 샤넬코리아 폼 ===== -->
+      <div id="form-chanel" style="display:none;">
+        <div class="form-grid">
+          <!-- Row 1 -->
+          <div class="form-group">
+            <label>차량사용일</label>
+            <input type="date" id="c-date" />
+          </div>
+          <div class="form-group">
+            <label>차종</label>
+            <select id="c-vehicle">
+              <option value="">선택</option>
+              <option>다마스</option>
+              <option>1톤</option>
+              <option>2.5톤</option>
+              <option>3.5톤</option>
+              <option>5톤</option>
+              <option>11톤</option>
+            </select>
+          </div>
+          <!-- Row 2 -->
+          <div class="form-group">
+            <label>출발지</label>
+            <input type="text" id="c-origin" value="김포" placeholder="출발지" />
+          </div>
+          <div class="form-group">
+            <label>도착지</label>
+            <input type="text" id="c-destination" value="부천" placeholder="도착지" />
+          </div>
+          <!-- Row 3 -->
+          <div class="form-group">
+            <label>내용</label>
+            <select id="c-cargo">
+              <option value="">선택</option>
+              <option>출고</option>
+              <option>입고</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>운송사</label>
+            <select id="c-carrier-name">
+              <option value="">선택</option>
+              <option>ACT</option>
+              <option>패스</option>
+              <option>K1</option>
+            </select>
+          </div>
+          <!-- Row 4 -->
+          <div class="form-group">
+            <label>배차요청</label>
+            <select id="c-notes">
+              <option value="">선택</option>
+              <option>화장품</option>
+              <option>패션</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>운송요청</label>
+            <input type="text" id="c-assigned" placeholder="운송요청자명" />
+          </div>
+          <!-- Row 5 -->
+          <div class="form-group">
+            <label>비용 단가 (원)</label>
+            <input type="text" id="c-carrier-fee" placeholder="0" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label>수량</label>
+            <input type="number" id="c-carrier-work" placeholder="0" min="0" step="1" />
+          </div>
+          <!-- Row 6 -->
+          <div class="form-group">
+            <label>합계 (자동계산)</label>
+            <input type="text" id="c-subtotal" class="calc-field" readonly placeholder="0" />
+          </div>
+          <div class="form-group">
+            <label>청구금액 단가 (원)</label>
+            <input type="text" id="c-shipper-fee" placeholder="0" inputmode="numeric" />
+          </div>
+          <!-- Row 7 -->
+          <div class="form-group full">
+            <label>청구합계 (자동계산)</label>
+            <input type="text" id="c-charge-total" class="calc-field" readonly placeholder="0" />
+          </div>
+        </div>
+      </div>
+
     </div>
     <div class="modal-footer">
       <button class="btn btn-cancel" onclick="closeModal()">취소</button>
@@ -447,11 +559,103 @@
   let dispatchData  = [];
   let editingId     = null;
 
+  // ── 테이블 헤더 정의 ─────────────────────────────────
+  const THEAD_METTLER = `<tr>
+    <th>날짜</th><th>출발지</th><th>도착지</th><th>화물내용</th>
+    <th>차량종류</th><th>운송사운임</th><th>운송사작업비</th>
+    <th>화주운임</th><th>화주작업비</th><th>담당</th>
+    <th>운송사명</th><th>비고</th><th>수정/삭제</th>
+  </tr>`;
+
+  const THEAD_CHANEL = `<tr>
+    <th>차량사용일</th><th>출발지</th><th>도착지</th><th>내용</th>
+    <th>비용</th><th>수량</th><th>합계</th>
+    <th>청구금액</th><th>청구합계</th>
+    <th>차종</th><th>배차요청</th><th>운송요청</th>
+    <th>운송사</th><th>수정/삭제</th>
+  </tr>`;
+
+  // ── 요약 카드 HTML 정의 ───────────────────────────────
+  const SUMMARY_METTLER = `
+    <div class="summary-card">
+      <div class="summary-icon icon-carrier"><i class="fa fa-truck"></i></div>
+      <div class="summary-info">
+        <div class="summary-label">운송사 합계</div>
+        <div class="summary-value" id="sum-carrier">0 원</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon icon-shipper"><i class="fa fa-building"></i></div>
+      <div class="summary-info">
+        <div class="summary-label">화주 합계</div>
+        <div class="summary-value" id="sum-shipper">0 원</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon icon-margin"><i class="fa fa-chart-line"></i></div>
+      <div class="summary-info">
+        <div class="summary-label">마진</div>
+        <div class="summary-value" id="sum-margin">0 원</div>
+      </div>
+    </div>`;
+
+  const SUMMARY_CHANEL = `
+    <div class="summary-card">
+      <div class="summary-icon icon-act"><i class="fa fa-truck"></i></div>
+      <div class="summary-info">
+        <div class="summary-label">ACT 합계</div>
+        <div class="summary-value" id="sum-act">0 원</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon icon-k1"><i class="fa fa-truck"></i></div>
+      <div class="summary-info">
+        <div class="summary-label">K1 합계</div>
+        <div class="summary-value" id="sum-k1">0 원</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon icon-pass"><i class="fa fa-truck"></i></div>
+      <div class="summary-info">
+        <div class="summary-label">패스 합계</div>
+        <div class="summary-value" id="sum-pass">0 원</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon icon-diff"><i class="fa fa-arrows-alt-v"></i></div>
+      <div class="summary-info">
+        <div class="summary-label">차이금액</div>
+        <div class="summary-value" id="sum-diff">0 원</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon icon-rate"><i class="fa fa-percentage"></i></div>
+      <div class="summary-info">
+        <div class="summary-label">수익율</div>
+        <div class="summary-value" id="sum-rate">0%</div>
+      </div>
+    </div>`;
+
   // ── 클라이언트 전환 ──────────────────────────────────
   function switchClient(client) {
     currentClient = client;
     document.getElementById('tab-mettler').classList.toggle('active', client === 'mettler');
     document.getElementById('tab-chanel').classList.toggle('active', client === 'chanel');
+
+    // 요약 카드 교체
+    const area = document.getElementById('summary-cards-area');
+    if (client === 'mettler') {
+      area.className = 'summary-cards';
+      area.innerHTML = SUMMARY_METTLER;
+    } else {
+      area.className = 'summary-cards chanel';
+      area.innerHTML = SUMMARY_CHANEL;
+    }
+
+    // 테이블 헤더 교체
+    document.getElementById('dispatch-table-head').innerHTML =
+      client === 'mettler' ? THEAD_METTLER : THEAD_CHANEL;
+
     loadData();
   }
 
@@ -470,56 +674,121 @@
 
   // ── 요약 렌더 ────────────────────────────────────────
   function renderSummary() {
-    const carrierTotal = dispatchData.reduce((s, r) => s + (Number(r.carrier_fee) || 0) + (Number(r.carrier_work) || 0), 0);
-    const shipperTotal = dispatchData.reduce((s, r) => s + (Number(r.shipper_fee) || 0) + (Number(r.shipper_work) || 0), 0);
-    const margin       = shipperTotal - carrierTotal;
-    document.getElementById('sum-carrier').textContent = fmt(carrierTotal) + ' 원';
-    document.getElementById('sum-shipper').textContent = fmt(shipperTotal) + ' 원';
-    const el = document.getElementById('sum-margin');
-    el.textContent = fmt(margin) + ' 원';
-    el.style.color  = margin >= 0 ? '#22c55e' : '#ef4444';
+    if (currentClient === 'mettler') {
+      const carrierTotal = dispatchData.reduce((s, r) => s + (Number(r.carrier_fee) || 0) + (Number(r.carrier_work) || 0), 0);
+      const shipperTotal = dispatchData.reduce((s, r) => s + (Number(r.shipper_fee) || 0) + (Number(r.shipper_work) || 0), 0);
+      const margin       = shipperTotal - carrierTotal;
+      document.getElementById('sum-carrier').textContent = fmt(carrierTotal) + ' 원';
+      document.getElementById('sum-shipper').textContent = fmt(shipperTotal) + ' 원';
+      const el = document.getElementById('sum-margin');
+      el.textContent = fmt(margin) + ' 원';
+      el.style.color = margin >= 0 ? '#22c55e' : '#ef4444';
+    } else {
+      // Chanel: 청구합계 = shipper_fee × carrier_work, 비용합계 = carrier_fee × carrier_work
+      const actTotal  = dispatchData.filter(r => r.carrier_name === 'ACT')
+                          .reduce((s, r) => s + (Number(r.shipper_fee) || 0) * (Number(r.carrier_work) || 0), 0);
+      const k1Total   = dispatchData.filter(r => r.carrier_name === 'K1')
+                          .reduce((s, r) => s + (Number(r.shipper_fee) || 0) * (Number(r.carrier_work) || 0), 0);
+      const passTotal = dispatchData.filter(r => r.carrier_name === '패스')
+                          .reduce((s, r) => s + (Number(r.shipper_fee) || 0) * (Number(r.carrier_work) || 0), 0);
+
+      const totalCharge = dispatchData.reduce((s, r) => s + (Number(r.shipper_fee) || 0) * (Number(r.carrier_work) || 0), 0);
+      const totalCost   = dispatchData.reduce((s, r) => s + (Number(r.carrier_fee) || 0) * (Number(r.carrier_work) || 0), 0);
+      const diff        = totalCharge - totalCost;
+      const rate        = totalCost > 0 ? (diff / totalCost * 100) : null;
+
+      document.getElementById('sum-act').textContent  = fmt(actTotal) + ' 원';
+      document.getElementById('sum-k1').textContent   = fmt(k1Total) + ' 원';
+      document.getElementById('sum-pass').textContent = fmt(passTotal) + ' 원';
+
+      const diffEl = document.getElementById('sum-diff');
+      diffEl.textContent = fmt(diff) + ' 원';
+      diffEl.style.color = diff >= 0 ? '#22c55e' : '#ef4444';
+
+      const rateEl = document.getElementById('sum-rate');
+      rateEl.textContent = rate !== null ? rate.toFixed(1) + '%' : '-';
+      if (rate !== null) rateEl.style.color = rate >= 0 ? '#22c55e' : '#ef4444';
+    }
   }
 
   // ── 테이블 렌더 ──────────────────────────────────────
   function renderTable() {
     const tbody = document.getElementById('dispatch-body');
     document.getElementById('record-count').textContent = `총 ${dispatchData.length}건`;
+
     if (!dispatchData.length) {
-      tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><i class="fa fa-inbox"></i>등록된 배차가 없습니다.</div></td></tr>`;
+      const cols = currentClient === 'mettler' ? 13 : 14;
+      tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><i class="fa fa-inbox"></i>등록된 배차가 없습니다.</div></td></tr>`;
       return;
     }
-    tbody.innerHTML = dispatchData.map(r => `
-      <tr>
-        <td>${r.item_date || '-'}</td>
-        <td>${esc(r.origin)}</td>
-        <td>${esc(r.destination)}</td>
-        <td>${esc(r.cargo)}</td>
-        <td>${esc(r.vehicle_type)}</td>
-        <td style="text-align:right;">${fmt(r.carrier_fee)}</td>
-        <td style="text-align:right;">${fmt(r.carrier_work)}</td>
-        <td style="text-align:right;">${fmt(r.shipper_fee)}</td>
-        <td style="text-align:right;">${fmt(r.shipper_work)}</td>
-        <td>${esc(r.assigned_to)}</td>
-        <td>${esc(r.carrier_name)}</td>
-        <td>${esc(r.notes)}</td>
-        <td>
-          <div class="td-actions">
-            <button class="btn btn-edit" onclick="openEditModal(${r.id})"><i class="fa fa-pen"></i> 수정</button>
-            <button class="btn btn-danger" onclick="deleteDispatch(${r.id})"><i class="fa fa-trash"></i> 삭제</button>
-          </div>
-        </td>
-      </tr>`).join('');
+
+    if (currentClient === 'mettler') {
+      tbody.innerHTML = dispatchData.map(r => `
+        <tr>
+          <td>${r.item_date || '-'}</td>
+          <td>${esc(r.origin)}</td>
+          <td>${esc(r.destination)}</td>
+          <td>${esc(r.cargo)}</td>
+          <td>${esc(r.vehicle_type)}</td>
+          <td style="text-align:right;">${fmt(r.carrier_fee)}</td>
+          <td style="text-align:right;">${fmt(r.carrier_work)}</td>
+          <td style="text-align:right;">${fmt(r.shipper_fee)}</td>
+          <td style="text-align:right;">${fmt(r.shipper_work)}</td>
+          <td>${esc(r.assigned_to)}</td>
+          <td>${esc(r.carrier_name)}</td>
+          <td>${esc(r.notes)}</td>
+          <td>
+            <div class="td-actions">
+              <button class="btn btn-edit" onclick="openEditModal(${r.id})"><i class="fa fa-pen"></i> 수정</button>
+              <button class="btn btn-danger" onclick="deleteDispatch(${r.id})"><i class="fa fa-trash"></i> 삭제</button>
+            </div>
+          </td>
+        </tr>`).join('');
+    } else {
+      tbody.innerHTML = dispatchData.map(r => {
+        const subtotal     = (Number(r.carrier_fee) || 0) * (Number(r.carrier_work) || 0);
+        const chargeTotal  = (Number(r.shipper_fee) || 0) * (Number(r.carrier_work) || 0);
+        return `
+        <tr>
+          <td>${r.item_date || '-'}</td>
+          <td>${esc(r.origin)}</td>
+          <td>${esc(r.destination)}</td>
+          <td>${esc(r.cargo)}</td>
+          <td style="text-align:right;">${fmt(r.carrier_fee)}</td>
+          <td style="text-align:right;">${fmt(r.carrier_work)}</td>
+          <td style="text-align:right;color:#667eea;font-weight:600;">${fmt(subtotal)}</td>
+          <td style="text-align:right;">${fmt(r.shipper_fee)}</td>
+          <td style="text-align:right;color:#667eea;font-weight:600;">${fmt(chargeTotal)}</td>
+          <td>${esc(r.vehicle_type)}</td>
+          <td>${esc(r.notes)}</td>
+          <td>${esc(r.assigned_to)}</td>
+          <td>${esc(r.carrier_name)}</td>
+          <td>
+            <div class="td-actions">
+              <button class="btn btn-edit" onclick="openEditModal(${r.id})"><i class="fa fa-pen"></i> 수정</button>
+              <button class="btn btn-danger" onclick="deleteDispatch(${r.id})"><i class="fa fa-trash"></i> 삭제</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }
   }
 
   function renderEmpty(msg) {
+    const cols = currentClient === 'mettler' ? 13 : 14;
     document.getElementById('dispatch-body').innerHTML =
-      `<tr><td colspan="13"><div class="empty-state"><i class="fa fa-exclamation-circle"></i>${msg}</div></td></tr>`;
+      `<tr><td colspan="${cols}"><div class="empty-state"><i class="fa fa-exclamation-circle"></i>${msg}</div></td></tr>`;
   }
 
   // ── 모달 열기/닫기 ───────────────────────────────────
   function openAddModal() {
     editingId = null;
-    document.getElementById('modal-title').textContent = '배차 등록';
+    if (currentClient === 'mettler') {
+      document.getElementById('modal-title').textContent = '메틀러 배차 등록';
+    } else {
+      document.getElementById('modal-title').textContent = '샤넬 배차 등록';
+    }
+    showCorrectForm();
     clearForm();
     document.getElementById('dispatch-modal').classList.add('open');
   }
@@ -528,21 +797,45 @@
     editingId = id;
     const r = dispatchData.find(x => x.id === id);
     if (!r) return;
-    document.getElementById('modal-title').textContent = '배차 수정';
-    document.getElementById('f-date').value         = r.item_date || '';
-    document.getElementById('f-origin').value       = r.origin || '';
-    document.getElementById('f-destination').value  = r.destination || '';
-    document.getElementById('f-cargo').value        = r.cargo || '';
-    document.getElementById('f-vehicle').value      = r.vehicle_type || '';
-    document.getElementById('f-carrier-fee').value  = fmt(r.carrier_fee);
-    document.getElementById('f-carrier-work').value = fmt(r.carrier_work);
-    document.getElementById('f-shipper-fee').value  = fmt(r.shipper_fee);
-    document.getElementById('f-shipper-work').value = fmt(r.shipper_work);
-    document.getElementById('f-assigned').value     = r.assigned_to || '';
-    document.getElementById('f-contact').value      = r.contact || '';
-    document.getElementById('f-carrier-name').value = r.carrier_name || '';
-    document.getElementById('f-notes').value        = r.notes || '';
+
+    if (currentClient === 'mettler') {
+      document.getElementById('modal-title').textContent = '메틀러 배차 수정';
+      showCorrectForm();
+      document.getElementById('f-date').value         = r.item_date || '';
+      document.getElementById('f-origin').value       = r.origin || '';
+      document.getElementById('f-destination').value  = r.destination || '';
+      document.getElementById('f-cargo').value        = r.cargo || '';
+      document.getElementById('f-vehicle').value      = r.vehicle_type || '';
+      document.getElementById('f-carrier-fee').value  = fmtInput(r.carrier_fee);
+      document.getElementById('f-carrier-work').value = fmtInput(r.carrier_work);
+      document.getElementById('f-shipper-fee').value  = fmtInput(r.shipper_fee);
+      document.getElementById('f-shipper-work').value = fmtInput(r.shipper_work);
+      document.getElementById('f-assigned').value     = r.assigned_to || '';
+      document.getElementById('f-contact').value      = r.contact || '';
+      document.getElementById('f-carrier-name').value = r.carrier_name || '';
+      document.getElementById('f-notes').value        = r.notes || '';
+    } else {
+      document.getElementById('modal-title').textContent = '샤넬 배차 수정';
+      showCorrectForm();
+      document.getElementById('c-date').value         = r.item_date || '';
+      document.getElementById('c-vehicle').value      = r.vehicle_type || '';
+      document.getElementById('c-origin').value       = r.origin || '';
+      document.getElementById('c-destination').value  = r.destination || '';
+      document.getElementById('c-cargo').value        = r.cargo || '';
+      document.getElementById('c-carrier-name').value = r.carrier_name || '';
+      document.getElementById('c-notes').value        = r.notes || '';
+      document.getElementById('c-assigned').value     = r.assigned_to || '';
+      document.getElementById('c-carrier-fee').value  = fmtInput(r.carrier_fee);
+      document.getElementById('c-carrier-work').value = r.carrier_work || '';
+      document.getElementById('c-shipper-fee').value  = fmtInput(r.shipper_fee);
+      recalcChanel();
+    }
     document.getElementById('dispatch-modal').classList.add('open');
+  }
+
+  function showCorrectForm() {
+    document.getElementById('form-mettler').style.display = currentClient === 'mettler' ? '' : 'none';
+    document.getElementById('form-chanel').style.display  = currentClient === 'chanel'  ? '' : 'none';
   }
 
   function closeModal() {
@@ -551,32 +844,77 @@
   }
 
   function clearForm() {
-    ['f-date','f-origin','f-destination','f-cargo','f-carrier-fee',
-     'f-carrier-work','f-shipper-fee','f-shipper-work',
-     'f-assigned','f-contact','f-carrier-name','f-notes'].forEach(id => {
-      document.getElementById(id).value = '';
-    });
-    document.getElementById('f-vehicle').value = '';
+    if (currentClient === 'mettler') {
+      ['f-date','f-origin','f-destination','f-cargo','f-carrier-fee',
+       'f-carrier-work','f-shipper-fee','f-shipper-work',
+       'f-assigned','f-contact','f-carrier-name','f-notes'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('f-vehicle').value = '';
+    } else {
+      document.getElementById('c-date').value         = '';
+      document.getElementById('c-vehicle').value      = '';
+      document.getElementById('c-origin').value       = '김포';
+      document.getElementById('c-destination').value  = '부천';
+      document.getElementById('c-cargo').value        = '';
+      document.getElementById('c-carrier-name').value = '';
+      document.getElementById('c-notes').value        = '';
+      document.getElementById('c-assigned').value     = '';
+      document.getElementById('c-carrier-fee').value  = '';
+      document.getElementById('c-carrier-work').value = '';
+      document.getElementById('c-shipper-fee').value  = '';
+      document.getElementById('c-subtotal').value     = '';
+      document.getElementById('c-charge-total').value = '';
+    }
+  }
+
+  // ── 샤넬 자동계산 ────────────────────────────────────
+  function recalcChanel() {
+    const fee  = unFmt(document.getElementById('c-carrier-fee').value);
+    const qty  = Number(document.getElementById('c-carrier-work').value) || 0;
+    const sfee = unFmt(document.getElementById('c-shipper-fee').value);
+    document.getElementById('c-subtotal').value     = qty > 0 && fee > 0 ? (fee * qty).toLocaleString('ko-KR') : '';
+    document.getElementById('c-charge-total').value = qty > 0 && sfee > 0 ? (sfee * qty).toLocaleString('ko-KR') : '';
   }
 
   // ── 저장 ─────────────────────────────────────────────
   async function saveDispatch() {
-    const body = {
-      client:        currentClient,
-      item_date:     document.getElementById('f-date').value,
-      origin:        document.getElementById('f-origin').value.trim(),
-      destination:   document.getElementById('f-destination').value.trim(),
-      cargo:         document.getElementById('f-cargo').value.trim(),
-      vehicle_type:  document.getElementById('f-vehicle').value,
-      carrier_fee:   unFmt(document.getElementById('f-carrier-fee').value),
-      carrier_work:  unFmt(document.getElementById('f-carrier-work').value),
-      shipper_fee:   unFmt(document.getElementById('f-shipper-fee').value),
-      shipper_work:  unFmt(document.getElementById('f-shipper-work').value),
-      assigned_to:   document.getElementById('f-assigned').value.trim(),
-      contact:       document.getElementById('f-contact').value.trim(),
-      carrier_name:  document.getElementById('f-carrier-name').value.trim(),
-      notes:         document.getElementById('f-notes').value.trim(),
-    };
+    let body;
+    if (currentClient === 'mettler') {
+      body = {
+        client:       currentClient,
+        item_date:    document.getElementById('f-date').value,
+        origin:       document.getElementById('f-origin').value.trim(),
+        destination:  document.getElementById('f-destination').value.trim(),
+        cargo:        document.getElementById('f-cargo').value.trim(),
+        vehicle_type: document.getElementById('f-vehicle').value,
+        carrier_fee:  unFmt(document.getElementById('f-carrier-fee').value),
+        carrier_work: unFmt(document.getElementById('f-carrier-work').value),
+        shipper_fee:  unFmt(document.getElementById('f-shipper-fee').value),
+        shipper_work: unFmt(document.getElementById('f-shipper-work').value),
+        assigned_to:  document.getElementById('f-assigned').value.trim(),
+        contact:      document.getElementById('f-contact').value.trim(),
+        carrier_name: document.getElementById('f-carrier-name').value.trim(),
+        notes:        document.getElementById('f-notes').value.trim(),
+      };
+    } else {
+      body = {
+        client:       currentClient,
+        item_date:    document.getElementById('c-date').value,
+        origin:       document.getElementById('c-origin').value.trim(),
+        destination:  document.getElementById('c-destination').value.trim(),
+        cargo:        document.getElementById('c-cargo').value,
+        vehicle_type: document.getElementById('c-vehicle').value,
+        carrier_fee:  unFmt(document.getElementById('c-carrier-fee').value),
+        carrier_work: Number(document.getElementById('c-carrier-work').value) || 0,
+        shipper_fee:  unFmt(document.getElementById('c-shipper-fee').value),
+        shipper_work: 0,
+        assigned_to:  document.getElementById('c-assigned').value.trim(),
+        contact:      '',
+        carrier_name: document.getElementById('c-carrier-name').value,
+        notes:        document.getElementById('c-notes').value,
+      };
+    }
     try {
       const url    = editingId ? `/api/dispatch/${editingId}` : '/api/dispatch';
       const method = editingId ? 'PATCH' : 'POST';
@@ -604,16 +942,56 @@
   // ── 엑셀 내보내기 ────────────────────────────────────
   function exportExcel() {
     if (!dispatchData.length) { alert('내보낼 데이터가 없습니다.'); return; }
-    const headers = ['날짜','출발지','도착지','화물내용','차량종류','운송사운임','운송사작업비','화주운임','화주작업비','담당','운송사명','비고'];
-    const rows    = dispatchData.map(r => [
-      r.item_date, r.origin, r.destination, r.cargo, r.vehicle_type,
-      Number(r.carrier_fee)||0, Number(r.carrier_work)||0,
-      Number(r.shipper_fee)||0, Number(r.shipper_work)||0,
-      r.assigned_to, r.carrier_name, r.notes
-    ]);
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    const wb = XLSX.utils.book_new();
     const clientLabel = currentClient === 'mettler' ? '메틀러토레도' : '샤넬코리아';
+    let aoa;
+
+    if (currentClient === 'mettler') {
+      const headers = ['날짜','출발지','도착지','화물내용','차량종류','운송사운임','운송사작업비','화주운임','화주작업비','담당','운송사명','비고'];
+      const rows    = dispatchData.map(r => [
+        r.item_date, r.origin, r.destination, r.cargo, r.vehicle_type,
+        Number(r.carrier_fee)||0, Number(r.carrier_work)||0,
+        Number(r.shipper_fee)||0, Number(r.shipper_work)||0,
+        r.assigned_to, r.carrier_name, r.notes
+      ]);
+      aoa = [headers, ...rows];
+    } else {
+      const headers = ['차량사용일','출발지','도착지','내용','비용','수량','합계','청구금액','청구합계','차종','배차요청','운송요청','운송사'];
+      const rows    = dispatchData.map(r => {
+        const subtotal    = (Number(r.carrier_fee)||0) * (Number(r.carrier_work)||0);
+        const chargeTotal = (Number(r.shipper_fee)||0) * (Number(r.carrier_work)||0);
+        return [
+          r.item_date, r.origin, r.destination, r.cargo,
+          Number(r.carrier_fee)||0, Number(r.carrier_work)||0, subtotal,
+          Number(r.shipper_fee)||0, chargeTotal,
+          r.vehicle_type, r.notes, r.assigned_to, r.carrier_name
+        ];
+      });
+
+      // 요약 계산
+      const actTotal  = dispatchData.filter(r => r.carrier_name === 'ACT')
+                          .reduce((s, r) => s + (Number(r.shipper_fee)||0) * (Number(r.carrier_work)||0), 0);
+      const k1Total   = dispatchData.filter(r => r.carrier_name === 'K1')
+                          .reduce((s, r) => s + (Number(r.shipper_fee)||0) * (Number(r.carrier_work)||0), 0);
+      const passTotal = dispatchData.filter(r => r.carrier_name === '패스')
+                          .reduce((s, r) => s + (Number(r.shipper_fee)||0) * (Number(r.carrier_work)||0), 0);
+      const totalCharge = dispatchData.reduce((s, r) => s + (Number(r.shipper_fee)||0) * (Number(r.carrier_work)||0), 0);
+      const totalCost   = dispatchData.reduce((s, r) => s + (Number(r.carrier_fee)||0) * (Number(r.carrier_work)||0), 0);
+      const diff        = totalCharge - totalCost;
+      const rate        = totalCost > 0 ? (diff / totalCost * 100).toFixed(1) + '%' : '-';
+
+      aoa = [
+        headers, ...rows,
+        [],
+        ['ACT합계', actTotal],
+        ['K1합계',  k1Total],
+        ['패스합계', passTotal],
+        ['차이금액', diff],
+        ['수익율',   rate]
+      ];
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, clientLabel);
     XLSX.writeFile(wb, `배차관리_${clientLabel}_${today()}.xlsx`);
   }
@@ -621,14 +999,19 @@
   // ── 유틸 ─────────────────────────────────────────────
   function fmt(v) {
     const n = Number(v);
-    if (!v && v !== 0) return '-';
+    if (v === null || v === undefined || v === '') return '-';
     return isNaN(n) ? '-' : n.toLocaleString('ko-KR');
+  }
+  function fmtInput(v) {
+    const n = Number(v);
+    if (!v && v !== 0) return '';
+    return isNaN(n) ? '' : n.toLocaleString('ko-KR');
   }
   function unFmt(v) { return Number((v || '0').replace(/,/g, '')) || 0; }
   function esc(v)   { return v ? String(v).replace(/</g,'&lt;').replace(/>/g,'&gt;') : '-'; }
   function today()  { return new Date().toISOString().slice(0,10).replace(/-/g,''); }
 
-  // 숫자 필드 자동 콤마
+  // ── 숫자 필드 자동 콤마 (메틀러) ─────────────────────
   ['f-carrier-fee','f-carrier-work','f-shipper-fee','f-shipper-work'].forEach(id => {
     document.getElementById(id).addEventListener('input', function() {
       const raw = this.value.replace(/[^0-9]/g,'');
@@ -636,7 +1019,17 @@
     });
   });
 
-  // 모달 외부 클릭 닫기
+  // ── 샤넬 폼 이벤트 ───────────────────────────────────
+  ['c-carrier-fee','c-shipper-fee'].forEach(id => {
+    document.getElementById(id).addEventListener('input', function() {
+      const raw = this.value.replace(/[^0-9]/g,'');
+      this.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+      recalcChanel();
+    });
+  });
+  document.getElementById('c-carrier-work').addEventListener('input', recalcChanel);
+
+  // ── 모달 외부 클릭 닫기 ──────────────────────────────
   document.getElementById('dispatch-modal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
   });
