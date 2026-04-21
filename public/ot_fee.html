@@ -215,7 +215,7 @@
 
 <div id="toast">저장됨</div>
 
-<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script>
 // ════════════════════════════════════════════
 //  한국 공휴일 (2024-2027 하드코딩)
@@ -779,7 +779,7 @@ function xlStyle(opts) {
   };
 }
 function applyStyle(ws, ref, style) {
-  if (!ws[ref]) return;
+  if (!ws[ref]) ws[ref] = { t: 'z', v: '' };
   ws[ref].s = style;
 }
 function applyRangeStyle(ws, r1, c1, r2, c2, style) {
