@@ -230,6 +230,7 @@ function initNav(currentPage) {
   `;
 
   let inGroup = false;
+  const collapsibleKeys = []; // 나중에 addEventListener 등록용
   navItems.forEach(item => {
     if (item.groupEnd) {
       if (inGroup) { navHTML += `</div>`; inGroup = false; }
@@ -239,8 +240,9 @@ function initNav(currentPage) {
       if (inGroup) { navHTML += `</div>`; inGroup = false; }
       if (item.collapsible) {
         const isOpen = sidebarGroupIsOpen(item.key, currentPage, COLLAPSIBLE_GROUPS);
+        collapsibleKeys.push(item.key);
         navHTML += `
-          <div class="hub-section hub-section-collapsible" onclick="toggleSidebarGroup('${item.key}')">
+          <div class="hub-section hub-section-collapsible" data-group-key="${item.key}">
             <span>${item.section}</span>
             <span class="hub-group-arrow ${isOpen ? 'open' : ''}" id="hub-arrow-${item.key}">▶</span>
           </div>
@@ -282,6 +284,13 @@ function initNav(currentPage) {
     sidebarEl.innerHTML = `<nav class="hub-sidebar">${navHTML}</nav>`;
     renderWmsButton();
     renderHubFileShortcuts();
+
+    // ── 접이식 섹션 클릭 이벤트 (innerHTML 후 등록)
+    sidebarEl.querySelectorAll('[data-group-key]').forEach(el => {
+      el.addEventListener('click', () => {
+        toggleSidebarGroup(el.getAttribute('data-group-key'));
+      });
+    });
   }
 
   // Mobile toggle button
