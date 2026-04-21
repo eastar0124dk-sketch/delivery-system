@@ -45,10 +45,54 @@
     }
     .note-item:hover { background: #f7fafc; }
     .note-item.active { background: #ebf4ff; border-left: 3px solid #667eea; }
+    .note-item.done   { background: #f0fff4; }
+    .note-item.done.active { background: #c6f6d5; border-left: 3px solid #38a169; }
     .note-item-title { font-size: 13px; font-weight: 600; color: #2d3748; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .note-item.done .note-item-title { text-decoration: line-through; color: #a0aec0; }
     .note-item-time  { font-size: 11px; color: #a0aec0; }
     .note-item-preview { font-size: 12px; color: #718096; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .note-item.done .note-item-preview { color: #a0aec0; }
     .notes-empty { padding: 24px; text-align: center; color: #a0aec0; font-size: 13px; }
+
+    /* 완료 체크 버튼 */
+    .note-item-row { display: flex; align-items: flex-start; gap: 8px; }
+    .note-item-info { flex: 1; min-width: 0; }
+    .check-btn {
+      flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+      border: 2px solid #cbd5e0; background: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; transition: all .15s; margin-top: 1px;
+    }
+    .check-btn:hover { border-color: #38a169; background: #f0fff4; }
+    .check-btn.checked { border-color: #38a169; background: #38a169; color: #fff; }
+
+    /* 필터 탭 */
+    .note-filter-tabs {
+      display: flex; border-bottom: 1px solid #e2e8f0;
+    }
+    .note-filter-tab {
+      flex: 1; padding: 7px 4px; text-align: center; font-size: 11px; font-weight: 600;
+      cursor: pointer; border: none; background: none; font-family: inherit;
+      color: #a0aec0; border-bottom: 2px solid transparent; transition: all .15s;
+    }
+    .note-filter-tab.active { color: #667eea; border-bottom-color: #667eea; }
+    .note-filter-tab.done-tab.active { color: #38a169; border-bottom-color: #38a169; }
+    .filter-count {
+      display: inline-block; background: #e2e8f0; color: #718096;
+      font-size: 10px; padding: 1px 5px; border-radius: 8px; margin-left: 3px;
+    }
+    .note-filter-tab.active .filter-count { background: #667eea; color: #fff; }
+    .note-filter-tab.done-tab.active .filter-count { background: #38a169; color: #fff; }
+
+    /* 완료 토글 버튼 (에디터) */
+    .btn-done {
+      padding: 8px 14px; border-radius: 8px; border: 1.5px solid #cbd5e0;
+      background: #fff; color: #718096; cursor: pointer; font-family: inherit;
+      font-size: 13px; font-weight: 600; transition: all .15s;
+    }
+    .btn-done:hover { border-color: #38a169; color: #38a169; background: #f0fff4; }
+    .btn-done.is-done { background: #38a169; border-color: #38a169; color: #fff; }
+    .btn-done.is-done:hover { background: #276749; }
 
     /* 편집 패널 */
     .notes-editor-panel {
@@ -121,6 +165,11 @@
             <button class="btn-new" onclick="newNote()">+ 새 메모</button>
           </div>
         </div>
+        <div class="note-filter-tabs">
+          <button class="note-filter-tab active" id="tab-all"      onclick="setFilter('all')">전체<span class="filter-count" id="cnt-all">0</span></button>
+          <button class="note-filter-tab"         id="tab-active"  onclick="setFilter('active')">진행중<span class="filter-count" id="cnt-active">0</span></button>
+          <button class="note-filter-tab done-tab" id="tab-done"   onclick="setFilter('done')">완료<span class="filter-count" id="cnt-done">0</span></button>
+        </div>
         <div class="notes-scroll" id="notesList"></div>
       </div>
 
@@ -147,6 +196,19 @@
     let currentId = null;
     let autoSaveTimer = null;
     let isDirty = false;
+    let currentFilter = 'all'; // 'all' | 'active' | 'done'
+
+    /* ── 완료 상태 (localStorage) ── */
+    const DONE_KEY = 'notes_done_v1';
+    function loadDoneMap()  { try { return JSON.parse(localStorage.getItem(DONE_KEY) || '{}'); } catch { return {}; } }
+    function saveDoneMap(m) { localStorage.setItem(DONE_KEY, JSON.stringify(m)); }
+    function isDone(id)     { return !!loadDoneMap()[id]; }
+    function toggleDone(id) {
+      const m = loadDoneMap();
+      m[id] = !m[id];
+      if (!m[id]) delete m[id];
+      saveDoneMap(m);
+    }
 
     async function loadNotes() {
       try {
@@ -159,19 +221,78 @@
       renderList();
     }
 
+    function setFilter(f) {
+      currentFilter = f;
+      ['all','active','done'].forEach(t => {
+        const tab = document.getElementById('tab-'+t);
+        if (tab) tab.className = 'note-filter-tab' + (t==='done'?' done-tab':'') + (t===f?' active':'');
+      });
+      renderList();
+    }
+
     function renderList() {
       const el = document.getElementById('notesList');
-      if (notes.length === 0) {
-        el.innerHTML = '<div class="notes-empty">메모가 없습니다.<br>+ 새 메모를 클릭하세요.</div>';
+      const doneMap = loadDoneMap();
+
+      // 카운트 업데이트
+      const allCnt    = notes.length;
+      const doneCnt   = notes.filter(n => doneMap[n.id]).length;
+      const activeCnt = allCnt - doneCnt;
+      const cntAll    = document.getElementById('cnt-all');
+      const cntActive = document.getElementById('cnt-active');
+      const cntDone   = document.getElementById('cnt-done');
+      if (cntAll)    cntAll.textContent    = allCnt;
+      if (cntActive) cntActive.textContent = activeCnt;
+      if (cntDone)   cntDone.textContent   = doneCnt;
+
+      // 필터 적용
+      const filtered = notes.filter(n => {
+        if (currentFilter === 'done')   return  doneMap[n.id];
+        if (currentFilter === 'active') return !doneMap[n.id];
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        const msg = currentFilter === 'done' ? '완료된 메모가 없습니다.' :
+                    currentFilter === 'active' ? '진행 중인 메모가 없습니다.' :
+                    '메모가 없습니다.<br>+ 새 메모를 클릭하세요.';
+        el.innerHTML = `<div class="notes-empty">${msg}</div>`;
         return;
       }
-      el.innerHTML = notes.map(n => `
-        <div class="note-item ${n.id === currentId ? 'active' : ''}" onclick="selectNote(${n.id})">
-          <div class="note-item-title">${escHtml(n.title || '제목 없음')}</div>
-          <div class="note-item-preview">${escHtml((n.content || '').slice(0, 40))}</div>
-          <div class="note-item-time">${formatTime(n.updated_at || n.created_at)}</div>
-        </div>
-      `).join('');
+
+      el.innerHTML = filtered.map(n => {
+        const done = !!doneMap[n.id];
+        return `
+          <div class="note-item ${n.id === currentId ? 'active' : ''} ${done ? 'done' : ''}" onclick="selectNote(${n.id})">
+            <div class="note-item-row">
+              <button class="check-btn ${done ? 'checked' : ''}"
+                onclick="event.stopPropagation(); onCheckClick(${n.id})"
+                title="${done ? '완료 취소' : '완료 처리'}">
+                ${done ? '✓' : ''}
+              </button>
+              <div class="note-item-info">
+                <div class="note-item-title">${escHtml(n.title || '제목 없음')}</div>
+                <div class="note-item-preview">${escHtml((n.content || '').slice(0, 40))}</div>
+                <div class="note-item-time">${formatTime(n.updated_at || n.created_at)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function onCheckClick(id) {
+      toggleDone(id);
+      renderList();
+      // 현재 편집 중인 메모라면 에디터 버튼도 업데이트
+      if (id === currentId) {
+        const btn = document.getElementById('btnDone');
+        if (btn) {
+          const done = isDone(id);
+          btn.textContent = done ? '✅ 완료됨' : '⬜ 완료 처리';
+          btn.className   = 'btn-done' + (done ? ' is-done' : '');
+        }
+      }
     }
 
     function selectNote(id) {
@@ -184,20 +305,26 @@
     }
 
     function renderEditor(note) {
+      const done = isDone(note.id);
       document.getElementById('editorContent').innerHTML = `
         <div class="editor-header">
           <input type="text" class="editor-title-input" id="noteTitle"
             value="${escAttr(note.title || '')}" placeholder="제목"
-            oninput="markDirty()">
+            oninput="markDirty()"
+            style="${done ? 'text-decoration:line-through;color:#a0aec0;' : ''}">
           <div class="editor-actions">
+            <button id="btnDone" class="btn-done ${done ? 'is-done' : ''}"
+              onclick="onCheckClick(${note.id})" title="완료 상태 토글">
+              ${done ? '✅ 완료됨' : '⬜ 완료 처리'}
+            </button>
             <button class="btn-save" onclick="saveCurrentNote(true)">💾 저장</button>
             <button class="btn-del-note" onclick="deleteNote(${note.id})">🗑️ 삭제</button>
           </div>
         </div>
-        <div class="editor-meta">
-          마지막 수정: ${formatTime(note.updated_at || note.created_at)}
+        <div class="editor-meta" style="${done ? 'background:#f0fff4;color:#38a169;' : ''}">
+          ${done ? '✅ 완료된 메모 · ' : ''}마지막 수정: ${formatTime(note.updated_at || note.created_at)}
         </div>
-        <div class="editor-body">
+        <div class="editor-body" style="${done ? 'opacity:0.7;' : ''}">
           <textarea class="editor-textarea" id="noteContent"
             placeholder="내용을 입력하세요..."
             oninput="markDirty()">${escHtml(note.content || '')}</textarea>
@@ -270,6 +397,8 @@
       try {
         await fetch(`/api/memos/${id}`, { method: 'DELETE', headers: authH() });
         notes = notes.filter(n => n.id !== id);
+        // 완료 상태도 제거
+        const m = loadDoneMap(); delete m[id]; saveDoneMap(m);
         currentId = null;
         isDirty = false;
         renderList();
@@ -297,15 +426,17 @@
 
     function exportExcel() {
       if (!notes.length) { alert('데이터가 없습니다.'); return; }
-      const rows = [['제목', '내용', '작성일', '수정일']];
+      const doneMap = loadDoneMap();
+      const rows = [['상태', '제목', '내용', '작성일', '수정일']];
       [...notes].sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at)).forEach(n => rows.push([
+        doneMap[n.id] ? '완료' : '진행중',
         n.title || '',
         n.content || '',
         n.created_at ? new Date(n.created_at).toLocaleString('ko-KR') : '',
         n.updated_at ? new Date(n.updated_at).toLocaleString('ko-KR') : ''
       ]));
       const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{wch:25},{wch:60},{wch:18},{wch:18}];
+      ws['!cols'] = [{wch:8},{wch:25},{wch:60},{wch:18},{wch:18}];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '메모장');
       XLSX.writeFile(wb, `메모장_${new Date().toISOString().slice(0,10)}.xlsx`);
