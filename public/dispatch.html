@@ -286,6 +286,87 @@
       font-weight: 600;
     }
     /* 반응형 */
+    /* NO 컬럼 */
+    .col-no {
+      width: 44px;
+      min-width: 44px;
+      text-align: center !important;
+      font-size: 12px;
+      color: #999;
+      font-weight: 600;
+    }
+    td.col-no {
+      color: #bbb;
+      font-size: 12px;
+      font-weight: 500;
+      background: #fafbff;
+    }
+    /* 기간 필터 바 */
+    .date-filter-bar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: white;
+      border-radius: 12px;
+      padding: 14px 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .date-filter-bar.visible { display: flex; }
+    .date-filter-bar label { font-size: 13px; font-weight: 600; color: #555; }
+    .date-filter-bar input[type="date"] {
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 13px;
+      color: #333;
+      cursor: pointer;
+    }
+    .date-filter-bar input[type="date"]:focus { outline: none; border-color: #667eea; }
+    .date-filter-sep { color: #aaa; font-size: 14px; }
+    .btn-filter {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s;
+    }
+    .btn-filter:hover { opacity: .85; }
+    .btn-filter-reset {
+      background: #f1f5f9;
+      color: #667eea;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-filter-reset:hover { background: #e8edff; }
+    /* 하단 청구합계 */
+    .chanel-total-row {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      padding: 16px 24px;
+      margin-top: 16px;
+      display: flex;
+      gap: 40px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .chanel-total-item { display: flex; flex-direction: column; gap: 4px; }
+    .chanel-total-label { font-size: 12px; color: #888; font-weight: 500; }
+    .chanel-total-value { font-size: 18px; font-weight: 700; color: #333; }
     @media (max-width: 1200px) {
       .summary-cards.chanel { grid-template-columns: repeat(3, 1fr); }
     }
@@ -313,6 +394,17 @@
   <div class="client-tabs">
     <button class="client-tab active" id="tab-mettler" onclick="switchClient('mettler')">메틀러토레도</button>
     <button class="client-tab" id="tab-chanel" onclick="switchClient('chanel')">샤넬코리아</button>
+  </div>
+
+  <!-- 기간 필터 (샤넬 전용) -->
+  <div class="date-filter-bar" id="date-filter-bar">
+    <label>기간설정</label>
+    <input type="date" id="filter-from" />
+    <span class="date-filter-sep">~</span>
+    <input type="date" id="filter-to" />
+    <button class="btn-filter" onclick="applyDateFilter()"><i class="fa fa-search"></i> 조회</button>
+    <button class="btn-filter-reset" onclick="resetDateFilter()">전체보기</button>
+    <span id="filter-info" style="font-size:12px;color:#888;margin-left:4px;"></span>
   </div>
 
   <!-- 요약 카드 영역 (JS로 교체) -->
@@ -355,6 +447,7 @@
     <table id="dispatch-table">
       <thead id="dispatch-table-head">
         <tr>
+          <th class="col-no">NO</th>
           <th>날짜</th>
           <th>출발지</th>
           <th>도착지</th>
@@ -374,6 +467,18 @@
         <tr><td colspan="13"><div class="empty-state"><i class="fa fa-inbox"></i>데이터를 불러오는 중...</div></td></tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- 샤넬 하단 합계 (테이블 아래) -->
+  <div id="chanel-total-row" class="chanel-total-row" style="display:none;">
+    <div class="chanel-total-item">
+      <span class="chanel-total-label">🚛 운송사 청구합계</span>
+      <span class="chanel-total-value" id="bs-cost">0 원</span>
+    </div>
+    <div class="chanel-total-item">
+      <span class="chanel-total-label">🏢 화주 청구합계</span>
+      <span class="chanel-total-value" id="bs-charge">0 원</span>
+    </div>
   </div>
 </main>
 
@@ -490,6 +595,8 @@
               <option value="">선택</option>
               <option>출고</option>
               <option>입고</option>
+              <option>재고이동</option>
+              <option>기타</option>
             </select>
           </div>
           <div class="form-group">
@@ -537,6 +644,11 @@
             <label>청구합계 (자동계산)</label>
             <input type="text" id="c-charge-total" class="calc-field" readonly placeholder="0" />
           </div>
+          <!-- Row 8 -->
+          <div class="form-group full">
+            <label>비고</label>
+            <input type="text" id="c-contact" placeholder="비고 내용 입력" />
+          </div>
         </div>
       </div>
 
@@ -555,24 +667,25 @@
   const authH = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` });
 
   // ── 상태 ──────────────────────────────────────────────
-  let currentClient = 'mettler';
-  let dispatchData  = [];
-  let editingId     = null;
+  let currentClient  = 'mettler';
+  let allDispatchData = [];   // 서버에서 받은 원본 전체 데이터
+  let dispatchData   = [];    // 필터 적용 후 표시 데이터
+  let editingId      = null;
 
   // ── 테이블 헤더 정의 ─────────────────────────────────
   const THEAD_METTLER = `<tr>
-    <th>날짜</th><th>출발지</th><th>도착지</th><th>화물내용</th>
+    <th class="col-no">NO</th><th>날짜</th><th>출발지</th><th>도착지</th><th>화물내용</th>
     <th>차량종류</th><th>운송사운임</th><th>운송사작업비</th>
     <th>화주운임</th><th>화주작업비</th><th>담당</th>
     <th>운송사명</th><th>비고</th><th>수정/삭제</th>
   </tr>`;
 
   const THEAD_CHANEL = `<tr>
-    <th>차량사용일</th><th>출발지</th><th>도착지</th><th>내용</th>
+    <th class="col-no">NO</th><th>차량사용일</th><th>출발지</th><th>도착지</th><th>내용</th>
     <th>비용</th><th>수량</th><th>합계</th>
     <th>청구금액</th><th>청구합계</th>
     <th>차종</th><th>배차요청</th><th>운송요청</th>
-    <th>운송사</th><th>수정/삭제</th>
+    <th>운송사</th><th>비고</th><th>수정/삭제</th>
   </tr>`;
 
   // ── 요약 카드 HTML 정의 ───────────────────────────────
@@ -642,6 +755,22 @@
     document.getElementById('tab-mettler').classList.toggle('active', client === 'mettler');
     document.getElementById('tab-chanel').classList.toggle('active', client === 'chanel');
 
+    // 기간 필터 바 표시/숨김
+    const filterBar = document.getElementById('date-filter-bar');
+    if (filterBar) filterBar.classList.toggle('visible', client === 'chanel');
+
+    // 하단 합계 행 숨김 (데이터 로드 후 다시 표시)
+    const totalRow = document.getElementById('chanel-total-row');
+    if (totalRow) totalRow.style.display = client === 'mettler' ? 'none' : '';
+
+    // 필터 날짜 초기화 (탭 전환 시)
+    const fFrom = document.getElementById('filter-from');
+    const fTo   = document.getElementById('filter-to');
+    if (fFrom) fFrom.value = '';
+    if (fTo)   fTo.value   = '';
+    const fInfo = document.getElementById('filter-info');
+    if (fInfo) fInfo.textContent = '';
+
     // 요약 카드 교체
     const area = document.getElementById('summary-cards-area');
     if (client === 'mettler') {
@@ -662,14 +791,48 @@
   // ── 데이터 로드 ──────────────────────────────────────
   async function loadData() {
     try {
-      const res  = await fetch(`/api/dispatch?client=${currentClient}`, { headers: authH() });
-      dispatchData = (await res.json()).data || [];
-      renderTable();
-      renderSummary();
+      const res        = await fetch(`/api/dispatch?client=${currentClient}`, { headers: authH() });
+      allDispatchData  = (await res.json()).data || [];
+      applyDateFilter(false); // false = 재조회 없이 필터만 적용
     } catch (e) {
       console.error(e);
       renderEmpty('데이터를 불러오지 못했습니다.');
     }
+  }
+
+  // ── 날짜 필터 ────────────────────────────────────────
+  function applyDateFilter(resetScroll) {
+    const from = document.getElementById('filter-from')?.value || '';
+    const to   = document.getElementById('filter-to')?.value   || '';
+
+    if (from || to) {
+      dispatchData = allDispatchData.filter(r => {
+        const d = r.item_date || '';
+        if (from && d < from) return false;
+        if (to   && d > to)   return false;
+        return true;
+      });
+      const infoEl = document.getElementById('filter-info');
+      if (infoEl) infoEl.textContent = `${dispatchData.length}건 조회됨`;
+    } else {
+      dispatchData = [...allDispatchData];
+      const infoEl = document.getElementById('filter-info');
+      if (infoEl) infoEl.textContent = '';
+    }
+    renderTable();
+    renderSummary();
+  }
+
+  function resetDateFilter() {
+    const fromEl = document.getElementById('filter-from');
+    const toEl   = document.getElementById('filter-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl)   toEl.value   = '';
+    const infoEl = document.getElementById('filter-info');
+    if (infoEl) infoEl.textContent = '';
+    dispatchData = [...allDispatchData];
+    renderTable();
+    renderSummary();
   }
 
   // ── 요약 렌더 ────────────────────────────────────────
@@ -695,7 +858,8 @@
       const totalCharge = dispatchData.reduce((s, r) => s + (Number(r.shipper_fee) || 0) * (Number(r.carrier_work) || 0), 0);
       const totalCost   = dispatchData.reduce((s, r) => s + (Number(r.carrier_fee) || 0) * (Number(r.carrier_work) || 0), 0);
       const diff        = totalCharge - totalCost;
-      const rate        = totalCost > 0 ? (diff / totalCost * 100) : null;
+      const rate        = totalCost > 0 ? (diff / totalCost * 100)
+                        : totalCharge > 0 ? (diff / totalCharge * 100) : null;
 
       document.getElementById('sum-act').textContent  = fmt(actTotal) + ' 원';
       document.getElementById('sum-k1').textContent   = fmt(k1Total) + ' 원';
@@ -708,6 +872,14 @@
       const rateEl = document.getElementById('sum-rate');
       rateEl.textContent = rate !== null ? rate.toFixed(1) + '%' : '-';
       if (rate !== null) rateEl.style.color = rate >= 0 ? '#22c55e' : '#ef4444';
+
+      // 하단 합계
+      const bsCost   = document.getElementById('bs-cost');
+      const bsCharge = document.getElementById('bs-charge');
+      if (bsCost)   bsCost.textContent   = fmt(totalCost) + ' 원';
+      if (bsCharge) bsCharge.textContent = fmt(totalCharge) + ' 원';
+      const bsRow = document.getElementById('chanel-total-row');
+      if (bsRow) bsRow.style.display = '';
     }
   }
 
@@ -717,14 +889,18 @@
     document.getElementById('record-count').textContent = `총 ${dispatchData.length}건`;
 
     if (!dispatchData.length) {
-      const cols = currentClient === 'mettler' ? 13 : 14;
+      const cols = currentClient === 'mettler' ? 14 : 16;
       tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><i class="fa fa-inbox"></i>등록된 배차가 없습니다.</div></td></tr>`;
       return;
     }
 
+    // ID 기준 오름차순 정렬 (먼저 입력된 것이 위, 나중 입력이 아래)
+    const sorted = [...dispatchData].sort((a, b) => (a.id || 0) - (b.id || 0));
+
     if (currentClient === 'mettler') {
-      tbody.innerHTML = dispatchData.map(r => `
+      tbody.innerHTML = sorted.map((r, i) => `
         <tr>
+          <td class="col-no">${i + 1}</td>
           <td>${r.item_date || '-'}</td>
           <td>${esc(r.origin)}</td>
           <td>${esc(r.destination)}</td>
@@ -745,11 +921,12 @@
           </td>
         </tr>`).join('');
     } else {
-      tbody.innerHTML = dispatchData.map(r => {
+      tbody.innerHTML = sorted.map((r, i) => {
         const subtotal     = (Number(r.carrier_fee) || 0) * (Number(r.carrier_work) || 0);
         const chargeTotal  = (Number(r.shipper_fee) || 0) * (Number(r.carrier_work) || 0);
         return `
         <tr>
+          <td class="col-no">${i + 1}</td>
           <td>${r.item_date || '-'}</td>
           <td>${esc(r.origin)}</td>
           <td>${esc(r.destination)}</td>
@@ -763,6 +940,7 @@
           <td>${esc(r.notes)}</td>
           <td>${esc(r.assigned_to)}</td>
           <td>${esc(r.carrier_name)}</td>
+          <td>${esc(r.contact)}</td>
           <td>
             <div class="td-actions">
               <button class="btn btn-edit" onclick="openEditModal(${r.id})"><i class="fa fa-pen"></i> 수정</button>
@@ -775,7 +953,7 @@
   }
 
   function renderEmpty(msg) {
-    const cols = currentClient === 'mettler' ? 13 : 14;
+    const cols = currentClient === 'mettler' ? 14 : 16;
     document.getElementById('dispatch-body').innerHTML =
       `<tr><td colspan="${cols}"><div class="empty-state"><i class="fa fa-exclamation-circle"></i>${msg}</div></td></tr>`;
   }
@@ -828,6 +1006,7 @@
       document.getElementById('c-carrier-fee').value  = fmtInput(r.carrier_fee);
       document.getElementById('c-carrier-work').value = r.carrier_work || '';
       document.getElementById('c-shipper-fee').value  = fmtInput(r.shipper_fee);
+      document.getElementById('c-contact').value      = r.contact || '';
       recalcChanel();
     }
     document.getElementById('dispatch-modal').classList.add('open');
@@ -865,6 +1044,7 @@
       document.getElementById('c-shipper-fee').value  = '';
       document.getElementById('c-subtotal').value     = '';
       document.getElementById('c-charge-total').value = '';
+      document.getElementById('c-contact').value      = '';
     }
   }
 
@@ -910,7 +1090,7 @@
         shipper_fee:  unFmt(document.getElementById('c-shipper-fee').value),
         shipper_work: 0,
         assigned_to:  document.getElementById('c-assigned').value.trim(),
-        contact:      '',
+        contact:      document.getElementById('c-contact').value.trim(),
         carrier_name: document.getElementById('c-carrier-name').value,
         notes:        document.getElementById('c-notes').value,
       };
