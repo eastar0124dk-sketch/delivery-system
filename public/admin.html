@@ -1301,7 +1301,6 @@
 
   function showDispatchModal(d) {
     const arrival      = d.arrival_time    ? `\n도착 희망시간: ${d.arrival_time}` : '';
-    const transport    = d.transport_type  ? `\n내용: ${d.transport_type}` : '';
     const vehicle_type = d.vehicle_type    ? `\n차량 종류: ${d.vehicle_type}` : '';
 
     // 출발지: ACT는 고정, 기타는 시도+시군구+주소 합치기
@@ -1311,16 +1310,13 @@
       originAddr  = '';
     } else {
       originLabel = d.origin || '';
-      // 시도+시군구+나머지주소 합치기
       const originParts = [d.origin_sido, d.origin_sigun, d.origin_address].filter(Boolean);
       originAddr = originParts.length ? `\n출발지 주소: ${originParts.join(' ')}` : '';
     }
     const contactLine  = d.contact_person  ? `\n출발지 담당자: ${d.contact_person}${d.contact_phone ? ' / ' + d.contact_phone : ''}` : '';
 
-    // 도착지: 시도+시군구+배송지주소 모두 합치기
-    const destSigun    = d.dest_sigun      ? ` (${d.dest_sigun})` : '';
-    const addrParts    = [d.dest_sido, d.dest_sigun, d.customer_address].filter(Boolean);
-    const addr         = addrParts.length  ? `\n배송지 주소: ${addrParts.join(' ')}` : '';
+    // 도착지: 회사명만 표시 (구 이름 괄호 제거), 배송지 주소는 상세주소만
+    const addr         = d.customer_address ? `\n배송지 주소: ${d.customer_address}` : '';
     const phone        = d.receiver_phone  ? `\n수취인 연락처: ${d.receiver_phone}` : '';
     const delivery_note = d.delivery_note  ? `\n⚠️ 배송 요청사항: ${d.delivery_note}` : '';
     const notes        = d.notes           ? `\n비고: ${d.notes}` : '';
@@ -1328,12 +1324,12 @@
     const msg =
 `[배차 요청]
 DN번호: ${d.order_no}
-배송일자: ${d.delivery_date}${arrival}${transport}${vehicle_type}
+배송일자: ${d.delivery_date}${arrival}${vehicle_type}
 제품명: ${d.product_name}
 수량: ${d.quantity}
 
 ▶ 출발지: ${originLabel}${originAddr}${contactLine}
-▶ 도착지: ${d.customer_company}${destSigun}${addr}
+▶ 도착지: ${d.customer_company}${addr}
 수취인: ${d.receiver_name}${phone}${delivery_note}${notes}
 
 * 배송 완료 후 아래 링크에서 서명 부탁드립니다
