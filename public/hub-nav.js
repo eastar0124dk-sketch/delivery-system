@@ -100,12 +100,6 @@ function initNav(currentPage) {
   const token = sessionStorage.getItem('adminToken');
   if (!token) { location.href = 'index.html'; return; }
 
-  // 접이식 그룹에 속하는 페이지 목록 (그룹 자동 열기 판단용)
-  const COLLAPSIBLE_GROUPS = {
-    daily:   ['journal_mettler.html','journal_chanel.html','bonded.html'],
-    billing: ['billing.html','profit-calc.html','ot_fee.html'],
-  };
-
   const navItems = [
     { section: '📊 운영 현황' },
     { href: 'hub.html',      icon: '🏠', label: '대시보드' },
@@ -115,24 +109,18 @@ function initNav(currentPage) {
     { href: 'calendar.html', icon: '📅', label: '캘린더' },
     { href: 'notes.html',    icon: '📝', label: '메모장' },
     { href: 'vendors.html',  icon: '🏢', label: '업체 관리' },
-    // ── 접이식: 일일 업무 ──
-    { section: '📋 일일 업무', collapsible: true, key: 'daily' },
+    { section: '📋 일일 업무' },
     { href: 'journal_mettler.html', icon: '⚖️', label: '메틀러 업무일지' },
     { href: 'journal_chanel.html',  icon: '💄', label: '샤넬 업무일지' },
     { href: 'bonded.html',          icon: '🚢', label: '보세 반입/출' },
-    { groupEnd: true },
-    // ── OT (독립 메뉴) ──
-    { href: 'ot.html', icon: '⏰', label: 'OT 내역 관리' },
-    // ── 오더 시스템 ──
+    { href: 'ot.html',              icon: '⏰', label: 'OT 내역 관리' },
     { section: '📦 오더 시스템' },
     { href: 'admin.html', icon: '🗂️', label: '오더 관리' },
     { href: 'list.html',  icon: '🔍', label: '조회/출력' },
-    // ── 접이식: 청구 ──
-    { section: '💰 청구', collapsible: true, key: 'billing' },
+    { section: '💰 청구' },
     { href: 'billing.html',      icon: '💰', label: '운송 청구서' },
     { href: 'profit-calc.html',  icon: '📊', label: '수익율 계산기' },
     { href: 'ot_fee.html',       icon: '⏱️', label: 'OT Fee (메틀러)' },
-    { groupEnd: true },
   ];
 
   // 추가 CSS: 홈버튼 + WMS + 파일 바로가기
@@ -201,17 +189,6 @@ function initNav(currentPage) {
     }
     .hub-file-item:hover .hub-file-edit-btn { opacity: 1; }
     .hub-file-edit-btn:hover { color: #fc8181; }
-    /* ── 접이식 섹션 ── */
-    .hub-section-collapsible {
-      display: flex !important; align-items: center; justify-content: space-between;
-      padding-right: 14px; cursor: pointer; user-select: none;
-    }
-    .hub-section-collapsible:hover { color: #a0aec0; }
-    .hub-group-arrow { font-size: 10px; transition: transform .22s ease; flex-shrink: 0; }
-    .hub-group-arrow.open { transform: rotate(90deg); }
-    .hub-group-wrap { overflow: hidden; }
-    .hub-group-open  { display: block !important; }
-    .hub-group-closed { display: none !important; }
   `;
   document.head.appendChild(style2);
 
@@ -227,31 +204,12 @@ function initNav(currentPage) {
     <div class="hub-wms-wrap" id="hub-wms-wrap"></div>
   `;
 
-  let inGroup = false;
-  const collapsibleKeys = []; // 나중에 addEventListener 등록용
   navItems.forEach(item => {
-    if (item.groupEnd) {
-      if (inGroup) { navHTML += `</div>`; inGroup = false; }
-      return;
-    }
     if (item.section) {
-      if (inGroup) { navHTML += `</div>`; inGroup = false; }
-      if (item.collapsible) {
-        const isOpen = sidebarGroupIsOpen(item.key, currentPage, COLLAPSIBLE_GROUPS);
-        collapsibleKeys.push(item.key);
-        navHTML += `
-          <div class="hub-section hub-section-collapsible" data-group-key="${item.key}">
-            <span>${item.section}</span>
-            <span class="hub-group-arrow ${isOpen ? 'open' : ''}" id="hub-arrow-${item.key}">▶</span>
-          </div>
-          <div class="hub-group-wrap ${isOpen ? 'hub-group-open' : 'hub-group-closed'}" id="hub-group-${item.key}">
-        `;
-        inGroup = true;
-      } else {
-        navHTML += `<div class="hub-section">${item.section}</div>`;
-      }
+      navHTML += `<div class="hub-section">${item.section}</div>`;
     } else if (item.href) {
-      const isActive = currentPage === item.href ? 'active' : '';
+      const pg = currentPage.endsWith('.html') ? currentPage : currentPage + '.html';
+      const isActive = (pg === item.href || currentPage === item.href) ? 'active' : '';
       navHTML += `
         <a href="${item.href}" class="hub-nav-item ${isActive}">
           <span class="nav-icon">${item.icon}</span>
@@ -260,7 +218,6 @@ function initNav(currentPage) {
       `;
     }
   });
-  if (inGroup) { navHTML += `</div>`; inGroup = false; }
 
   // ── 파일 바로가기 섹션 ──
   navHTML += `<div class="hub-section">📁 파일 바로가기</div>`;
@@ -282,13 +239,6 @@ function initNav(currentPage) {
     sidebarEl.innerHTML = `<nav class="hub-sidebar">${navHTML}</nav>`;
     renderWmsButton();
     renderHubFileShortcuts();
-
-    // ── 접이식 섹션 클릭 이벤트 (innerHTML 후 등록)
-    sidebarEl.querySelectorAll('[data-group-key]').forEach(el => {
-      el.addEventListener('click', () => {
-        toggleSidebarGroup(el.getAttribute('data-group-key'));
-      });
-    });
   }
 
   // Mobile toggle button
@@ -532,38 +482,4 @@ function hubWmsRemove() {
   renderWmsButton();
 }
 
-/* ════════════════════════════════════════
-   사이드바 접이식 그룹
-════════════════════════════════════════ */
-const SIDEBAR_COLLAPSE_KEY = 'hub_sidebar_collapse_v1';
-
-function _getSidebarCollapseStates() {
-  try { return JSON.parse(localStorage.getItem(SIDEBAR_COLLAPSE_KEY) || '{}'); } catch { return {}; }
-}
-
-function sidebarGroupIsOpen(key, currentPage, groups) {
-  const states = _getSidebarCollapseStates();
-  // 직접 저장된 상태 우선
-  if (key in states) return states[key];
-  // 현재 페이지가 이 그룹 소속이면 자동으로 열기
-  // (.html 유무 모두 허용: 'journal_mettler' 또는 'journal_mettler.html')
-  if (groups && groups[key]) {
-    const normalized = currentPage.endsWith('.html') ? currentPage : currentPage + '.html';
-    if (groups[key].includes(currentPage) || groups[key].includes(normalized)) return true;
-  }
-  return true; // 기본: 열린 상태 (처음 접속 시 메뉴 보이게)
-}
-
-function toggleSidebarGroup(key) {
-  const groupEl = document.getElementById(`hub-group-${key}`);
-  const arrowEl = document.getElementById(`hub-arrow-${key}`);
-  if (!groupEl) return;
-  const isOpen = groupEl.classList.contains('hub-group-open');
-  const newState = !isOpen;
-  const states = _getSidebarCollapseStates();
-  states[key] = newState;
-  localStorage.setItem(SIDEBAR_COLLAPSE_KEY, JSON.stringify(states));
-  groupEl.classList.toggle('hub-group-open',  newState);
-  groupEl.classList.toggle('hub-group-closed', !newState);
-  if (arrowEl) arrowEl.classList.toggle('open', newState);
-}
+/* (접이식 그룹 기능 제거 - 모든 메뉴 항상 표시) */
