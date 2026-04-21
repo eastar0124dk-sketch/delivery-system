@@ -603,25 +603,79 @@
     function exportExcel() {
       if (!records.length) { alert('데이터가 없습니다.'); return; }
       const ym = `${curYear}-${String(curMonth).padStart(2,'0')}`;
+      const now = new Date();
+      const exportDate = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
       const totalHours = records.reduce((s,r) => s + parseFloat(r.ot_hours||0), 0);
       const mealCount  = records.filter(r => r.meal_ticket === 'O').length;
       const totalAmt   = Math.round(totalHours * otRate);
 
-      const aoa = [
-        ['횟수','날짜','시작시간','퇴근시간','업무내용','OT 근무시간','식권 사용여부','메모']
-      ];
-      records.forEach((r, i) => aoa.push([
-        i + 1, r.work_date, r.start_time, r.end_time,
+      /* ── 스타일 헬퍼 ── */
+      const BM={top:{style:'medium',color:{rgb:'1E293B'}},bottom:{style:'medium',color:{rgb:'1E293B'}},left:{style:'medium',color:{rgb:'1E293B'}},right:{style:'medium',color:{rgb:'1E293B'}}};
+      const BT={top:{style:'thin',color:{rgb:'CBD5E0'}},bottom:{style:'thin',color:{rgb:'CBD5E0'}},left:{style:'thin',color:{rgb:'CBD5E0'}},right:{style:'thin',color:{rgb:'CBD5E0'}}};
+      const sA=(ws,ref,s)=>{if(ws[ref])ws[ref].s=s;};
+      const sR=(ws,r1,c1,r2,c2,s)=>{
+        for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++){
+          const ref=XLSX.utils.encode_cell({r,c});
+          if(!ws[ref])ws[ref]={t:'z',v:''};
+          ws[ref].s=s;
+        }
+      };
+      const mk=(bold,sz,fg,bg,align='center',bdr=BT)=>({font:{bold,sz,color:{rgb:fg},name:'맑은 고딕'},fill:{patternType:'solid',fgColor:{rgb:bg}},alignment:{horizontal:align,vertical:'center',wrapText:true},border:bdr});
+
+      const NC=8;
+      const dataRows = records.map((r,i)=>[
+        i+1, r.work_date, r.start_time, r.end_time,
         r.work_content, parseFloat(r.ot_hours||0).toFixed(1),
-        r.meal_ticket || 'X', r.notes || ''
-      ]));
-      // 합계 행
-      aoa.push([]);
-      aoa.push(['', '', '', '', '총 OT 근무시간', Math.round(totalHours*10)/10 + ' h', mealCount + '건', '']);
-      aoa.push(['', '', '', '', 'OT 총 금액', totalAmt.toLocaleString('ko-KR') + ' 원', '', '']);
+        r.meal_ticket||'X', r.notes||''
+      ]);
+
+      const aoa=[
+        [`METTLER TOLEDO  OT 근무 내역`,...Array(NC-1).fill('')],
+        [`기간 : ${curYear}년 ${curMonth}월`,'',`OT 단가 : ${otRate.toLocaleString()}원/h`,'',`출력일 : ${exportDate}`,...Array(NC-5).fill('')],
+        Array(NC).fill(''),
+        ['No.','날짜','시작시간','퇴근시간','업  무  내  용','OT 시간(h)','식권','메  모'],
+        ...dataRows,
+        Array(NC).fill(''),
+        ['','','','','총 OT 근무시간', Math.round(totalHours*10)/10,'식권 사용', mealCount+'건'],
+        ['','','','','OT 총 금액 (원)',totalAmt,'',''],
+      ];
 
       const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!cols'] = [{wch:6},{wch:12},{wch:9},{wch:9},{wch:20},{wch:12},{wch:10},{wch:20}];
+      ws['!cols']=[{wch:5},{wch:12},{wch:10},{wch:10},{wch:28},{wch:12},{wch:7},{wch:24}];
+      ws['!rows']=[{hpt:32},{hpt:18},{hpt:6},{hpt:22}];
+      ws['!merges']=[
+        {s:{r:0,c:0},e:{r:0,c:NC-1}},
+        {s:{r:1,c:0},e:{r:1,c:1}},{s:{r:1,c:2},e:{r:1,c:3}},{s:{r:1,c:4},e:{r:1,c:NC-1}},
+      ];
+
+      sR(ws,0,0,0,NC-1,mk(true,16,'FFFFFF','1E293B','center',BM));
+      sR(ws,1,0,1,NC-1,mk(false,10,'475569','F1F5F9','left',BT));
+      sA(ws,XLSX.utils.encode_cell({r:1,c:4}),mk(false,10,'475569','F1F5F9','right',BT));
+      sR(ws,3,0,3,NC-1,mk(true,11,'FFFFFF','334155','center',BM));
+
+      dataRows.forEach((_,i)=>{
+        const bg=i%2===0?'FFFFFF':'F8FAFC';
+        sR(ws,4+i,0,4+i,NC-1,mk(false,10,'1E293B',bg,'center',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:0}),mk(false,10,'9CA3AF',bg,'center',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:1}),mk(true,10,'374151',bg,'center',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:4}),mk(false,10,'374151',bg,'left',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:5}),mk(true,11,'2563EB',bg,'center',BT));
+        const meal=records[i].meal_ticket;
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:6}),mk(true,10,meal==='O'?'059669':'9CA3AF',bg,'center',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:7}),mk(false,10,'6B7280',bg,'left',BT));
+      });
+
+      const sB=4+dataRows.length+1;
+      sR(ws,sB,0,sB,NC-1,mk(false,10,'374151','EFF6FF','center',BM));
+      sA(ws,XLSX.utils.encode_cell({r:sB,c:4}),mk(true,11,'1D4ED8','EFF6FF','right',BM));
+      sA(ws,XLSX.utils.encode_cell({r:sB,c:5}),mk(true,14,'1D4ED8','DBEAFE','center',BM));
+      sA(ws,XLSX.utils.encode_cell({r:sB,c:6}),mk(true,10,'059669','DCFCE7','right',BM));
+      sA(ws,XLSX.utils.encode_cell({r:sB,c:7}),mk(true,12,'059669','DCFCE7','center',BM));
+
+      sR(ws,sB+1,0,sB+1,NC-1,mk(false,10,'374151','FEF3C7','center',BM));
+      sA(ws,XLSX.utils.encode_cell({r:sB+1,c:4}),mk(true,11,'92400E','FEF3C7','right',BM));
+      sA(ws,XLSX.utils.encode_cell({r:sB+1,c:5}),{...mk(true,14,'D97706','FEF3C7','center',BM),numFmt:'#,##0'});
+
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, `OT내역_${ym}`);
       XLSX.writeFile(wb, `OT내역_${ym}.xlsx`);

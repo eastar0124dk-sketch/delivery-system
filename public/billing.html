@@ -918,56 +918,128 @@
     const billMonth=document.getElementById('billMonth').value;
     const clientNm=document.getElementById('billClientDisp').value||document.getElementById('clientName').value||'화주';
     const carrierNm=document.getElementById('carrierName').value||'운송사';
+    const now=new Date();
+    const exportDate=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
 
+    /* ── 스타일 헬퍼 ── */
+    const BM={top:{style:'medium',color:{rgb:'1E293B'}},bottom:{style:'medium',color:{rgb:'1E293B'}},left:{style:'medium',color:{rgb:'1E293B'}},right:{style:'medium',color:{rgb:'1E293B'}}};
+    const BT={top:{style:'thin',color:{rgb:'CBD5E0'}},bottom:{style:'thin',color:{rgb:'CBD5E0'}},left:{style:'thin',color:{rgb:'CBD5E0'}},right:{style:'thin',color:{rgb:'CBD5E0'}}};
+    const sA=(ws,ref,s)=>{if(ws[ref])ws[ref].s=s;};
+    const sR=(ws,r1,c1,r2,c2,s)=>{
+      for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++){
+        const ref=XLSX.utils.encode_cell({r,c});
+        if(!ws[ref])ws[ref]={t:'z',v:''};
+        ws[ref].s=s;
+      }
+    };
+    const mk=(bold,sz,fg,bg,align='center',bdr=BT)=>({font:{bold,sz,color:{rgb:fg},name:'맑은 고딕'},fill:{patternType:'solid',fgColor:{rgb:bg}},alignment:{horizontal:align,vertical:'center',wrapText:true},border:bdr});
+
+    const NC=19; // 총 컬럼 수
     const wb=XLSX.utils.book_new();
 
-    // ── 청구서작성 시트 ──
-    const h1=['','','','','','','','','','운송사 운임','','화주 청구 운임','','','','','','',''];
-    const h2=['No.','차량사용일','DN No.','출발지 시군구','출발지 상호','도착지 시군구','도착지 상호','내용','차종','기본운임','추가비용','기본운임','추가비용','운송사 합계','화주 합계','차액(화주-운송)','Q\'ty','수익률','비고'];
-    const rows=billingRows.map((r,i)=>{
-      const cTot=r.carrier_base+r.carrier_add;
-      const kTot=r.client_base+r.client_add;
-      const diff=kTot-cTot;
-      const margin=kTot>0?parseFloat((diff/kTot*100).toFixed(1)):null;
-      return [
-        i+1, r.delivery_date, r.order_no, r.origin, r.origin_name,
-        r.district, r.dest_name, r.content, r.vehicle_type,
-        r.carrier_base, r.carrier_add, r.client_base, r.client_add,
-        cTot, kTot, diff, r.quantity, margin!=null?margin+'%':'-', r.note
-      ];
-    });
+    /* ══════════════════════════════════════
+       Sheet 1 : 청구서
+    ═══════════════════════════════════════ */
     let cB=0,cA=0,cT=0,kB=0,kA=0,kT=0,df=0;
-    billingRows.forEach(r=>{ cB+=r.carrier_base;cA+=r.carrier_add;cT+=r.carrier_base+r.carrier_add; kB+=r.client_base;kA+=r.client_add;kT+=r.client_base+r.client_add; df+=(r.client_base+r.client_add)-(r.carrier_base+r.carrier_add); });
+    billingRows.forEach(r=>{cB+=r.carrier_base;cA+=r.carrier_add;cT+=r.carrier_base+r.carrier_add;kB+=r.client_base;kA+=r.client_add;kT+=r.client_base+r.client_add;df+=(r.client_base+r.client_add)-(r.carrier_base+r.carrier_add);});
     const totalMarginXls=kT>0?parseFloat((df/kT*100).toFixed(1))+'%':'-';
-    rows.push(['합계','','','','','','','','', cB,cA,kB,kA,cT,kT,df,'',totalMarginXls,'']);
 
-    const ws=XLSX.utils.aoa_to_sheet([
-      [clientNm+' 월별 운송비 청구서'],
-      ['청구 연월', billMonth, '', '운송업체', carrierNm],
-      [],
-      h1, h2,
-      ...rows
-    ]);
-    // 열 너비: No~비고 (19열: 수익률 추가)
-    ws['!cols']=[{wch:4},{wch:11},{wch:18},{wch:9},{wch:14},{wch:9},{wch:14},{wch:12},{wch:7},{wch:10},{wch:9},{wch:10},{wch:9},{wch:10},{wch:10},{wch:12},{wch:6},{wch:7},{wch:12}];
+    const h0=[`${clientNm}  운송비 청구서`,...Array(NC-1).fill('')];
+    const h1a=[`청구 연월 : ${billMonth}`,'',`운송업체 : ${carrierNm}`,'',`출력일 : ${exportDate}`,...Array(NC-5).fill('')];
+    const h2a=['','','','','','','','','','운송사 운임','','화주 청구 운임','','','','','','',''];
+    const h3a=['No.','차량사용일','DN No.','출발지 시군구','출발지 상호','도착지 시군구','도착지 상호','내용','차종','기본운임','추가비용','기본운임','추가비용','운송사 합계','화주 합계','차액(화주-운송)','Q\'ty','수익률','비고'];
+    const dataRows=billingRows.map((r,i)=>{
+      const cTot=r.carrier_base+r.carrier_add,kTot=r.client_base+r.client_add,diff=kTot-cTot;
+      const margin=kTot>0?parseFloat((diff/kTot*100).toFixed(1)):null;
+      return[i+1,r.delivery_date,r.order_no,r.origin,r.origin_name,r.district,r.dest_name,r.content,r.vehicle_type,r.carrier_base,r.carrier_add,r.client_base,r.client_add,cTot,kTot,diff,r.quantity,margin!=null?margin+'%':'-',r.note];
+    });
+
+    const ws=XLSX.utils.aoa_to_sheet([h0,h1a,Array(NC).fill(''),h2a,h3a,...dataRows,Array(NC).fill(''),['합계','','','','','','','','',cB,cA,kB,kA,cT,kT,df,'',totalMarginXls,'']]);
+    ws['!cols']=[{wch:4},{wch:11},{wch:18},{wch:9},{wch:14},{wch:9},{wch:14},{wch:12},{wch:7},{wch:10},{wch:9},{wch:10},{wch:9},{wch:11},{wch:11},{wch:13},{wch:6},{wch:8},{wch:12}];
+    ws['!rows']=[{hpt:34},{hpt:18},{hpt:6},{hpt:20},{hpt:22}];
     ws['!merges']=[
-      {s:{r:3,c:9},e:{r:3,c:10}}, // 운송사 운임
-      {s:{r:3,c:11},e:{r:3,c:12}},// 화주 청구 운임
+      {s:{r:0,c:0},e:{r:0,c:NC-1}},
+      {s:{r:1,c:0},e:{r:1,c:1}},{s:{r:1,c:2},e:{r:1,c:3}},{s:{r:1,c:4},e:{r:1,c:NC-1}},
+      {s:{r:3,c:9},e:{r:3,c:10}},{s:{r:3,c:11},e:{r:3,c:12}},
     ];
-    XLSX.utils.book_append_sheet(wb,ws,'청구서작성');
 
-    // ── 명세표 시트 (수익률 추가) ──
+    // 타이틀 행 (row 0)
+    sR(ws,0,0,0,NC-1,mk(true,18,'FFFFFF','1A3C5E','center',BM));
+    // 정보 행 (row 1)
+    sR(ws,1,0,1,NC-1,mk(false,10,'475569','EBF4FF','left',BT));
+    sA(ws,XLSX.utils.encode_cell({r:1,c:4}),mk(false,10,'475569','EBF4FF','right',BT));
+    // 그룹 헤더 행 (row 3)
+    sR(ws,3,0,3,NC-1,mk(true,10,'FFFFFF','2563EB','center',BM));
+    sR(ws,3,9,3,10,   mk(true,10,'FCD34D','1D4ED8','center',BM));
+    sR(ws,3,11,3,12,  mk(true,10,'FCD34D','059669','center',BM));
+    // 컬럼 헤더 행 (row 4)
+    sR(ws,4,0,4,NC-1,mk(true,10,'FFFFFF','334155','center',BM));
+    // 데이터 행
+    dataRows.forEach((_,i)=>{
+      const bg=i%2===0?'FFFFFF':'EFF6FF';
+      sR(ws,5+i,0,5+i,NC-1,mk(false,10,'1E293B',bg,'center',BT));
+      sA(ws,XLSX.utils.encode_cell({r:5+i,c:1}),mk(true,10,'374151',bg,'center',BT));
+      [9,10,11,12].forEach(ci=>sA(ws,XLSX.utils.encode_cell({r:5+i,c:ci}),{...mk(false,10,'1E293B',bg,'right',BT),numFmt:'#,##0'}));
+      sA(ws,XLSX.utils.encode_cell({r:5+i,c:13}),{...mk(true,10,'1D4ED8',bg,'right',BT),numFmt:'#,##0'});
+      sA(ws,XLSX.utils.encode_cell({r:5+i,c:14}),{...mk(true,10,'059669',bg,'right',BT),numFmt:'#,##0'});
+      sA(ws,XLSX.utils.encode_cell({r:5+i,c:15}),{...mk(true,10,'7C3AED',bg,'right',BT),numFmt:'#,##0'});
+    });
+    // 합계 행
+    const sumR=5+dataRows.length+1;
+    sR(ws,sumR,0,sumR,NC-1,mk(true,11,'FFFFFF','1E293B','center',BM));
+    sA(ws,XLSX.utils.encode_cell({r:sumR,c:0}),mk(true,11,'FFFFFF','1E293B','left',BM));
+    [9,10,11,12].forEach(ci=>sA(ws,XLSX.utils.encode_cell({r:sumR,c:ci}),{...mk(true,11,'E2E8F0','1E293B','right',BM),numFmt:'#,##0'}));
+    sA(ws,XLSX.utils.encode_cell({r:sumR,c:13}),{...mk(true,13,'60A5FA','1E293B','right',BM),numFmt:'#,##0'});
+    sA(ws,XLSX.utils.encode_cell({r:sumR,c:14}),{...mk(true,13,'34D399','1E293B','right',BM),numFmt:'#,##0'});
+    sA(ws,XLSX.utils.encode_cell({r:sumR,c:15}),{...mk(true,13,'FCD34D','1E293B','right',BM),numFmt:'#,##0'});
+    sA(ws,XLSX.utils.encode_cell({r:sumR,c:17}),mk(true,13,'FCD34D','1E293B','center',BM));
+
+    XLSX.utils.book_append_sheet(wb,ws,'청구서');
+
+    /* ══════════════════════════════════════
+       Sheet 2 : 운송비 명세표
+    ═══════════════════════════════════════ */
+    const NC2=14;
+    const specRows=billingRows.map((r,i)=>{
+      const cTot2=r.carrier_base+r.carrier_add,kTot2=r.client_base+r.client_add,diff2=kTot2-cTot2;
+      return[i+1,r.order_no,r.delivery_date,r.origin,r.origin_name,r.district,r.dest_name,r.vehicle_type,cTot2,kTot2,diff2,kTot2>0?parseFloat((diff2/kTot2*100).toFixed(1))+'%':'-',r.quantity,r.note];
+    });
+
     const ws2=XLSX.utils.aoa_to_sheet([
-      [clientNm+' 운송비 명세표 ('+from+' ~ '+to+')'],
-      [],
-      ['No.','DN No.','차량사용일','출발지 시군구','출발지 상호','도착지 시군구','도착지 상호','차종','운송사합계','화주합계','차액','수익률','Q\'ty','비고'],
-      ...billingRows.map((r,i)=>{
-        const cTot2=r.carrier_base+r.carrier_add, kTot2=r.client_base+r.client_add, diff2=kTot2-cTot2;
-        return [i+1,r.order_no,r.delivery_date,r.origin,r.origin_name,r.district,r.dest_name,r.vehicle_type, cTot2, kTot2, diff2, kTot2>0?parseFloat((diff2/kTot2*100).toFixed(1))+'%':'-', r.quantity, r.note];
-      }),
-      ['합계','','','','','','','', cT,kT,df,totalMarginXls,'','']
+      [`${clientNm}  운송비 명세표`,...Array(NC2-1).fill('')],
+      [`기간 : ${from} ~ ${to}`,'',`운송업체 : ${carrierNm}`,'',`출력일 : ${exportDate}`,...Array(NC2-5).fill('')],
+      Array(NC2).fill(''),
+      ['No.','DN No.','차량사용일','출발지 시군구','출발지 상호','도착지 시군구','도착지 상호','차종','운송사 합계','화주 합계','차  액','수익률','Q\'ty','비고'],
+      ...specRows,
+      Array(NC2).fill(''),
+      ['합  계','','','','','','','',cT,kT,df,totalMarginXls,'','']
     ]);
-    ws2['!cols']=[{wch:4},{wch:18},{wch:11},{wch:9},{wch:14},{wch:9},{wch:14},{wch:7},{wch:11},{wch:11},{wch:11},{wch:7},{wch:6},{wch:12}];
+    ws2['!cols']=[{wch:4},{wch:18},{wch:11},{wch:9},{wch:14},{wch:9},{wch:14},{wch:7},{wch:12},{wch:12},{wch:12},{wch:8},{wch:6},{wch:14}];
+    ws2['!rows']=[{hpt:34},{hpt:18},{hpt:6},{hpt:22}];
+    ws2['!merges']=[
+      {s:{r:0,c:0},e:{r:0,c:NC2-1}},
+      {s:{r:1,c:0},e:{r:1,c:1}},{s:{r:1,c:2},e:{r:1,c:3}},{s:{r:1,c:4},e:{r:1,c:NC2-1}},
+    ];
+    sR(ws2,0,0,0,NC2-1,mk(true,18,'FFFFFF','1A3C5E','center',BM));
+    sR(ws2,1,0,1,NC2-1,mk(false,10,'475569','EBF4FF','left',BT));
+    sA(ws2,XLSX.utils.encode_cell({r:1,c:4}),mk(false,10,'475569','EBF4FF','right',BT));
+    sR(ws2,3,0,3,NC2-1,mk(true,10,'FFFFFF','334155','center',BM));
+    specRows.forEach((_,i)=>{
+      const bg=i%2===0?'FFFFFF':'EFF6FF';
+      sR(ws2,4+i,0,4+i,NC2-1,mk(false,10,'1E293B',bg,'center',BT));
+      sA(ws2,XLSX.utils.encode_cell({r:4+i,c:1}),mk(true,10,'374151',bg,'left',BT));
+      [8,9].forEach(ci=>sA(ws2,XLSX.utils.encode_cell({r:4+i,c:ci}),{...mk(true,10,ci===8?'1D4ED8':'059669',bg,'right',BT),numFmt:'#,##0'}));
+      sA(ws2,XLSX.utils.encode_cell({r:4+i,c:10}),{...mk(true,10,'7C3AED',bg,'right',BT),numFmt:'#,##0'});
+      sA(ws2,XLSX.utils.encode_cell({r:4+i,c:11}),mk(true,10,'D97706',bg,'center',BT));
+    });
+    const sumR2=4+specRows.length+1;
+    sR(ws2,sumR2,0,sumR2,NC2-1,mk(true,11,'FFFFFF','1E293B','center',BM));
+    sA(ws2,XLSX.utils.encode_cell({r:sumR2,c:0}),mk(true,11,'FFFFFF','1E293B','left',BM));
+    sA(ws2,XLSX.utils.encode_cell({r:sumR2,c:8}),{...mk(true,13,'60A5FA','1E293B','right',BM),numFmt:'#,##0'});
+    sA(ws2,XLSX.utils.encode_cell({r:sumR2,c:9}),{...mk(true,13,'34D399','1E293B','right',BM),numFmt:'#,##0'});
+    sA(ws2,XLSX.utils.encode_cell({r:sumR2,c:10}),{...mk(true,13,'FCD34D','1E293B','right',BM),numFmt:'#,##0'});
+    sA(ws2,XLSX.utils.encode_cell({r:sumR2,c:11}),mk(true,13,'FCD34D','1E293B','center',BM));
+
     XLSX.utils.book_append_sheet(wb,ws2,'명세표');
 
     XLSX.writeFile(wb,`운송청구서_${clientNm}_${from}_${to}.xlsx`);

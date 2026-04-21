@@ -1124,56 +1124,154 @@
   function exportExcel() {
     if (!dispatchData.length) { alert('내보낼 데이터가 없습니다.'); return; }
     const clientLabel = currentClient === 'mettler' ? '메틀러토레도' : '샤넬코리아';
-    let aoa;
+    const now = new Date();
+    const exportDate = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+
+    /* ── 스타일 헬퍼 ─────────────────────── */
+    const BM = { top:{style:'medium',color:{rgb:'1E293B'}}, bottom:{style:'medium',color:{rgb:'1E293B'}}, left:{style:'medium',color:{rgb:'1E293B'}}, right:{style:'medium',color:{rgb:'1E293B'}} };
+    const BT = { top:{style:'thin',color:{rgb:'CBD5E0'}},   bottom:{style:'thin',color:{rgb:'CBD5E0'}},   left:{style:'thin',color:{rgb:'CBD5E0'}},   right:{style:'thin',color:{rgb:'CBD5E0'}} };
+    const sA = (ws,ref,s)=>{ if(ws[ref]) ws[ref].s=s; };
+    const sR = (ws,r1,c1,r2,c2,s)=>{
+      for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++){
+        const ref=XLSX.utils.encode_cell({r,c});
+        if(!ws[ref]) ws[ref]={t:'z',v:''};
+        ws[ref].s=s;
+      }
+    };
+    const mkS=(bold,sz,fgRgb,bgRgb,align='center',border=BT)=>({
+      font:{bold,sz,color:{rgb:fgRgb},name:'맑은 고딕'},
+      fill:{patternType:'solid',fgColor:{rgb:bgRgb}},
+      alignment:{horizontal:align,vertical:'center'},
+      border,
+    });
+
+    const wb = XLSX.utils.book_new();
 
     if (currentClient === 'mettler') {
+      /* ── 메틀러토레도 시트 ── */
+      const NC = 12;
       const headers = ['날짜','출발지','도착지','화물내용','차량종류','운송사운임','운송사작업비','화주운임','화주작업비','담당','운송사명','비고'];
-      const rows    = dispatchData.map(r => [
+      const rows    = dispatchData.map((r,i) => [
         r.item_date, r.origin, r.destination, r.cargo, r.vehicle_type,
         Number(r.carrier_fee)||0, Number(r.carrier_work)||0,
         Number(r.shipper_fee)||0, Number(r.shipper_work)||0,
-        r.assigned_to, r.carrier_name, r.notes
+        r.assigned_to, r.carrier_name, r.notes||''
       ]);
-      aoa = [headers, ...rows];
+      let tCost=0, tCharge=0;
+      rows.forEach(r=>{ tCost+=r[5]+r[6]; tCharge+=r[7]+r[8]; });
+      const diff=tCharge-tCost;
+      const rate=tCost>0?(diff/tCost*100).toFixed(1)+'%':'-';
+
+      const aoa=[
+        [`METTLER TOLEDO  차량 배차 관리`, ...Array(NC-1).fill('')],
+        [`출력일 : ${exportDate}`, ...Array(NC-1).fill('')],
+        Array(NC).fill(''),
+        headers,
+        ...rows,
+        Array(NC).fill(''),
+        ['운송사 비용 합계','','','','',tCost,'','','','','',''],
+        ['화주 청구 합계','','','','','','',tCharge,'','','',''],
+        ['차이 금액(수익)','','','','','','',diff,'','','',''],
+        ['수익율','','','','','','',rate,'','','',''],
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols']=[{wch:12},{wch:14},{wch:14},{wch:16},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:10},{wch:12},{wch:16}];
+      ws['!rows']=[{hpt:32},{hpt:18},{hpt:6},{hpt:22}];
+      ws['!merges']=[
+        {s:{r:0,c:0},e:{r:0,c:NC-1}},
+        {s:{r:1,c:0},e:{r:1,c:NC-1}},
+      ];
+      // 타이틀
+      sR(ws,0,0,0,NC-1,mkS(true,16,'FFFFFF','1E293B','center',BM));
+      // 부제
+      sR(ws,1,0,1,NC-1,mkS(false,10,'475569','F1F5F9','right',BT));
+      // 헤더
+      sR(ws,3,0,3,NC-1,mkS(true,11,'FFFFFF','334155','center',BM));
+      // 데이터
+      rows.forEach((_,i)=>{
+        const bg=i%2===0?'FFFFFF':'F8FAFC';
+        sR(ws,4+i,0,4+i,NC-1,mkS(false,10,'1E293B',bg,'center',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:0}),mkS(true,10,'374151',bg,'left',BT));
+        [5,6,7,8].forEach(ci=>sA(ws,XLSX.utils.encode_cell({r:4+i,c:ci}),{...mkS(false,10,'1E293B',bg,'center',BT),numFmt:'#,##0'}));
+      });
+      // 요약행
+      const sBase=4+rows.length+1;
+      [['2563EB','DBEAFE'],['059669','DCFCE7'],['DC2626','FEE2E2'],['7C3AED','EDE9FE']].forEach(([fc,bg],si)=>{
+        const ri=sBase+si;
+        sR(ws,ri,0,ri,NC-1,mkS(false,10,'374151',bg,'center',BM));
+        sA(ws,XLSX.utils.encode_cell({r:ri,c:0}),mkS(true,11,'1E293B',bg,'left',BM));
+        sA(ws,XLSX.utils.encode_cell({r:ri,c:5}),{...mkS(true,12,fc,bg,'right',BM),numFmt:'#,##0'});
+        sA(ws,XLSX.utils.encode_cell({r:ri,c:7}),{...mkS(true,12,fc,bg,'right',BM),numFmt:'#,##0'});
+      });
+
+      XLSX.utils.book_append_sheet(wb, ws, '메틀러토레도');
+
     } else {
-      const headers = ['차량사용일','출발지','도착지','내용','비용','수량','합계','청구금액','청구합계','차종','배차요청','운송요청','운송사'];
-      const rows    = dispatchData.map(r => {
+      /* ── 샤넬코리아 시트 ── */
+      const NC = 13;
+      const headers = ['NO','차량사용일','출발지','도착지','내용','단가(운송사)','수량','합계(운송사)','단가(화주)','청구합계(화주)','차종','비고','운송사'];
+      const rows = dispatchData.map((r,i) => {
         const subtotal    = (Number(r.carrier_fee)||0) * (Number(r.carrier_work)||0);
         const chargeTotal = (Number(r.shipper_fee)||0) * (Number(r.carrier_work)||0);
         return [
-          r.item_date, r.origin, r.destination, r.cargo,
+          i+1, r.item_date, r.origin, r.destination, r.cargo,
           Number(r.carrier_fee)||0, Number(r.carrier_work)||0, subtotal,
           Number(r.shipper_fee)||0, chargeTotal,
-          r.vehicle_type, r.notes, r.assigned_to, r.carrier_name
+          r.vehicle_type, r.contact||r.notes||'', r.carrier_name
         ];
       });
 
-      // 요약 계산
-      const actTotal  = dispatchData.filter(r => r.carrier_name === 'ACT')
-                          .reduce((s, r) => s + (Number(r.shipper_fee)||0) * (Number(r.carrier_work)||0), 0);
-      const k1Total   = dispatchData.filter(r => r.carrier_name === 'K1')
-                          .reduce((s, r) => s + (Number(r.shipper_fee)||0) * (Number(r.carrier_work)||0), 0);
-      const passTotal = dispatchData.filter(r => r.carrier_name === '패스')
-                          .reduce((s, r) => s + (Number(r.shipper_fee)||0) * (Number(r.carrier_work)||0), 0);
-      const totalCharge = dispatchData.reduce((s, r) => s + (Number(r.shipper_fee)||0) * (Number(r.carrier_work)||0), 0);
-      const totalCost   = dispatchData.reduce((s, r) => s + (Number(r.carrier_fee)||0) * (Number(r.carrier_work)||0), 0);
+      const actTotal  = dispatchData.filter(r=>r.carrier_name==='ACT') .reduce((s,r)=>s+(Number(r.shipper_fee)||0)*(Number(r.carrier_work)||0),0);
+      const k1Total   = dispatchData.filter(r=>r.carrier_name==='K1')  .reduce((s,r)=>s+(Number(r.shipper_fee)||0)*(Number(r.carrier_work)||0),0);
+      const passTotal = dispatchData.filter(r=>r.carrier_name==='패스').reduce((s,r)=>s+(Number(r.shipper_fee)||0)*(Number(r.carrier_work)||0),0);
+      const totalCharge = rows.reduce((s,r)=>s+r[9],0);
+      const totalCost   = rows.reduce((s,r)=>s+r[7],0);
       const diff        = totalCharge - totalCost;
-      const rate        = totalCost > 0 ? (diff / totalCost * 100).toFixed(1) + '%' : '-';
+      const rate        = totalCost > 0 ? (diff/totalCost*100).toFixed(1)+'%' : '-';
 
-      aoa = [
-        headers, ...rows,
-        [],
-        ['ACT합계', actTotal],
-        ['K1합계',  k1Total],
-        ['패스합계', passTotal],
-        ['차이금액', diff],
-        ['수익율',   rate]
+      const aoa=[
+        [`CHANEL KOREA  차량 배차 관리`, ...Array(NC-1).fill('')],
+        [`출력일 : ${exportDate}`, ...Array(NC-1).fill('')],
+        Array(NC).fill(''),
+        headers,
+        ...rows,
+        Array(NC).fill(''),
+        ['ACT 청구합계', actTotal,   ...Array(NC-2).fill('')],
+        ['K1 청구합계',  k1Total,    ...Array(NC-2).fill('')],
+        ['패스 청구합계',passTotal,  ...Array(NC-2).fill('')],
+        ['운송사 비용 합계',totalCost,...Array(NC-2).fill('')],
+        ['화주 청구 합계',totalCharge,...Array(NC-2).fill('')],
+        ['차이 금액(수익)',diff,      ...Array(NC-2).fill('')],
+        ['수 익 율',       rate,      ...Array(NC-2).fill('')],
       ];
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols']=[{wch:5},{wch:12},{wch:13},{wch:13},{wch:16},{wch:12},{wch:7},{wch:13},{wch:12},{wch:14},{wch:10},{wch:18},{wch:10}];
+      ws['!rows']=[{hpt:32},{hpt:18},{hpt:6},{hpt:22}];
+      ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:NC-1}},{s:{r:1,c:0},e:{r:1,c:NC-1}}];
+
+      sR(ws,0,0,0,NC-1,mkS(true,16,'FFFFFF','3B1F3B','center',BM));
+      sR(ws,1,0,1,NC-1,mkS(false,10,'475569','F5F0FF','right',BT));
+      sR(ws,3,0,3,NC-1,mkS(true,11,'FFFFFF','4C1D95','center',BM));
+      rows.forEach((_,i)=>{
+        const bg=i%2===0?'FFFFFF':'FAF5FF';
+        sR(ws,4+i,0,4+i,NC-1,mkS(false,10,'1E293B',bg,'center',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:0}),mkS(false,10,'9CA3AF',bg,'center',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:1}),mkS(true,10,'374151',bg,'left',BT));
+        [7,9].forEach(ci=>sA(ws,XLSX.utils.encode_cell({r:4+i,c:ci}),{...mkS(true,10,'7C3AED',bg,'right',BT),numFmt:'#,##0'}));
+      });
+      const sBase=4+rows.length+1;
+      [['2563EB','DBEAFE'],['059669','DCFCE7'],['7C3AED','EDE9FE'],['6B7280','F1F5F9'],['059669','DCFCE7'],['DC2626','FEE2E2'],['D97706','FEF3C7']].forEach(([fc,bg],si)=>{
+        const ri=sBase+si;
+        sR(ws,ri,0,ri,NC-1,mkS(false,10,'374151',bg,'center',BM));
+        sA(ws,XLSX.utils.encode_cell({r:ri,c:0}),mkS(true,11,'1E293B',bg,'left',BM));
+        sA(ws,XLSX.utils.encode_cell({r:ri,c:1}),{...mkS(true,13,fc,bg,'right',BM),numFmt:'#,##0'});
+      });
+
+      XLSX.utils.book_append_sheet(wb, ws, '샤넬코리아');
     }
 
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, clientLabel);
     XLSX.writeFile(wb, `배차관리_${clientLabel}_${today()}.xlsx`);
   }
 

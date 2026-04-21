@@ -91,13 +91,13 @@
     table.fee-table thead th.emp-header:hover .remove-emp { display: block; }
 
     /* 데이터 행 */
-    table.fee-table tbody tr { border-bottom: 1px solid #f0f4f8; }
+    table.fee-table tbody tr { border-bottom: 2px solid #cbd5e0; }
     table.fee-table tbody tr:nth-child(even) { background: #f8fafc; }
     table.fee-table tbody tr.row-sat  { background: #eff6ff !important; }
     table.fee-table tbody tr.row-hol  { background: #fff5f5 !important; }
     table.fee-table tbody td {
-      padding: 6px 8px; text-align: center; vertical-align: middle;
-      border: 1px solid #f0f4f8; color: #2d3748;
+      padding: 7px 8px; text-align: center; vertical-align: middle;
+      border: 1px solid #cbd5e0; color: #2d3748;
     }
     table.fee-table tbody td.date-cell {
       font-size: 12px; white-space: nowrap; font-weight: 600; min-width: 80px;
@@ -131,6 +131,17 @@
     .num-input:focus { background: #eff6ff; border: 1px solid #3b82f6; }
     .num-input.has-value-wday { font-weight: 700; color: #2563eb; }
     .num-input.has-value-hol  { font-weight: 700; color: #dc2626; }
+
+    /* 텍스트 입력 셀 (Part Time) */
+    .text-input {
+      width: 80px; border: none; background: transparent;
+      text-align: left; font-size: 12px; font-family: inherit;
+      padding: 4px 4px; outline: none; border-radius: 4px;
+    }
+    .text-input:focus { background: #eff6ff; border: 1px solid #3b82f6; }
+    .text-input.wide { width: 140px; }
+    .num-input.billing { width: 90px; text-align: right; }
+    .num-input.billing.has-value-wday { font-weight: 700; color: #059669; }
 
     /* ── 토스트 ── */
     #toast {
@@ -397,11 +408,18 @@ function loadData() {
   // 누락된 날짜 초기화
   dateList.forEach(d => {
     if (!data[d.dateStr]) {
-      data[d.dateStr] = { ot: employees.map(() => null), pt1: null, pt2: null, holiday: false };
+      data[d.dateStr] = { ot: employees.map(() => null), pt1: null, pt2: null,
+        ptHours: '', ptHeadcount: null, ptWorkers: '', ptBilling: null, ptDesc: '', holiday: false };
     } else {
       // employees 길이 맞추기
       while (data[d.dateStr].ot.length < employees.length) data[d.dateStr].ot.push(null);
       if (data[d.dateStr].ot.length > employees.length) data[d.dateStr].ot.length = employees.length;
+      // 새 PT 필드 누락 시 초기화
+      if (data[d.dateStr].ptHours    === undefined) data[d.dateStr].ptHours    = '';
+      if (data[d.dateStr].ptHeadcount=== undefined) data[d.dateStr].ptHeadcount= null;
+      if (data[d.dateStr].ptWorkers  === undefined) data[d.dateStr].ptWorkers  = '';
+      if (data[d.dateStr].ptBilling  === undefined) data[d.dateStr].ptBilling  = null;
+      if (data[d.dateStr].ptDesc     === undefined) data[d.dateStr].ptDesc     = '';
     }
   });
 }
@@ -499,7 +517,8 @@ function onOTInput(el) {
   const dateStr = el.dataset.date;
   const empIdx  = parseInt(el.dataset.emp);
   const val     = el.value === '' ? null : Math.max(0, Math.min(24, parseInt(el.value) || 0));
-  if (!data[dateStr]) data[dateStr] = { ot: employees.map(() => null), pt1: null, pt2: null, holiday: false };
+  if (!data[dateStr]) data[dateStr] = { ot: employees.map(() => null), pt1: null, pt2: null,
+    ptHours: '', ptHeadcount: null, ptWorkers: '', ptBilling: null, ptDesc: '', holiday: false };
   while (data[dateStr].ot.length <= empIdx) data[dateStr].ot.push(null);
   data[dateStr].ot[empIdx] = val;
 
@@ -577,9 +596,14 @@ function renderPTTable() {
   // 헤더
   thead.innerHTML = `<tr>
     <th style="min-width:88px;">날짜</th>
-    <th style="min-width:90px;">Part Time (1일)</th>
-    <th style="min-width:90px;">Part Time (4시간)</th>
-    <th style="min-width:80px;">Day Total</th>
+    <th style="min-width:80px;">Part Time (1일)</th>
+    <th style="min-width:80px;">Part Time (4시간)</th>
+    <th style="min-width:80px;">업무시간</th>
+    <th style="min-width:64px;">인원수</th>
+    <th style="min-width:90px;">작업인원</th>
+    <th style="min-width:100px;">청구금액</th>
+    <th style="min-width:150px;">내용</th>
+    <th style="min-width:72px;">Day Total</th>
   </tr>`;
 
   // 본문
@@ -594,10 +618,16 @@ function renderPTTable() {
     const dow = new Date(dateStr + 'T00:00:00').getDay();
     const dateLabel = `${parseInt(m)}/${parseInt(d)} (${DAY_KO[dow]})`;
 
-    const rowData = data[dateStr] || { ot: [], pt1: null, pt2: null, holiday: false };
+    const rowData = data[dateStr] || { ot: [], pt1: null, pt2: null, ptHours: '', ptHeadcount: null, ptWorkers: '', ptBilling: null, ptDesc: '', holiday: false };
     const pt1 = rowData.pt1;
     const pt2 = rowData.pt2;
-    const dayTotal = (parseInt(pt1)||0) + (parseInt(pt2)||0);
+    const ptHours    = rowData.ptHours    || '';
+    const ptHeadcount= rowData.ptHeadcount;
+    const ptWorkers  = rowData.ptWorkers  || '';
+    const ptBilling  = rowData.ptBilling;
+    const ptDesc     = rowData.ptDesc     || '';
+    const dayTotal   = (parseInt(pt1)||0) + (parseInt(pt2)||0);
+    const billingCls = (ptBilling > 0) ? 'has-value-wday' : '';
 
     tbHTML += `<tr class="${rowCls}">
       <td class="date-cell ${dateCls}" onclick="toggleHoliday('${dateStr}')" title="클릭하여 휴일 토글">${dateLabel}</td>
@@ -613,6 +643,31 @@ function renderPTTable() {
         onchange="onPTInput(this,'pt2')"
         onkeydown="cellKeyNav(event,this,'pt')"
       ></td>
+      <td><input type="text" class="text-input" placeholder="예) 09~18"
+        value="${escHtml(ptHours)}"
+        data-date="${dateStr}"
+        oninput="onPTTextInput(this,'ptHours')"
+      ></td>
+      <td><input type="number" class="num-input ${ptHeadcount > 0 ? 'has-value-wday' : ''}" min="0" max="99" step="1"
+        value="${ptHeadcount !== null && ptHeadcount !== undefined ? ptHeadcount : ''}"
+        data-date="${dateStr}"
+        onchange="onPTInput(this,'ptHeadcount')"
+      ></td>
+      <td><input type="text" class="text-input"
+        value="${escHtml(ptWorkers)}"
+        data-date="${dateStr}"
+        oninput="onPTTextInput(this,'ptWorkers')"
+      ></td>
+      <td><input type="number" class="num-input billing ${billingCls}" min="0" step="1"
+        value="${ptBilling !== null && ptBilling !== undefined ? ptBilling : ''}"
+        data-date="${dateStr}"
+        onchange="onPTInput(this,'ptBilling')"
+      ></td>
+      <td><input type="text" class="text-input wide"
+        value="${escHtml(ptDesc)}"
+        data-date="${dateStr}"
+        oninput="onPTTextInput(this,'ptDesc')"
+      ></td>
       <td class="total-cell" id="pt-total-${dateStr}">${dayTotal > 0 ? dayTotal : ''}</td>
     </tr>`;
   });
@@ -625,11 +680,17 @@ function renderPTTable() {
 function onPTInput(el, field) {
   const dateStr = el.dataset.date;
   const val     = el.value === '' ? null : Math.max(0, parseInt(el.value) || 0);
-  if (!data[dateStr]) data[dateStr] = { ot: employees.map(() => null), pt1: null, pt2: null, holiday: false };
+  if (!data[dateStr]) data[dateStr] = { ot: employees.map(() => null), pt1: null, pt2: null,
+    ptHours: '', ptHeadcount: null, ptWorkers: '', ptBilling: null, ptDesc: '', holiday: false };
   data[dateStr][field] = val;
 
-  el.className = 'num-input';
-  if (val > 0) el.classList.add('has-value-wday');
+  if (field === 'ptBilling') {
+    el.className = 'num-input billing';
+    if (val > 0) el.classList.add('has-value-wday');
+  } else {
+    el.className = 'num-input';
+    if (val > 0) el.classList.add('has-value-wday');
+  }
 
   // Day Total 업데이트
   const r = data[dateStr];
@@ -641,20 +702,34 @@ function onPTInput(el, field) {
   autoSave();
 }
 
+function onPTTextInput(el, field) {
+  const dateStr = el.dataset.date;
+  if (!data[dateStr]) data[dateStr] = { ot: employees.map(() => null), pt1: null, pt2: null,
+    ptHours: '', ptHeadcount: null, ptWorkers: '', ptBilling: null, ptDesc: '', holiday: false };
+  data[dateStr][field] = el.value;
+  autoSave();
+}
+
 function renderPTSummary() {
   const tfoot = document.getElementById('ptFoot');
-  let totalPt1 = 0, totalPt2 = 0;
+  let totalPt1 = 0, totalPt2 = 0, totalBilling = 0;
   dateList.forEach(entry => {
     const r = data[entry.dateStr];
     if (!r) return;
-    totalPt1 += parseInt(r.pt1) || 0;
-    totalPt2 += parseInt(r.pt2) || 0;
+    totalPt1    += parseInt(r.pt1)       || 0;
+    totalPt2    += parseInt(r.pt2)       || 0;
+    totalBilling+= parseInt(r.ptBilling) || 0;
   });
   const totalAll = totalPt1 + totalPt2;
   tfoot.innerHTML = `<tr class="summary-row">
     <td class="lbl">합계 (Total)</td>
     <td class="grand">${totalPt1 > 0 ? totalPt1 : '-'}</td>
     <td class="grand">${totalPt2 > 0 ? totalPt2 : '-'}</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td class="grand">${totalBilling > 0 ? totalBilling.toLocaleString() + ' 원' : '-'}</td>
+    <td>-</td>
     <td class="grand">${totalAll > 0 ? totalAll : '-'}</td>
   </tr>`;
 }
@@ -663,7 +738,8 @@ function renderPTSummary() {
 //  휴일 수동 토글
 // ════════════════════════════════════════════
 function toggleHoliday(dateStr) {
-  if (!data[dateStr]) data[dateStr] = { ot: employees.map(() => null), pt1: null, pt2: null, holiday: false };
+  if (!data[dateStr]) data[dateStr] = { ot: employees.map(() => null), pt1: null, pt2: null,
+    ptHours: '', ptHeadcount: null, ptWorkers: '', ptBilling: null, ptDesc: '', holiday: false };
   data[dateStr].holiday = !data[dateStr].holiday;
   // OT & PT 테이블 재렌더 (색상 변경)
   renderTables();
@@ -685,83 +761,346 @@ function cellKeyNav(e, el, tableType) {
 }
 
 // ════════════════════════════════════════════
-//  엑셀 출력 (SheetJS)
+//  엑셀 출력 (SheetJS) — 프로페셔널 디자인
 // ════════════════════════════════════════════
+
+/* 공통 스타일 헬퍼 */
+function xlStyle(opts) {
+  return {
+    font:      opts.font      || {},
+    fill:      opts.fill      || { patternType: 'none' },
+    alignment: opts.alignment || { horizontal: 'center', vertical: 'center', wrapText: true },
+    border:    opts.border    || {
+      top:    { style: 'thin', color: { rgb: 'CBD5E0' } },
+      bottom: { style: 'thin', color: { rgb: 'CBD5E0' } },
+      left:   { style: 'thin', color: { rgb: 'CBD5E0' } },
+      right:  { style: 'thin', color: { rgb: 'CBD5E0' } },
+    },
+  };
+}
+function applyStyle(ws, ref, style) {
+  if (!ws[ref]) return;
+  ws[ref].s = style;
+}
+function applyRangeStyle(ws, r1, c1, r2, c2, style) {
+  for (let r = r1; r <= r2; r++) {
+    for (let c = c1; c <= c2; c++) {
+      const ref = XLSX.utils.encode_cell({ r, c });
+      if (!ws[ref]) ws[ref] = { t: 'z', v: '' };
+      ws[ref].s = style;
+    }
+  }
+}
+
+const BORDER_MEDIUM = {
+  top:    { style: 'medium', color: { rgb: '1E293B' } },
+  bottom: { style: 'medium', color: { rgb: '1E293B' } },
+  left:   { style: 'medium', color: { rgb: '1E293B' } },
+  right:  { style: 'medium', color: { rgb: '1E293B' } },
+};
+const BORDER_THIN = {
+  top:    { style: 'thin', color: { rgb: 'CBD5E0' } },
+  bottom: { style: 'thin', color: { rgb: 'CBD5E0' } },
+  left:   { style: 'thin', color: { rgb: 'CBD5E0' } },
+  right:  { style: 'thin', color: { rgb: 'CBD5E0' } },
+};
+
 function exportExcel() {
   const { startStr, endStr } = calcPeriod(selYear, selMonth);
+  const now = new Date();
+  const exportDate = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
   const fileName = `OT_Fee_메틀러토레도_${selYear}_${String(selMonth).padStart(2,'0')}.xlsx`;
   const wb = XLSX.utils.book_new();
 
-  // ── Sheet 1: OT Fee ──────────────────────
+  // ══════════════════════════════════════════
+  //  Sheet 1: OT Fee
+  // ══════════════════════════════════════════
   const otAoa = [];
-  // 타이틀
-  otAoa.push([`OT Fee - 메틀러토레도 (${startStr} ~ ${endStr})`]);
-  otAoa.push([]);
-  // 헤더
+  // Row 0: 메인 타이틀
+  otAoa.push([`METTLER TOLEDO  OT Fee Report`, '', '', ...Array(employees.length - 1).fill(''), '', '']);
+  // Row 1: 부제목 정보
+  otAoa.push([`대상 기간 : ${startStr} ~ ${endStr}`, '', `출력일 : ${exportDate}`, ...Array(employees.length - 2).fill(''), '', '']);
+  // Row 2: 빈 줄
+  otAoa.push(Array(employees.length + 2).fill(''));
+  // Row 3: 헤더
   otAoa.push(['날짜', ...employees, '합계']);
 
+  let wdaySums = employees.map(() => 0); let wdayGrand = 0;
+  let holSums  = employees.map(() => 0); let holGrand  = 0;
+
   dateList.forEach(entry => {
-    const { dateStr, isSat } = entry;
+    const { dateStr } = entry;
     const red = isRedDay(entry);
+    const isSat = entry.isSat;
     const [y, m, d] = dateStr.split('-');
     const dow = new Date(dateStr + 'T00:00:00').getDay();
     const label = `${parseInt(m)}/${parseInt(d)} (${DAY_KO[dow]})`;
     const rowData = data[dateStr] || {};
     const otVals = employees.map((_, i) => parseInt(rowData.ot && rowData.ot[i]) || 0);
     const total  = otVals.reduce((s, v) => s + v, 0);
-    otAoa.push([label, ...otVals, total]);
-  });
-
-  otAoa.push([]);
-  // 평일 합계
-  let wdaySums = employees.map(() => 0);
-  let wdayGrand = 0;
-  let holSums  = employees.map(() => 0);
-  let holGrand  = 0;
-  dateList.forEach(entry => {
-    const r = data[entry.dateStr] || {};
+    otAoa.push([label, ...otVals.map(v => v || ''), total || '']);
     const isHW = isHolidayOrWeekend(entry);
     employees.forEach((_, i) => {
-      const v = parseInt(r.ot && r.ot[i]) || 0;
+      const v = parseInt(rowData.ot && rowData.ot[i]) || 0;
       if (isHW) { holSums[i] += v; holGrand += v; }
       else       { wdaySums[i] += v; wdayGrand += v; }
     });
   });
-  otAoa.push(['OT (평일)', ...wdaySums, wdayGrand]);
-  otAoa.push(['OT (휴일/주말)', ...holSums, holGrand]);
+
+  // 구분 행
+  otAoa.push(Array(employees.length + 2).fill(''));
+  // 합계 행
+  otAoa.push(['📅 OT 합계 (평일)', ...wdaySums, wdayGrand]);
+  otAoa.push(['🔴 OT 합계 (휴일/주말)', ...holSums, holGrand]);
+  otAoa.push(['⭐ OT 합계 (전체)', ...employees.map((_,i)=>wdaySums[i]+holSums[i]), wdayGrand+holGrand]);
 
   const wsOT = XLSX.utils.aoa_to_sheet(otAoa);
-  const colWidths = [{ wch: 14 }, ...employees.map(() => ({ wch: 10 })), { wch: 8 }];
-  wsOT['!cols'] = colWidths;
-  // 병합: 타이틀 셀
-  wsOT['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: employees.length + 1 } }];
+  const nC = employees.length + 2; // total columns
+
+  // 열 너비
+  wsOT['!cols'] = [{ wch: 14 }, ...employees.map(() => ({ wch: 9 })), { wch: 8 }];
+  // 행 높이
+  wsOT['!rows'] = [{ hpt: 32 }, { hpt: 20 }, { hpt: 6 }, { hpt: 22 }];
+
+  // 병합
+  wsOT['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: nC - 1 } },  // 타이틀
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } },
+    { s: { r: 1, c: 2 }, e: { r: 1, c: nC - 1 } },
+  ];
+
+  // 스타일 적용
+  // 타이틀 행
+  applyRangeStyle(wsOT, 0, 0, 0, nC-1, {
+    font:  { bold: true, sz: 16, color: { rgb: 'FFFFFF' }, name: '맑은 고딕' },
+    fill:  { patternType: 'solid', fgColor: { rgb: '1E293B' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: BORDER_MEDIUM,
+  });
+  // 부제 행
+  applyRangeStyle(wsOT, 1, 0, 1, nC-1, {
+    font:  { sz: 10, color: { rgb: '475569' }, name: '맑은 고딕' },
+    fill:  { patternType: 'solid', fgColor: { rgb: 'F1F5F9' } },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: BORDER_THIN,
+  });
+  applyStyle(wsOT, XLSX.utils.encode_cell({r:1,c:2}), {
+    font:  { sz: 10, color: { rgb: '475569' }, name: '맑은 고딕' },
+    fill:  { patternType: 'solid', fgColor: { rgb: 'F1F5F9' } },
+    alignment: { horizontal: 'right', vertical: 'center' },
+    border: BORDER_THIN,
+  });
+  // 헤더 행 (row 3)
+  applyRangeStyle(wsOT, 3, 0, 3, nC-1, {
+    font:  { bold: true, sz: 11, color: { rgb: 'FFFFFF' }, name: '맑은 고딕' },
+    fill:  { patternType: 'solid', fgColor: { rgb: '334155' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: BORDER_MEDIUM,
+  });
+  // 데이터 행
+  const dataStartRow = 4;
+  dateList.forEach((entry, i) => {
+    const rowIdx = dataStartRow + i;
+    const red    = isRedDay(entry);
+    const isSat  = entry.isSat;
+    const isEven = i % 2 === 0;
+    let bgColor  = isEven ? 'FFFFFF' : 'F8FAFC';
+    if (isSat && !red) bgColor = 'EFF6FF';
+    if (red)           bgColor = 'FFF5F5';
+    const fontColor = red ? 'DC2626' : (isSat ? '2563EB' : '1E293B');
+    applyRangeStyle(wsOT, rowIdx, 0, rowIdx, nC-1, {
+      font:  { sz: 10, color: { rgb: fontColor }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: bgColor } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: BORDER_THIN,
+    });
+    // 날짜 셀 왼쪽 정렬
+    applyStyle(wsOT, XLSX.utils.encode_cell({r:rowIdx,c:0}), {
+      font:  { bold: true, sz: 10, color: { rgb: fontColor }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: bgColor } },
+      alignment: { horizontal: 'left', vertical: 'center' },
+      border: BORDER_THIN,
+    });
+    // 합계 셀 강조
+    applyStyle(wsOT, XLSX.utils.encode_cell({r:rowIdx,c:nC-1}), {
+      font:  { bold: true, sz: 10, color: { rgb: '1D4ED8' }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: 'DBEAFE' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: BORDER_THIN,
+    });
+  });
+  // 요약 행들
+  const sumStart = dataStartRow + dateList.length + 1;
+  const sumColors = [['1E3A5F','DBEAFE','3B82F6'],['3B1F1F','FEE2E2','EF4444'],['1A202C','FEF3C7','F59E0B']];
+  sumColors.forEach(([bg, fg, accent], si) => {
+    const rIdx = sumStart + si;
+    applyRangeStyle(wsOT, rIdx, 0, rIdx, nC-1, {
+      font:  { bold: true, sz: 11, color: { rgb: 'FFFFFF' }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: bg } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: BORDER_MEDIUM,
+    });
+    applyStyle(wsOT, XLSX.utils.encode_cell({r:rIdx,c:0}), {
+      font:  { bold: true, sz: 11, color: { rgb: 'FFFFFF' }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: bg } },
+      alignment: { horizontal: 'left', vertical: 'center' },
+      border: BORDER_MEDIUM,
+    });
+    applyStyle(wsOT, XLSX.utils.encode_cell({r:rIdx,c:nC-1}), {
+      font:  { bold: true, sz: 13, color: { rgb: accent }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: bg } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: BORDER_MEDIUM,
+    });
+  });
+
   XLSX.utils.book_append_sheet(wb, wsOT, 'OT Fee');
 
-  // ── Sheet 2: Part Time ───────────────────
+  // ══════════════════════════════════════════
+  //  Sheet 2: Part Time
+  // ══════════════════════════════════════════
   const ptAoa = [];
-  ptAoa.push([`Part Time List - 메틀러토레도 (${startStr} ~ ${endStr})`]);
-  ptAoa.push([]);
-  ptAoa.push(['날짜', 'Part Time (1일)', 'Part Time (4시간)', 'Day Total']);
+  ptAoa.push([`METTLER TOLEDO  Part Time List`, '', '', '', '', '', '', '']);
+  ptAoa.push([`대상 기간 : ${startStr} ~ ${endStr}`, '', `출력일 : ${exportDate}`, '', '', '', '', '']);
+  ptAoa.push(Array(9).fill(''));
+  ptAoa.push(['날짜', 'Part Time (1일)', 'Part Time (4시간)', '업무시간', '인원수', '작업인원', '청구금액 (원)', '내용', 'Day Total']);
 
-  let totalPt1 = 0, totalPt2 = 0;
+  let totalPt1 = 0, totalPt2 = 0, totalBilling = 0;
   dateList.forEach(entry => {
     const { dateStr } = entry;
-    const [y, m, d] = dateStr.split('-');
+    const [, m, d] = dateStr.split('-');
     const dow = new Date(dateStr + 'T00:00:00').getDay();
     const label = `${parseInt(m)}/${parseInt(d)} (${DAY_KO[dow]})`;
     const r = data[dateStr] || {};
     const pt1 = parseInt(r.pt1) || 0;
     const pt2 = parseInt(r.pt2) || 0;
-    totalPt1 += pt1; totalPt2 += pt2;
-    ptAoa.push([label, pt1 || '', pt2 || '', (pt1 + pt2) || '']);
+    const billing = parseInt(r.ptBilling) || 0;
+    totalPt1 += pt1; totalPt2 += pt2; totalBilling += billing;
+    ptAoa.push([
+      label,
+      pt1 || '',
+      pt2 || '',
+      r.ptHours    || '',
+      parseInt(r.ptHeadcount) || '',
+      r.ptWorkers  || '',
+      billing      || '',
+      r.ptDesc     || '',
+      (pt1 + pt2)  || '',
+    ]);
   });
 
-  ptAoa.push([]);
-  ptAoa.push(['합계 (Total)', totalPt1, totalPt2, totalPt1 + totalPt2]);
+  ptAoa.push(Array(9).fill(''));
+  ptAoa.push(['합계 (Total)', totalPt1 || '', totalPt2 || '', '', '', '', totalBilling || '', '', (totalPt1+totalPt2) || '']);
 
   const wsPT = XLSX.utils.aoa_to_sheet(ptAoa);
-  wsPT['!cols'] = [{ wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 12 }];
-  wsPT['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+  wsPT['!cols'] = [
+    { wch: 14 }, { wch: 15 }, { wch: 16 }, { wch: 12 },
+    { wch: 8  }, { wch: 14 }, { wch: 14  }, { wch: 24 }, { wch: 10 },
+  ];
+  wsPT['!rows'] = [{ hpt: 32 }, { hpt: 20 }, { hpt: 6 }, { hpt: 22 }];
+  wsPT['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } },
+    { s: { r: 1, c: 2 }, e: { r: 1, c: 8 } },
+  ];
+
+  const PT_NC = 9;
+  // 타이틀
+  applyRangeStyle(wsPT, 0, 0, 0, PT_NC-1, {
+    font:  { bold: true, sz: 16, color: { rgb: 'FFFFFF' }, name: '맑은 고딕' },
+    fill:  { patternType: 'solid', fgColor: { rgb: '1E3A5F' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: BORDER_MEDIUM,
+  });
+  // 부제
+  applyRangeStyle(wsPT, 1, 0, 1, PT_NC-1, {
+    font:  { sz: 10, color: { rgb: '475569' }, name: '맑은 고딕' },
+    fill:  { patternType: 'solid', fgColor: { rgb: 'EFF6FF' } },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: BORDER_THIN,
+  });
+  applyStyle(wsPT, XLSX.utils.encode_cell({r:1,c:2}), {
+    font:  { sz: 10, color: { rgb: '475569' }, name: '맑은 고딕' },
+    fill:  { patternType: 'solid', fgColor: { rgb: 'EFF6FF' } },
+    alignment: { horizontal: 'right', vertical: 'center' },
+    border: BORDER_THIN,
+  });
+  // 헤더
+  applyRangeStyle(wsPT, 3, 0, 3, PT_NC-1, {
+    font:  { bold: true, sz: 11, color: { rgb: 'FFFFFF' }, name: '맑은 고딕' },
+    fill:  { patternType: 'solid', fgColor: { rgb: '1E3A5F' } },
+    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+    border: BORDER_MEDIUM,
+  });
+  // 데이터 행
+  dateList.forEach((entry, i) => {
+    const rowIdx = 4 + i;
+    const red   = isRedDay(entry);
+    const isSat = entry.isSat;
+    const isEven = i % 2 === 0;
+    let bgColor = isEven ? 'FFFFFF' : 'F8FAFC';
+    if (isSat && !red) bgColor = 'EFF6FF';
+    if (red)           bgColor = 'FFF5F5';
+    const fontColor = red ? 'DC2626' : (isSat ? '2563EB' : '1E293B');
+    applyRangeStyle(wsPT, rowIdx, 0, rowIdx, PT_NC-1, {
+      font:  { sz: 10, color: { rgb: fontColor }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: bgColor } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: BORDER_THIN,
+    });
+    // 날짜 셀 굵게
+    applyStyle(wsPT, XLSX.utils.encode_cell({r:rowIdx,c:0}), {
+      font:  { bold: true, sz: 10, color: { rgb: fontColor }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: bgColor } },
+      alignment: { horizontal: 'left', vertical: 'center' },
+      border: BORDER_THIN,
+    });
+    // 내용 셀 왼쪽 정렬
+    applyStyle(wsPT, XLSX.utils.encode_cell({r:rowIdx,c:7}), {
+      font:  { sz: 10, color: { rgb: '374151' }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: bgColor } },
+      alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+      border: BORDER_THIN,
+    });
+    // 청구금액 오른쪽 정렬
+    applyStyle(wsPT, XLSX.utils.encode_cell({r:rowIdx,c:6}), {
+      font:  { bold: true, sz: 10, color: { rgb: '059669' }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: bgColor } },
+      alignment: { horizontal: 'right', vertical: 'center' },
+      border: BORDER_THIN,
+      numFmt: '#,##0',
+    });
+    // Day Total 강조
+    applyStyle(wsPT, XLSX.utils.encode_cell({r:rowIdx,c:8}), {
+      font:  { bold: true, sz: 10, color: { rgb: '1D4ED8' }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: 'DBEAFE' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: BORDER_THIN,
+    });
+  });
+  // 합계 행
+  const ptSumRow = 4 + dateList.length + 1;
+  applyRangeStyle(wsPT, ptSumRow, 0, ptSumRow, PT_NC-1, {
+    font:  { bold: true, sz: 12, color: { rgb: 'FFFFFF' }, name: '맑은 고딕' },
+    fill:  { patternType: 'solid', fgColor: { rgb: '1E3A5F' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: BORDER_MEDIUM,
+  });
+  applyStyle(wsPT, XLSX.utils.encode_cell({r:ptSumRow,c:0}), {
+    font:  { bold: true, sz: 12, color: { rgb: 'FFFFFF' }, name: '맑은 고딕' },
+    fill:  { patternType: 'solid', fgColor: { rgb: '1E3A5F' } },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: BORDER_MEDIUM,
+  });
+  [1,2,6,8].forEach(ci => {
+    applyStyle(wsPT, XLSX.utils.encode_cell({r:ptSumRow,c:ci}), {
+      font:  { bold: true, sz: 13, color: { rgb: 'FCD34D' }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: '1E3A5F' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: BORDER_MEDIUM,
+    });
+  });
+
   XLSX.utils.book_append_sheet(wb, wsPT, 'Part Time');
 
   XLSX.writeFile(wb, fileName);

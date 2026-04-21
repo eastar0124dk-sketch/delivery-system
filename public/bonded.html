@@ -449,18 +449,75 @@
     // ── 엑셀 다운로드 ──
     function exportExcel() {
       if (!allRecords.length) { alert('다운로드할 데이터가 없습니다.'); return; }
-      const wb = XLSX.utils.book_new();
-      const wsData = [
-        ['구분','날짜','BL번호','MRN','화주명','품명','수량','중량(KG)','비고']
+      const now = new Date();
+      const exportDate = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+      const filterDate = document.getElementById('filterDate').value || now.toISOString().split('T')[0];
+
+      /* ── 스타일 헬퍼 ── */
+      const BM={top:{style:'medium',color:{rgb:'1E293B'}},bottom:{style:'medium',color:{rgb:'1E293B'}},left:{style:'medium',color:{rgb:'1E293B'}},right:{style:'medium',color:{rgb:'1E293B'}}};
+      const BT={top:{style:'thin',color:{rgb:'CBD5E0'}},bottom:{style:'thin',color:{rgb:'CBD5E0'}},left:{style:'thin',color:{rgb:'CBD5E0'}},right:{style:'thin',color:{rgb:'CBD5E0'}}};
+      const sA=(ws,ref,s)=>{if(ws[ref])ws[ref].s=s;};
+      const sR=(ws,r1,c1,r2,c2,s)=>{
+        for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++){
+          const ref=XLSX.utils.encode_cell({r,c});
+          if(!ws[ref])ws[ref]={t:'z',v:''};
+          ws[ref].s=s;
+        }
+      };
+      const mk=(bold,sz,fg,bg,align='center',bdr=BT)=>({font:{bold,sz,color:{rgb:fg},name:'맑은 고딕'},fill:{patternType:'solid',fgColor:{rgb:bg}},alignment:{horizontal:align,vertical:'center'},border:bdr});
+
+      const NC=9;
+      const inCnt  = allRecords.filter(r=>r.record_type==='반입').length;
+      const outCnt = allRecords.filter(r=>r.record_type==='반출').length;
+
+      const aoa=[
+        [`보세창고  반입 / 반출 현황`,...Array(NC-1).fill('')],
+        [`기준일 : ${filterDate}`,'',`출력일 : ${exportDate}`,...Array(NC-3).fill('')],
+        Array(NC).fill(''),
+        ['구분','날짜','BL 번호','MRN','화 주 명','품  명','수량','중량 (KG)','비고'],
+        ...allRecords.map(r=>[r.record_type,r.record_date,r.bl_no,r.mrn,r.customer,r.product,r.quantity,r.weight,r.notes||'']),
+        Array(NC).fill(''),
+        ['반입 건수','','',inCnt,'반출 건수','','',outCnt,''],
+        ['총 건수','','',allRecords.length,'','','','',''],
       ];
-      allRecords.forEach(r => {
-        wsData.push([r.record_type, r.record_date, r.bl_no, r.mrn, r.customer, r.product, r.quantity, r.weight, r.notes]);
+
+      const ws=XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols']=[{wch:8},{wch:12},{wch:20},{wch:16},{wch:16},{wch:16},{wch:8},{wch:11},{wch:20}];
+      ws['!rows']=[{hpt:32},{hpt:18},{hpt:6},{hpt:22}];
+      ws['!merges']=[
+        {s:{r:0,c:0},e:{r:0,c:NC-1}},
+        {s:{r:1,c:0},e:{r:1,c:1}},{s:{r:1,c:2},e:{r:1,c:NC-1}},
+      ];
+
+      sR(ws,0,0,0,NC-1,mk(true,16,'FFFFFF','0F3460','center',BM));
+      sR(ws,1,0,1,NC-1,mk(false,10,'475569','E0F2FE','left',BT));
+      sA(ws,XLSX.utils.encode_cell({r:1,c:2}),mk(false,10,'475569','E0F2FE','right',BT));
+      sR(ws,3,0,3,NC-1,mk(true,11,'FFFFFF','0369A1','center',BM));
+
+      allRecords.forEach((r,i)=>{
+        const isIn=r.record_type==='반입';
+        const bg=isIn?(i%2===0?'EFF6FF':'DBEAFE'):(i%2===0?'FFF7ED':'FEE2E2');
+        sR(ws,4+i,0,4+i,NC-1,mk(false,10,'1E293B',bg,'center',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:0}),mk(true,10,isIn?'1D4ED8':'DC2626',bg,'center',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:1}),mk(true,10,'374151',bg,'left',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:4}),mk(false,10,'374151',bg,'left',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:5}),mk(false,10,'374151',bg,'left',BT));
+        sA(ws,XLSX.utils.encode_cell({r:4+i,c:8}),mk(false,10,'6B7280',bg,'left',BT));
       });
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      ws['!cols'] = [8,12,20,16,14,14,8,10,20].map(w=>({wch:w}));
+
+      const sB=4+allRecords.length+1;
+      sR(ws,sB,0,sB,NC-1,mk(false,10,'374151','EFF6FF','center',BM));
+      sA(ws,XLSX.utils.encode_cell({r:sB,c:0}),mk(true,10,'1D4ED8','DBEAFE','left',BM));
+      sA(ws,XLSX.utils.encode_cell({r:sB,c:3}),mk(true,13,'1D4ED8','DBEAFE','center',BM));
+      sA(ws,XLSX.utils.encode_cell({r:sB,c:4}),mk(true,10,'DC2626','FEE2E2','left',BM));
+      sA(ws,XLSX.utils.encode_cell({r:sB,c:7}),mk(true,13,'DC2626','FEE2E2','center',BM));
+      sR(ws,sB+1,0,sB+1,NC-1,mk(false,10,'374151','F1F5F9','center',BM));
+      sA(ws,XLSX.utils.encode_cell({r:sB+1,c:0}),mk(true,11,'1E293B','E2E8F0','left',BM));
+      sA(ws,XLSX.utils.encode_cell({r:sB+1,c:3}),mk(true,14,'D97706','FEF3C7','center',BM));
+
+      const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '보세반입출');
-      const date = document.getElementById('filterDate').value || new Date().toISOString().split('T')[0];
-      XLSX.writeFile(wb, `보세반입출_${date}.xlsx`);
+      XLSX.writeFile(wb, `보세반입출_${filterDate}.xlsx`);
     }
 
     // ── 엑셀 업로드 ──
