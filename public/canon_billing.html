@@ -362,6 +362,9 @@
   <button class="btn btn-gray" id="btnDateSort" onclick="sortByDate()" title="ORDER일자 기준 오름차순 정렬 (수동 이동 후 재정렬)">
     <i class="fas fa-sort-amount-up-alt"></i> 날짜순
   </button>
+  <button class="btn" style="background:#7c3aed;color:#fff;" onclick="recalcAllFares()" title="0원인 운임을 요금표에서 자동 채우기">
+    <i class="fas fa-sync-alt"></i> 운임 재조회
+  </button>
   <div class="spacer"></div>
   <span id="autoSaveMsg"></span>
 </div>
@@ -370,11 +373,11 @@
 <div class="summary-bar" id="summaryBar">
   <div class="sum-item"><span class="sum-label">건수</span><span class="sum-value cnt" id="sum-cnt">0</span></div>
   <div class="sum-divider"></div>
-  <div class="sum-item"><span class="sum-label">캐논 청구금액 합계</span><span class="sum-value cli" id="sum-cli">₩0</span></div>
   <div class="sum-item"><span class="sum-label">운임</span><span class="sum-value cli" id="sum-cli-fare">₩0</span></div>
+  <div class="sum-item"><span class="sum-label">캐논 청구금액 합계</span><span class="sum-value cli" id="sum-cli">₩0</span></div>
   <div class="sum-divider"></div>
-  <div class="sum-item"><span class="sum-label">운송사 지불금액 합계</span><span class="sum-value car" id="sum-car">₩0</span></div>
   <div class="sum-item"><span class="sum-label">운임</span><span class="sum-value car" id="sum-car-fare">₩0</span></div>
+  <div class="sum-item"><span class="sum-label">운송사 지불금액 합계</span><span class="sum-value car" id="sum-car">₩0</span></div>
   <div class="sum-divider"></div>
   <div class="sum-item"><span class="sum-label">차이금액 합계</span><span class="sum-value prf" id="sum-diff">₩0</span></div>
   <div class="sum-item"><span class="sum-label">평균 수익율</span><span class="sum-value prf" id="sum-rate">0%</span></div>
@@ -825,6 +828,53 @@ document.addEventListener('click', (e) => {
     document.querySelectorAll('.hl-tooltip.show').forEach(m => m.classList.remove('show'));
   }
 });
+
+/* ── 운임 전체 재조회 ── */
+function recalcAllFares() {
+  const rows = billingData[currentMonth];
+  if (!rows || rows.length === 0) { alert('데이터가 없습니다.'); return; }
+
+  // 지역 미설정 행에 텍스트 추출 먼저 시도
+  rows.forEach(r => {
+    if (!r.departureRegion && r.departure) {
+      const reg = extractRegion(r.departure);
+      if (reg) r.departureRegion = reg;
+    }
+    if (!r.destinationRegion && r.destination) {
+      const reg = extractRegion(r.destination);
+      if (reg) r.destinationRegion = reg;
+    }
+  });
+
+  // carrierFare=0인 행만 재조회 (clientFare는 보존)
+  let filled = 0;
+  rows.forEach(r => {
+    if (!r.carrierFare || r.carrierFare === 0) {
+      const before = r.carrierFare || 0;
+      autoLookup(r, { onlyEmpty: true });
+      if ((r.carrierFare || 0) !== before) filled++;
+    }
+  });
+
+  saveStorage();
+  renderAll();
+
+  // 결과 요약
+  const stillZero = rows.filter(r => !r.carrierFare || r.carrierFare === 0).length;
+  const noRegion  = rows.filter(r => {
+    const dt = r.deliveryType || '출고';
+    if (dt === '출고')  return !r.destinationRegion;
+    if (dt === '회수')  return !r.departureRegion;
+    return false;
+  }).length;
+
+  let msg = `✅ 운임 재조회 완료\n\n운임 채워진 행: ${filled}건`;
+  if (stillZero > 0) {
+    msg += `\n⚠️ 아직 0원인 행: ${stillZero}건`;
+    if (noRegion > 0) msg += `\n   └ 지역 미설정으로 조회 불가: ${noRegion}건\n     (해당 행 지역 열에 직접 입력하세요)`;
+  }
+  alert(msg);
+}
 
 /* ── 정렬 ── */
 function getSortedDisplayRows(rows) {
