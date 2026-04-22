@@ -180,6 +180,21 @@
     .diff-neg { color: #b71c1c; font-weight: 800; font-size: 11px; text-align: right; padding: 3px 5px; }
     .profit-cell { font-weight: 800; font-size: 11px; text-align: center; padding: 3px 4px; }
 
+    /* 체크박스 선택 */
+    .row-check { width: 14px; height: 14px; cursor: pointer; accent-color: #ef4444; }
+    tbody tr.selected-row { background: #fff1f2 !important; outline: 1px solid #fca5a5; }
+    .sel-bar {
+      display: none; align-items: center; gap: 8px; padding: 6px 14px;
+      background: #fef2f2; border-bottom: 2px solid #fca5a5;
+      font-size: 12px; font-weight: 700; color: #b91c1c;
+    }
+    .sel-bar.visible { display: flex; }
+    .sel-bar .sel-cnt { color: #dc2626; font-size: 13px; }
+    .btn-sel-del { background: #dc2626; color: #fff; padding: 5px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; }
+    .btn-sel-del:hover { background: #b91c1c; }
+    .btn-sel-cancel { background: #f1f5f9; color: #475569; padding: 5px 10px; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600; }
+    .btn-sel-cancel:hover { background: #e2e8f0; }
+
     /* Gubun badges */
     .badge {
       display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700;
@@ -295,13 +310,21 @@
   <div class="sum-item"><span class="sum-label">평균 수익율</span><span class="sum-value prf" id="sum-rate">0%</span></div>
 </div>
 
+<!-- 선택 삭제 바 -->
+<div class="sel-bar" id="selBar">
+  <i class="fas fa-check-square"></i>
+  <span><span class="sel-cnt" id="selCnt">0</span>건 선택됨</span>
+  <button class="btn-sel-del" onclick="deleteSelected()"><i class="fas fa-trash-alt"></i> 선택 삭제</button>
+  <button class="btn-sel-cancel" onclick="clearSelection()"><i class="fas fa-times"></i> 선택 취소</button>
+</div>
+
 <!-- Table -->
 <div class="table-wrap">
   <table id="billingTable">
     <thead>
       <!-- Group row -->
       <tr class="gr-row">
-        <th class="grp-actions" colspan="2"></th>
+        <th class="grp-actions" colspan="3"></th>
         <th class="grp-base"  colspan="15">기 본 정 보</th>
         <th class="grp-client"  colspan="7">캐 논 청 구 운 임</th>
         <th class="grp-carrier" colspan="7">운 송 사 지 불 운 임</th>
@@ -311,6 +334,9 @@
       <tr class="col-row">
         <!-- Actions (고정) -->
         <th class="w34" style="background:#263238;color:#ef9a9a">삭제</th>
+        <th class="w34" style="background:#263238;text-align:center">
+          <input type="checkbox" class="row-check" id="checkAll" onclick="toggleAllCheck(this)" title="전체 선택">
+        </th>
         <th class="w34">No</th>
         <!-- Base -->
         <th class="w88">ORDER일자</th>
@@ -585,6 +611,55 @@ function deleteRow(id) {
   renderAll();
 }
 
+/* ── 체크박스 선택 삭제 ── */
+function onRowCheck(cb) {
+  const tr = cb.closest('tr');
+  tr.classList.toggle('selected-row', cb.checked);
+  updateSelBar();
+}
+
+function toggleAllCheck(masterCb) {
+  document.querySelectorAll('.row-check[data-id]').forEach(cb => {
+    cb.checked = masterCb.checked;
+    cb.closest('tr').classList.toggle('selected-row', masterCb.checked);
+  });
+  updateSelBar();
+}
+
+function updateSelBar() {
+  const checked = document.querySelectorAll('.row-check[data-id]:checked');
+  const bar = document.getElementById('selBar');
+  document.getElementById('selCnt').textContent = checked.length;
+  bar.classList.toggle('visible', checked.length > 0);
+  // 전체선택 체크박스 상태 동기화
+  const all = document.querySelectorAll('.row-check[data-id]');
+  const master = document.getElementById('checkAll');
+  if (master) {
+    master.indeterminate = checked.length > 0 && checked.length < all.length;
+    master.checked = all.length > 0 && checked.length === all.length;
+  }
+}
+
+function deleteSelected() {
+  const checked = [...document.querySelectorAll('.row-check[data-id]:checked')];
+  if (checked.length === 0) return;
+  if (!confirm(`선택한 ${checked.length}건을 삭제하시겠습니까?`)) return;
+  const ids = new Set(checked.map(cb => cb.dataset.id));
+  billingData[currentMonth] = (billingData[currentMonth] || []).filter(r => !ids.has(r.id));
+  saveStorage();
+  renderAll();
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-check[data-id]').forEach(cb => {
+    cb.checked = false;
+    cb.closest('tr')?.classList.remove('selected-row');
+  });
+  const master = document.getElementById('checkAll');
+  if (master) { master.checked = false; master.indeterminate = false; }
+  document.getElementById('selBar').classList.remove('visible');
+}
+
 function clearMonth() {
   const rows = billingData[currentMonth] || [];
   if (rows.length === 0) { alert('삭제할 데이터가 없습니다.'); return; }
@@ -699,7 +774,7 @@ function renderTable() {
   const tfoot = document.getElementById('tableFoot');
 
   if (allRows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="35" class="empty-state">
+    tbody.innerHTML = `<tr><td colspan="36" class="empty-state">
       <div class="icon">📋</div>
       <p>이번 달 데이터가 없습니다. <strong>"행 추가"</strong>를 눌러 입력하세요.</p>
     </td></tr>`;
@@ -708,7 +783,7 @@ function renderTable() {
   }
 
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="35" class="empty-state">
+    tbody.innerHTML = `<tr><td colspan="36" class="empty-state">
       <div class="icon">🔍</div>
       <p>조회 기간에 해당하는 데이터가 없습니다.<br>
       <small style="color:#94a3b8">전체 ${allRows.length}건 저장 중 — 기간을 조정하거나 <a href="#" onclick="resetPeriod();return false;">기본값으로 초기화</a>하세요.</small></p>
@@ -733,8 +808,8 @@ function renderTable() {
     : `합 계 (${rows.length}건)`;
 
   tfoot.innerHTML = `<tr>
-    <td class="ft-act" colspan="2"></td>
-    <td class="ft-base" colspan="15">${filterLabel}</td>
+    <td class="ft-act" colspan="3"></td>
+    <td class="ft-base" colspan="14">${filterLabel}</td>
     <td class="ft-cli">${won(fCliFare)}</td>
     <td class="ft-cli" colspan="5"></td>
     <td class="ft-cli">${won(fCliTotal)}</td>
@@ -763,6 +838,9 @@ function buildRow(r, idx) {
       <button class="del-btn" onclick="deleteRow('${r.id}')" title="행 삭제">
         <i class="fas fa-trash-alt" style="font-size:11px;"></i>
       </button>
+    </td>
+    <td class="w34" style="text-align:center;background:#fafafa;">
+      <input type="checkbox" class="row-check" data-id="${r.id}" onchange="onRowCheck(this)">
     </td>
     <td class="seq">${idx+1}</td>
     <td class="w88"><input class="ci" type="date" value="${r.orderDate}"
