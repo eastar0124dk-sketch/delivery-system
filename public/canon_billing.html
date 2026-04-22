@@ -1561,17 +1561,25 @@ function importExcel(buffer) {
   const ws = wb.Sheets[wsName];
   const raw = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
 
-  /* ── 헤더 행 탐색 (최대 6번째 행까지) ── */
+  /* ── 헤더 행 탐색 (최대 10번째 행까지, 5개 이상 컬럼명 매칭) ── */
+  const KNOWN_HDRS = new Set([
+    'No','NO','순번',
+    'ORDER일자','Order일자','order일자','주문일자','날짜',
+    '구분','출발지','도착지','출발일자','도착일자','지역','출발지역','도착지역',
+    '형태','연계지','담당자','인계자','차종','운송사',
+    '비고','운임','리프트','폐기','보관료','탁송료','기타',
+    '청구금액','지불금액','거리km','거리(km)','차이금액','수익율','수익률'
+  ]);
   let hdrIdx = -1;
-  for (let i = 0; i < Math.min(raw.length, 6); i++) {
+  let bestScore = 0;
+  for (let i = 0; i < Math.min(raw.length, 10); i++) {
     const r = raw[i];
-    if (r.some(c => String(c).includes('ORDER') || String(c) === '구분' || String(c) === 'No')) {
-      hdrIdx = i;
-      break;
-    }
+    const score = r.filter(c => KNOWN_HDRS.has(String(c).trim())).length;
+    if (score > bestScore) { bestScore = score; hdrIdx = i; }
+    if (score >= 5) break; // 5개 이상 매칭되면 확정
   }
-  if (hdrIdx < 0) {
-    alert('컬럼 헤더를 찾을 수 없습니다.\n내보낸 엑셀 또는 첫 행에 컬럼명이 있는 파일을 업로드하세요.');
+  if (hdrIdx < 0 || bestScore < 2) {
+    alert('컬럼 헤더를 찾을 수 없습니다.\n내보낸 엑셀 또는 첫 행에 컬럼명이 있는 파일을 업로드하세요.\n\n감지된 최대 일치수: ' + bestScore);
     return;
   }
 
@@ -1613,16 +1621,20 @@ function importExcel(buffer) {
   });
 
   /* ── 데이터 행 파싱 ── */
-  const SKIP_FIRST = ['합 계','합계','TOTAL','Total'];
+  const SKIP_KEYWORDS = ['합 계','합계','TOTAL','Total','소 계','소계','계'];
   const newRows = [];
 
   for (let i = hdrIdx + 1; i < raw.length; i++) {
     const row = raw[i];
     // 빈 행 스킵
     if (!row || row.every(c => c === '' || c === null || c === undefined)) continue;
-    // 합계 행 스킵
+    // 합계/소계 행 스킵 (첫 셀 또는 두번째 셀 기준)
     const f0 = String(row[0] || '').trim();
-    if (SKIP_FIRST.includes(f0)) continue;
+    const f1 = String(row[1] || '').trim();
+    if (SKIP_KEYWORDS.includes(f0) || SKIP_KEYWORDS.includes(f1)) continue;
+    // 헤더 행이 다시 나타나면 스킵 (일부 엑셀에서 중간에 헤더 반복)
+    const matchAgain = row.filter(c => KNOWN_HDRS.has(String(c).trim())).length;
+    if (matchAgain >= 4) continue;
     // 첫 셀이 숫자 또는 날짜형이어야 데이터 행으로 판단
     // (너무 엄격하면 놓치므로 이것도 유연하게)
     const obj = blankRow();
