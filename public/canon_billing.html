@@ -296,16 +296,18 @@
     <thead>
       <!-- Group row -->
       <tr class="gr-row">
-        <th class="grp-base"  colspan="16">기 본 정 보</th>
+        <th class="grp-actions" colspan="2"></th>
+        <th class="grp-base"  colspan="15">기 본 정 보</th>
         <th class="grp-client"  colspan="7">캐 논 청 구 운 임</th>
         <th class="grp-carrier" colspan="7">운 송 사 지 불 운 임</th>
         <th class="grp-analysis" colspan="4">분 석</th>
-        <th class="grp-actions" colspan="1"></th>
       </tr>
       <!-- Column row -->
       <tr class="col-row">
-        <!-- Base -->
+        <!-- Actions (고정) -->
+        <th class="w34" style="background:#263238;color:#ef9a9a">삭제</th>
         <th class="w34">No</th>
+        <!-- Base -->
         <th class="w88">ORDER일자</th>
         <th class="w70">구분</th>
         <th class="w115">출발지</th>
@@ -342,8 +344,6 @@
         <th class="w55">거리km</th>
         <th class="w88">차이금액</th>
         <th class="w65">수익율</th>
-        <!-- Actions -->
-        <th class="w34">삭제</th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
@@ -685,7 +685,7 @@ function renderTable() {
   const tfoot = document.getElementById('tableFoot');
 
   if (allRows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="36" class="empty-state">
+    tbody.innerHTML = `<tr><td colspan="35" class="empty-state">
       <div class="icon">📋</div>
       <p>이번 달 데이터가 없습니다. <strong>"행 추가"</strong>를 눌러 입력하세요.</p>
     </td></tr>`;
@@ -694,7 +694,7 @@ function renderTable() {
   }
 
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="36" class="empty-state">
+    tbody.innerHTML = `<tr><td colspan="35" class="empty-state">
       <div class="icon">🔍</div>
       <p>조회 기간에 해당하는 데이터가 없습니다.<br>
       <small style="color:#94a3b8">전체 ${allRows.length}건 저장 중 — 기간을 조정하거나 <a href="#" onclick="resetPeriod();return false;">기본값으로 초기화</a>하세요.</small></p>
@@ -719,7 +719,8 @@ function renderTable() {
     : `합 계 (${rows.length}건)`;
 
   tfoot.innerHTML = `<tr>
-    <td class="ft-base" colspan="16">${filterLabel}</td>
+    <td class="ft-act" colspan="2"></td>
+    <td class="ft-base" colspan="15">${filterLabel}</td>
     <td class="ft-cli">${won(fCliFare)}</td>
     <td class="ft-cli" colspan="5"></td>
     <td class="ft-cli">${won(fCliTotal)}</td>
@@ -744,6 +745,11 @@ function buildRow(r, idx) {
   const isDistDelivery = (r.gubun === '지역간배송');
 
   return `<tr id="row-${r.id}">
+    <td class="w34" style="text-align:center;background:#fff5f5;border-right:2px solid #fca5a5;">
+      <button class="del-btn" onclick="deleteRow('${r.id}')" title="행 삭제">
+        <i class="fas fa-trash-alt" style="font-size:11px;"></i>
+      </button>
+    </td>
     <td class="seq">${idx+1}</td>
     <td class="w88"><input class="ci" type="date" value="${r.orderDate}"
       onchange="onFieldChange('${r.id}','orderDate',this.value)"></td>
@@ -831,13 +837,6 @@ function buildRow(r, idx) {
       onchange="onFieldChange('${r.id}','distanceKm',this.value)"></td>
     <td class="w88 ${diffClass}" id="diff-${r.id}">${won(diff)||'—'}</td>
     <td class="w65 profit-cell" id="prf-${r.id}" style="color:${pColor}">${pRate}</td>
-
-    <!-- 삭제 -->
-    <td class="w34" style="text-align:center;background:#fafafa">
-      <button class="del-btn" onclick="deleteRow('${r.id}')" title="삭제">
-        <i class="fas fa-times"></i>
-      </button>
-    </td>
   </tr>`;
 }
 
