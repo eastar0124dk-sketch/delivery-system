@@ -128,6 +128,19 @@
       padding: 5px 3px; text-align: center; font-size: 10px; font-weight: 700;
       border: 1px solid #ddd; background: #f8fafc; color: #475569; cursor: default;
     }
+    thead tr.filter-row th {
+      position: sticky; top: 56px; z-index: 10;
+      padding: 2px; border: 1px solid #ddd;
+    }
+    thead tr.filter-row input.f-in {
+      width: 100%; box-sizing: border-box;
+      padding: 3px 4px; font-size: 10px; border: 1px solid #cbd5e1;
+      border-radius: 3px; background: #fff; color: #0f172a;
+      outline: none;
+    }
+    thead tr.filter-row input.f-in:focus {
+      border-color: #2563eb; box-shadow: 0 0 0 1px #2563eb;
+    }
 
     /* Group colors */
     .grp-base    { background: #37474f; color: #fff; }
@@ -365,6 +378,12 @@
   <button class="btn" style="background:#7c3aed;color:#fff;" onclick="recalcAllFares()" title="0원인 운임을 요금표에서 자동 채우기">
     <i class="fas fa-sync-alt"></i> 운임 재조회
   </button>
+  <button class="btn" id="btnFilter" style="background:#f59e0b;color:#fff;" onclick="toggleFilterRow()" title="컬럼별 필터 표시/숨김">
+    <i class="fas fa-filter"></i> 필터
+  </button>
+  <button class="btn btn-gray" onclick="clearAllFilters()" title="모든 필터 초기화">
+    <i class="fas fa-times"></i> 필터 초기화
+  </button>
   <div class="spacer"></div>
   <span id="autoSaveMsg"></span>
 </div>
@@ -429,26 +448,63 @@
         <th class="w70">운송사</th>
         <th class="w88">비고</th>
         <!-- Canon billing -->
-        <th class="w88" style="color:#90caf9">운임</th>
-        <th class="w65" style="color:#90caf9">리프트</th>
-        <th class="w65" style="color:#90caf9">폐기</th>
-        <th class="w70" style="color:#90caf9">보관료</th>
-        <th class="w65" style="color:#90caf9">탁송료</th>
-        <th class="w65" style="color:#90caf9">기타</th>
+        <th class="w88" style="color:#0d47a1;font-weight:800">운임</th>
+        <th class="w65" style="color:#0d47a1;font-weight:800">리프트</th>
+        <th class="w65" style="color:#0d47a1;font-weight:800">폐기</th>
+        <th class="w70" style="color:#0d47a1;font-weight:800">보관료</th>
+        <th class="w65" style="color:#0d47a1;font-weight:800">탁송료</th>
+        <th class="w65" style="color:#0d47a1;font-weight:800">기타</th>
         <th class="w95" style="color:#fff;background:#1565c0;font-weight:900">청구금액</th>
         <!-- Carrier billing -->
-        <th class="w88" style="color:#ffcdd2">운임</th>
-        <th class="w65" style="color:#ffcdd2">리프트</th>
-        <th class="w65" style="color:#ffcdd2">폐기</th>
-        <th class="w70" style="color:#ffcdd2">보관료</th>
-        <th class="w65" style="color:#ffcdd2">탁송료</th>
-        <th class="w65" style="color:#ffcdd2">기타</th>
+        <th class="w88" style="color:#b71c1c;font-weight:800">운임</th>
+        <th class="w65" style="color:#b71c1c;font-weight:800">리프트</th>
+        <th class="w65" style="color:#b71c1c;font-weight:800">폐기</th>
+        <th class="w70" style="color:#b71c1c;font-weight:800">보관료</th>
+        <th class="w65" style="color:#b71c1c;font-weight:800">탁송료</th>
+        <th class="w65" style="color:#b71c1c;font-weight:800">기타</th>
         <th class="w95" style="color:#fff;background:#c62828;font-weight:900">지불금액</th>
         <!-- Analysis -->
         <th class="w88">비고</th>
         <th class="w55">거리km</th>
         <th class="w88">차이금액</th>
         <th class="w65">수익율</th>
+      </tr>
+      <!-- Filter row -->
+      <tr class="filter-row" id="filterRow" style="display:none;">
+        <th colspan="4" style="background:#fef3c7;text-align:center;font-size:10px;color:#92400e;">🔍 필터</th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="orderDate" class="f-in" placeholder="일자"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="gubun" class="f-in" placeholder="구분"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="departure" class="f-in" placeholder="출발지"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="departureRegion" class="f-in" placeholder="지역"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="departureDate" class="f-in" placeholder="출발일"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="destination" class="f-in" placeholder="도착지"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="destinationRegion" class="f-in" placeholder="지역"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="arrivalDate" class="f-in" placeholder="도착일"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="deliveryType" class="f-in" placeholder="형태"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="relay" class="f-in" placeholder="연계지"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="manager" class="f-in" placeholder="담당자"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="handover" class="f-in" placeholder="인계자"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="vehicle" class="f-in" placeholder="차종"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="carrier" class="f-in" placeholder="운송사"/></th>
+        <th style="background:#fffbeb;padding:2px;"><input data-fkey="remarks1" class="f-in" placeholder="비고"/></th>
+        <th style="background:#eff6ff;padding:2px;"><input data-fkey="clientFare" class="f-in" placeholder="운임"/></th>
+        <th style="background:#eff6ff;padding:2px;"><input data-fkey="clientLift" class="f-in" placeholder="리프트"/></th>
+        <th style="background:#eff6ff;padding:2px;"><input data-fkey="clientDisposal" class="f-in" placeholder="폐기"/></th>
+        <th style="background:#eff6ff;padding:2px;"><input data-fkey="clientStorage" class="f-in" placeholder="보관"/></th>
+        <th style="background:#eff6ff;padding:2px;"><input data-fkey="clientTaksong" class="f-in" placeholder="탁송"/></th>
+        <th style="background:#eff6ff;padding:2px;"><input data-fkey="clientOther" class="f-in" placeholder="기타"/></th>
+        <th style="background:#eff6ff;padding:2px;"><input data-fkey="_clientTotal" class="f-in" placeholder="청구"/></th>
+        <th style="background:#fef2f2;padding:2px;"><input data-fkey="carrierFare" class="f-in" placeholder="운임"/></th>
+        <th style="background:#fef2f2;padding:2px;"><input data-fkey="carrierLift" class="f-in" placeholder="리프트"/></th>
+        <th style="background:#fef2f2;padding:2px;"><input data-fkey="carrierDisposal" class="f-in" placeholder="폐기"/></th>
+        <th style="background:#fef2f2;padding:2px;"><input data-fkey="carrierStorage" class="f-in" placeholder="보관"/></th>
+        <th style="background:#fef2f2;padding:2px;"><input data-fkey="carrierTaksong" class="f-in" placeholder="탁송"/></th>
+        <th style="background:#fef2f2;padding:2px;"><input data-fkey="carrierOther" class="f-in" placeholder="기타"/></th>
+        <th style="background:#fef2f2;padding:2px;"><input data-fkey="_carrierTotal" class="f-in" placeholder="지불"/></th>
+        <th style="background:#f5f3ff;padding:2px;"><input data-fkey="remarks2" class="f-in" placeholder="비고"/></th>
+        <th style="background:#f5f3ff;padding:2px;"><input data-fkey="distanceKm" class="f-in" placeholder="km"/></th>
+        <th style="background:#f5f3ff;padding:2px;"><input data-fkey="_diff" class="f-in" placeholder="차이"/></th>
+        <th style="background:#f5f3ff;padding:2px;"><input data-fkey="_rate" class="f-in" placeholder="수익"/></th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
@@ -549,6 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('monthPicker').value = currentMonth;
   ensureMonth(currentMonth);
   setDefaultPeriod(currentMonth);
+  bindFilterInputs();
   renderAll();
 });
 
@@ -583,17 +640,73 @@ function updatePeriodStyle() {
   if (wrap) wrap.classList.toggle('active', from !== df || to !== dt);
 }
 
+/* 컬럼 필터 state */
+let columnFilters = {};
+
+function toggleFilterRow() {
+  const row = document.getElementById('filterRow');
+  const isHidden = row.style.display === 'none' || !row.style.display;
+  row.style.display = isHidden ? 'table-row' : 'none';
+  const btn = document.getElementById('btnFilter');
+  if (btn) btn.style.background = isHidden ? '#d97706' : '#f59e0b';
+  if (!isHidden) { // 필터 숨길 때 필터 초기화
+    clearAllFilters();
+  }
+}
+
+function clearAllFilters() {
+  columnFilters = {};
+  document.querySelectorAll('input.f-in').forEach(i => i.value = '');
+  renderTable();
+  renderSummary();
+}
+
+function bindFilterInputs() {
+  document.querySelectorAll('input.f-in').forEach(inp => {
+    inp.addEventListener('input', (e) => {
+      const k = e.target.dataset.fkey;
+      const v = e.target.value.trim();
+      if (!v) delete columnFilters[k];
+      else columnFilters[k] = v.toLowerCase();
+      renderTable();
+      renderSummary();
+    });
+  });
+}
+
+function rowMatchesFilters(r) {
+  for (const [k, v] of Object.entries(columnFilters)) {
+    let val;
+    if      (k === '_clientTotal')  val = clientTotal(r);
+    else if (k === '_carrierTotal') val = carrierTotal(r);
+    else if (k === '_diff')         val = diffAmt(r);
+    else if (k === '_rate') {
+      const cT = clientTotal(r);
+      val = cT ? ((diffAmt(r)/cT)*100).toFixed(1) + '%' : '';
+    } else {
+      val = r[k];
+    }
+    if (val == null) val = '';
+    const s = String(val).toLowerCase();
+    if (!s.includes(v)) return false;
+  }
+  return true;
+}
+
 function getFilteredRows() {
   const rows = billingData[currentMonth] || [];
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   updatePeriodStyle();
-  if (!from && !to) return rows;
+  const hasCol = Object.keys(columnFilters).length > 0;
+  if (!from && !to && !hasCol) return rows;
   return rows.filter(r => {
     const d = r.orderDate || r.departureDate || '';
-    if (!d) return true;
-    if (from && d < from) return false;
-    if (to   && d > to)   return false;
+    if (d) {
+      if (from && d < from) return false;
+      if (to   && d > to)   return false;
+    }
+    if (hasCol && !rowMatchesFilters(r)) return false;
     return true;
   });
 }
