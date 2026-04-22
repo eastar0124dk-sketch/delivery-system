@@ -136,22 +136,82 @@
     .grp-analysis{ background: #4a148c; color: #fff; }
     .grp-actions { background: #263238; color: #fff; }
 
-    /* Body rows */
-    tbody tr { background: #fff; transition: background .08s; }
-    tbody tr:nth-child(even) { background: #fafafa; }
-    tbody tr:hover { background: #fff8f0; }
+    /* Body rows — 라인 구분 강화 */
+    tbody tr {
+      background: #fff; transition: background .1s;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    tbody tr:nth-child(even) { background: #f8fafd; }
+    tbody tr:nth-child(even) td.col-client  { background: rgba(21,101,192,.08); }
+    tbody tr:nth-child(even) td.col-carrier { background: rgba(198,40,40,.08); }
+    tbody tr:nth-child(even) td.col-analysis{ background: rgba(74,20,140,.06); }
+    tbody tr:hover { background: #fff3e8 !important; }
+    tbody tr:hover td.col-client  { background: rgba(21,101,192,.12) !important; }
+    tbody tr:hover td.col-carrier { background: rgba(198,40,40,.12) !important; }
 
     tbody td {
-      padding: 2px 2px; border: 1px solid #e8ecf0;
-      vertical-align: middle;
+      padding: 3px 2px; border-right: 1px solid #e2e8f0; border-top: none; border-bottom: none;
+      vertical-align: middle; height: 36px;
     }
+    /* 그룹 경계선 강조 */
+    tbody td.col-client:first-of-type  { border-left: 2px solid rgba(21,101,192,.3); }
+    tbody td.col-carrier:first-of-type { border-left: 2px solid rgba(198,40,40,.3); }
+    tbody td.col-analysis:first-of-type{ border-left: 2px solid rgba(74,20,140,.2); }
+
     td.seq {
       text-align: center; font-weight: 800; color: #94a3b8; font-size: 11px;
-      min-width: 34px; width: 34px; background: #f8fafc !important;
+      min-width: 34px; width: 34px; background: #f0f4f8 !important;
+      cursor: pointer; user-select: none;
+      border-right: 2px solid #cbd5e1 !important;
     }
+    td.seq:hover { color: #475569; }
     td.col-client  { background: var(--client-bg); }
     td.col-carrier { background: var(--carrier-bg); }
     td.col-analysis{ background: rgba(74,20,140,.04); }
+
+    /* ── 하이라이트 ── */
+    /* 색상 표시 바 (왼쪽 끝 셀) */
+    td.hl-bar { width: 5px !important; min-width: 5px !important; padding: 0 !important; border-right: none !important; }
+    tbody tr.hl-yellow  td.hl-bar { background: #eab308 !important; }
+    tbody tr.hl-green   td.hl-bar { background: #22c55e !important; }
+    tbody tr.hl-red     td.hl-bar { background: #ef4444 !important; }
+    tbody tr.hl-blue    td.hl-bar { background: #3b82f6 !important; }
+    tbody tr.hl-purple  td.hl-bar { background: #a855f7 !important; }
+    tbody tr.hl-none    td.hl-bar { background: transparent !important; }
+    /* 행 배경 */
+    tbody tr.hl-yellow  { background: rgba(253,224,71,.22) !important; }
+    tbody tr.hl-yellow:nth-child(even) { background: rgba(253,224,71,.32) !important; }
+    tbody tr.hl-green   { background: rgba(74,222,128,.18) !important; }
+    tbody tr.hl-green:nth-child(even)  { background: rgba(74,222,128,.26) !important; }
+    tbody tr.hl-red     { background: rgba(252,165,165,.22) !important; }
+    tbody tr.hl-red:nth-child(even)    { background: rgba(252,165,165,.32) !important; }
+    tbody tr.hl-blue    { background: rgba(147,197,253,.22) !important; }
+    tbody tr.hl-blue:nth-child(even)   { background: rgba(147,197,253,.30) !important; }
+    tbody tr.hl-purple  { background: rgba(216,180,254,.22) !important; }
+    tbody tr.hl-purple:nth-child(even) { background: rgba(216,180,254,.30) !important; }
+    /* No 셀 색상 점 */
+    .hl-dot {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      margin-bottom: 1px; border: 1px solid rgba(0,0,0,.15);
+    }
+    .hl-dot-none   { background: #d1d5db; }
+    .hl-dot-yellow { background: #eab308; }
+    .hl-dot-green  { background: #22c55e; }
+    .hl-dot-red    { background: #ef4444; }
+    .hl-dot-blue   { background: #3b82f6; }
+    .hl-dot-purple { background: #a855f7; }
+    /* 하이라이트 툴팁 */
+    .hl-tooltip {
+      display: none; position: absolute; z-index: 500; background: #1e293b; color: #fff;
+      border-radius: 8px; padding: 6px 8px; font-size: 11px; white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0,0,0,.3); top: 110%; left: 50%; transform: translateX(-50%);
+    }
+    .hl-tooltip.show { display: flex; gap: 5px; align-items: center; }
+    .hl-opt {
+      width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,.3);
+      transition: transform .1s;
+    }
+    .hl-opt:hover { transform: scale(1.25); border-color: #fff; }
 
     /* Cell inputs */
     .ci {
@@ -324,7 +384,7 @@
     <thead>
       <!-- Group row -->
       <tr class="gr-row">
-        <th class="grp-actions" colspan="3"></th>
+        <th class="grp-actions" colspan="4"></th>
         <th class="grp-base"  colspan="15">기 본 정 보</th>
         <th class="grp-client"  colspan="7">캐 논 청 구 운 임</th>
         <th class="grp-carrier" colspan="7">운 송 사 지 불 운 임</th>
@@ -333,6 +393,7 @@
       <!-- Column row -->
       <tr class="col-row">
         <!-- Actions (고정) -->
+        <th style="width:5px;min-width:5px;background:#263238;padding:0;"></th>
         <th class="w34" style="background:#263238;color:#ef9a9a">삭제</th>
         <th class="w34" style="background:#263238;text-align:center">
           <input type="checkbox" class="row-check" id="checkAll" onclick="toggleAllCheck(this)" title="전체 선택">
@@ -578,6 +639,7 @@ function blankRow() {
     arrivalDate:'', form:'', relay:'',
     manager:'', handover:'',
     vehicle:'1톤', carrier:'패스', remarks1:'',
+    highlight:'',
     clientFare:0, clientLift:0, clientDisposal:0,
     clientStorage:0, clientTaksong:0, clientOther:0,
     carrierFare:0, carrierLift:0, carrierDisposal:0,
@@ -659,6 +721,47 @@ function clearSelection() {
   if (master) { master.checked = false; master.indeterminate = false; }
   document.getElementById('selBar').classList.remove('visible');
 }
+
+/* ── 하이라이트 ── */
+const HL_COLORS = ['none','yellow','green','red','blue','purple'];
+
+function toggleHlMenu(id, seqCell) {
+  // 다른 메뉴 닫기
+  document.querySelectorAll('.hl-tooltip.show').forEach(m => {
+    if (m.id !== 'hlmenu-'+id) m.classList.remove('show');
+  });
+  const menu = document.getElementById('hlmenu-'+id);
+  if (menu) menu.classList.toggle('show');
+}
+
+function setHighlight(id, color) {
+  const rows = billingData[currentMonth] || [];
+  const row = rows.find(r => r.id === id);
+  if (!row) return;
+  row.highlight = color === 'none' ? '' : color;
+  saveStorage();
+
+  // DOM 직접 업데이트 (전체 re-render 없이)
+  const tr = document.getElementById(`row-${id}`);
+  if (tr) {
+    HL_COLORS.forEach(c => tr.classList.remove('hl-'+c));
+    if (row.highlight) tr.classList.add('hl-'+row.highlight);
+  }
+  const dot = document.getElementById(`hldot-${id}`);
+  if (dot) {
+    dot.className = `hl-dot hl-dot-${row.highlight||'none'}`;
+  }
+  // 메뉴 닫기
+  const menu = document.getElementById('hlmenu-'+id);
+  if (menu) menu.classList.remove('show');
+}
+
+// 바깥 클릭 시 하이라이트 메뉴 닫기
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('td.seq')) {
+    document.querySelectorAll('.hl-tooltip.show').forEach(m => m.classList.remove('show'));
+  }
+});
 
 function clearMonth() {
   const rows = billingData[currentMonth] || [];
@@ -774,7 +877,7 @@ function renderTable() {
   const tfoot = document.getElementById('tableFoot');
 
   if (allRows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="36" class="empty-state">
+    tbody.innerHTML = `<tr><td colspan="37" class="empty-state">
       <div class="icon">📋</div>
       <p>이번 달 데이터가 없습니다. <strong>"행 추가"</strong>를 눌러 입력하세요.</p>
     </td></tr>`;
@@ -783,7 +886,7 @@ function renderTable() {
   }
 
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="36" class="empty-state">
+    tbody.innerHTML = `<tr><td colspan="37" class="empty-state">
       <div class="icon">🔍</div>
       <p>조회 기간에 해당하는 데이터가 없습니다.<br>
       <small style="color:#94a3b8">전체 ${allRows.length}건 저장 중 — 기간을 조정하거나 <a href="#" onclick="resetPeriod();return false;">기본값으로 초기화</a>하세요.</small></p>
@@ -808,8 +911,8 @@ function renderTable() {
     : `합 계 (${rows.length}건)`;
 
   tfoot.innerHTML = `<tr>
-    <td class="ft-act" colspan="3"></td>
-    <td class="ft-base" colspan="14">${filterLabel}</td>
+    <td class="ft-act" colspan="4"></td>
+    <td class="ft-base" colspan="13">${filterLabel}</td>
     <td class="ft-cli">${won(fCliFare)}</td>
     <td class="ft-cli" colspan="5"></td>
     <td class="ft-cli">${won(fCliTotal)}</td>
@@ -833,7 +936,12 @@ function buildRow(r, idx) {
   const isManual = (r.vehicle === '라보' || r.vehicle === '3.5톤');
   const isDistDelivery = (r.gubun === '지역간배송');
 
-  return `<tr id="row-${r.id}">
+  const hl = r.highlight || '';
+  const hlClass = hl ? `hl-${hl}` : '';
+  const dotClass = `hl-dot hl-dot-${hl||'none'}`;
+
+  return `<tr id="row-${r.id}" class="${hlClass}">
+    <td class="hl-bar" id="hlbar-${r.id}"></td>
     <td class="w34" style="text-align:center;background:#fff5f5;border-right:2px solid #fca5a5;">
       <button class="del-btn" onclick="deleteRow('${r.id}')" title="행 삭제">
         <i class="fas fa-trash-alt" style="font-size:11px;"></i>
@@ -842,7 +950,18 @@ function buildRow(r, idx) {
     <td class="w34" style="text-align:center;background:#fafafa;">
       <input type="checkbox" class="row-check" data-id="${r.id}" onchange="onRowCheck(this)">
     </td>
-    <td class="seq">${idx+1}</td>
+    <td class="seq" style="position:relative;" onclick="toggleHlMenu('${r.id}',this)" title="클릭: 하이라이트 색상 변경">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+        <span style="font-size:10px;">${idx+1}</span>
+        <span class="${dotClass}" id="hldot-${r.id}"></span>
+      </div>
+      <div class="hl-tooltip" id="hlmenu-${r.id}">
+        ${['none','yellow','green','red','blue','purple'].map(c =>
+          `<div class="hl-opt" style="background:${c==='none'?'#d1d5db':c==='yellow'?'#eab308':c==='green'?'#22c55e':c==='red'?'#ef4444':c==='blue'?'#3b82f6':'#a855f7'}"
+            onclick="setHighlight('${r.id}','${c}');event.stopPropagation();" title="${c==='none'?'없음':c==='yellow'?'확인중':c==='green'?'확인완료':c==='red'?'이슈':c==='blue'?'참고':'기타'}"></div>`
+        ).join('')}
+      </div>
+    </td>
     <td class="w88"><input class="ci" type="date" value="${r.orderDate}"
       onchange="onFieldChange('${r.id}','orderDate',this.value)"></td>
     <td class="w70">
