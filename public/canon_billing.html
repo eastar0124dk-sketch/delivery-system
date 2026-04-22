@@ -403,12 +403,12 @@
         <th class="w88">ORDER일자</th>
         <th class="w70">구분</th>
         <th class="w115">출발지</th>
-        <th class="w80">출발지역</th>
+        <th class="w80">지역</th>
         <th class="w88">출발일자</th>
         <th class="w115">도착지</th>
-        <th class="w80">도착지역</th>
+        <th class="w80">지역</th>
         <th class="w88">도착일자</th>
-        <th class="w55">형태</th>
+        <th class="w70">형태</th>
         <th class="w80">연계지</th>
         <th class="w70">담당자</th>
         <th class="w70">인계자</th>
@@ -583,6 +583,26 @@ function getFilteredRows() {
 function loadStorage() {
   try { billingData = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }
   catch { billingData = {}; }
+  // 마이그레이션: 구버전 gubun(dropdown) → deliveryType, form → deliveryType
+  Object.values(billingData).forEach(arr => {
+    if (!Array.isArray(arr)) return;
+    arr.forEach(r => {
+      // form 필드가 있으면 deliveryType으로 이전
+      if (r.form !== undefined && r.deliveryType === undefined) {
+        r.deliveryType = r.form || '출고';
+        delete r.form;
+      }
+      // 구버전: gubun이 출고/회수/지역간배송이면 deliveryType으로 이전, gubun은 빈 문자열로
+      if (!r.deliveryType) {
+        if (['출고','회수','지역간배송'].includes(r.gubun)) {
+          r.deliveryType = r.gubun;
+          r.gubun = '';
+        } else {
+          r.deliveryType = '출고';
+        }
+      }
+    });
+  });
 }
 function saveStorage() {
   localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
@@ -633,10 +653,10 @@ function genId() {
 function blankRow() {
   return {
     id: genId(),
-    orderDate:'', gubun:'출고',
+    orderDate:'', gubun:'', deliveryType:'출고',
     departure:'', departureRegion:'',
     departureDate:'', destination:'', destinationRegion:'',
-    arrivalDate:'', form:'', relay:'',
+    arrivalDate:'', relay:'',
     manager:'', handover:'',
     vehicle:'1톤', carrier:'패스', remarks1:'',
     highlight:'',
@@ -803,17 +823,17 @@ function onFieldChange(id, field, value) {
 
   row[field] = NUM_FIELDS.has(field) ? (parseFloat(value) || 0) : value;
 
-  // Auto-detect 구분
+  // Auto-detect 형태
   if (field === 'departure' || field === 'destination') {
     const dep = (row.departure || '').toUpperCase();
     const dst = (row.destination || '').toUpperCase();
-    if (dep.includes('ACT')) row.gubun = '출고';
-    else if (dst.includes('ACT')) row.gubun = '회수';
-    else if (dep || dst) row.gubun = '지역간배송';
+    if (dep.includes('ACT')) row.deliveryType = '출고';
+    else if (dst.includes('ACT')) row.deliveryType = '회수';
+    else if (dep || dst) row.deliveryType = '지역간배송';
   }
 
   // Auto-lookup rates
-  if (['gubun','departureRegion','destinationRegion','vehicle','carrier','distanceKm',
+  if (['deliveryType','departureRegion','destinationRegion','vehicle','carrier','distanceKm',
        'departure','destination'].includes(field)) {
     autoLookup(row);
   }
@@ -824,18 +844,18 @@ function onFieldChange(id, field, value) {
 }
 
 function autoLookup(row) {
-  const { gubun, departureRegion, destinationRegion, vehicle, carrier, distanceKm } = row;
+  const { deliveryType, departureRegion, destinationRegion, vehicle, carrier, distanceKm } = row;
   const noAuto = (vehicle === '라보' || vehicle === '3.5톤');
 
-  if (gubun === '출고') {
+  if (deliveryType === '출고') {
     // 출고: 도착지 기준 운임
     row.clientFare  = noAuto ? row.clientFare  : (getClientRate(destinationRegion, vehicle) ?? row.clientFare);
     row.carrierFare = noAuto ? row.carrierFare : (getCarrierRate(destinationRegion, vehicle, carrier) ?? row.carrierFare);
-  } else if (gubun === '회수') {
+  } else if (deliveryType === '회수') {
     // 회수: 출발지 기준 운임
     row.clientFare  = noAuto ? row.clientFare  : (getClientRate(departureRegion, vehicle) ?? row.clientFare);
     row.carrierFare = noAuto ? row.carrierFare : (getCarrierRate(departureRegion, vehicle, carrier) ?? row.carrierFare);
-  } else if (gubun === '지역간배송') {
+  } else if (deliveryType === '지역간배송') {
     // 지역간배송: 거리km 기준 캐논 운임 (운송사는 수기)
     row.clientFare = noAuto ? row.clientFare : (getDistanceClientRate(distanceKm, vehicle) ?? row.clientFare);
     // carrier fare: manual (지역간배송 carrier rates not in table)
@@ -934,7 +954,7 @@ function buildRow(r, idx) {
   const diffClass = diff >= 0 ? 'diff-pos' : 'diff-neg';
   const pColor = diff >= 0 ? '#1b5e20' : '#b71c1c';
   const isManual = (r.vehicle === '라보' || r.vehicle === '3.5톤');
-  const isDistDelivery = (r.gubun === '지역간배송');
+  const isDistDelivery = (r.deliveryType === '지역간배송');
 
   const hl = r.highlight || '';
   const hlClass = hl ? `hl-${hl}` : '';
@@ -964,11 +984,8 @@ function buildRow(r, idx) {
     </td>
     <td class="w88"><input class="ci" type="date" value="${r.orderDate}"
       onchange="onFieldChange('${r.id}','orderDate',this.value)"></td>
-    <td class="w70">
-      <select class="ci" onchange="onFieldChange('${r.id}','gubun',this.value)">
-        ${['출고','회수','지역간배송'].map(g=>`<option value="${g}"${g===r.gubun?' selected':''}>${g}</option>`).join('')}
-      </select>
-    </td>
+    <td class="w70"><input class="ci" type="text" value="${r.gubun}" placeholder="구분"
+      oninput="onFieldChange('${r.id}','gubun',this.value)"></td>
     <td class="w115"><input class="ci left" type="text" value="${r.departure}" placeholder="출발지"
       oninput="onFieldChange('${r.id}','departure',this.value)"></td>
     <td class="w80">
@@ -987,8 +1004,11 @@ function buildRow(r, idx) {
     </td>
     <td class="w88"><input class="ci" type="date" value="${r.arrivalDate}"
       onchange="onFieldChange('${r.id}','arrivalDate',this.value)"></td>
-    <td class="w55"><input class="ci" type="text" value="${r.form}" placeholder="형태"
-      oninput="onFieldChange('${r.id}','form',this.value)"></td>
+    <td class="w70">
+      <select class="ci" onchange="onFieldChange('${r.id}','deliveryType',this.value)">
+        ${['출고','회수','지역간배송'].map(g=>`<option value="${g}"${g===r.deliveryType?' selected':''}>${g}</option>`).join('')}
+      </select>
+    </td>
     <td class="w80"><input class="ci" type="text" value="${r.relay}" placeholder="연계지"
       oninput="onFieldChange('${r.id}','relay',this.value)"></td>
     <td class="w70"><input class="ci" type="text" value="${r.manager}" placeholder="담당자"
@@ -1200,8 +1220,8 @@ function exportExcel() {
   // Column headers
   const COLS = [
     ['No',S_COL_BASE],['ORDER일자',S_COL_BASE],['구분',S_COL_BASE],
-    ['출발지',S_COL_BASE],['출발지역',S_COL_BASE],['출발일자',S_COL_BASE],
-    ['도착지',S_COL_BASE],['도착지역',S_COL_BASE],['도착일자',S_COL_BASE],
+    ['출발지',S_COL_BASE],['지역',S_COL_BASE],['출발일자',S_COL_BASE],
+    ['도착지',S_COL_BASE],['지역',S_COL_BASE],['도착일자',S_COL_BASE],
     ['형태',S_COL_BASE],['연계지',S_COL_BASE],['담당자',S_COL_BASE],['인계자',S_COL_BASE],
     ['차종',S_COL_BASE],['운송사',S_COL_BASE],['비고',S_COL_BASE],
     ['운임',S_COL_CLI],['리프트',S_COL_CLI],['폐기',S_COL_CLI],
@@ -1233,7 +1253,7 @@ function exportExcel() {
       [i+1, sD], [r.orderDate||'', sD], [r.gubun||'', sD],
       [r.departure||'', sDL], [r.departureRegion||'', sD], [r.departureDate||'', sD],
       [r.destination||'', sDL], [r.destinationRegion||'', sD], [r.arrivalDate||'', sD],
-      [r.form||'', sD], [r.relay||'', sD], [r.manager||'', sD], [r.handover||'', sD],
+      [r.deliveryType||'', sD], [r.relay||'', sD], [r.manager||'', sD], [r.handover||'', sD],
       [r.vehicle||'', sD], [r.carrier||'', sD], [r.remarks1||'', sDL],
       [r.clientFare, S_CLI_D], [r.clientLift, S_CLI_D], [r.clientDisposal, S_CLI_D],
       [r.clientStorage, S_CLI_D], [r.clientTaksong, S_CLI_D], [r.clientOther, S_CLI_D],
@@ -1342,15 +1362,16 @@ function importExcel(buffer) {
     const n = seenCount[h]; // 중복 컬럼 순서 (1st, 2nd)
     switch(h) {
       case 'No': case 'NO':           return '_seq';
-      case 'ORDER일자':               return 'orderDate';
-      case '구분':                    return 'gubun';
+      case 'ORDER일자': case 'Order일자': case 'order일자': return 'orderDate';
+      case '구분':                    return n === 1 ? 'gubun' : '_skip';
       case '출발지':                  return 'departure';
-      case '출발지역':                return 'departureRegion';
+      case '지역':   return n === 1 ? 'departureRegion' : 'destinationRegion';
+      case '출발지역':                return 'departureRegion';  // 구버전 호환
       case '출발일자':                return 'departureDate';
       case '도착지':                  return 'destination';
-      case '도착지역':                return 'destinationRegion';
+      case '도착지역':                return 'destinationRegion'; // 구버전 호환
       case '도착일자':                return 'arrivalDate';
-      case '형태':                    return 'form';
+      case '형태':                    return 'deliveryType';
       case '연계지':                  return 'relay';
       case '담당자':                  return 'manager';
       case '인계자':                  return 'handover';
