@@ -304,6 +304,12 @@
     .table-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
     .table-wrap::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     .table-wrap::-webkit-scrollbar-track { background: #f1f5f9; }
+
+    /* ── 드래그 정렬 ── */
+    tbody tr.dragging  { opacity: .35; background: #e0f2fe !important; }
+    tbody tr.drag-over-top { box-shadow: inset 0 3px 0 0 #3b82f6 !important; }
+    tbody tr.drag-over-bot { box-shadow: inset 0 -3px 0 0 #3b82f6 !important; }
+    .btn-sort-active   { background: #eff6ff !important; color: #2563eb !important; border-color: #93c5fd !important; }
   </style>
 </head>
 <body>
@@ -351,6 +357,10 @@
   <input type="file" id="xlsxUpload" accept=".xlsx,.xls" style="display:none" onchange="handleUpload(this)">
   <button class="btn btn-clear" onclick="clearMonth()" title="이번 달 데이터 전체 삭제">
     <i class="fas fa-trash"></i> 전체 삭제
+  </button>
+  <div class="tb-divider"></div>
+  <button class="btn btn-gray" id="btnDateSort" onclick="sortByDate()" title="ORDER일자 기준 오름차순 정렬 (수동 이동 후 재정렬)">
+    <i class="fas fa-sort-amount-up-alt"></i> 날짜순
   </button>
   <div class="spacer"></div>
   <span id="autoSaveMsg"></span>
@@ -519,13 +529,17 @@ function regionOptions(selected='') {
    앱 상태
 ════════════════════════════════════════════════════════════ */
 const STORE_KEY = 'canon_billing_v1';
+const META_KEY  = 'canon_billing_meta_v1';
 let billingData = {};    // { "2026-04": [...rows] }
 let currentMonth = '';
+let manualSortMonths = new Set(); // 수동 순서가 적용된 달
+let dragSrcId = null;
 
 /* ════════════════════════════════════════════════════════════
    초기화
 ════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
+  loadMeta();
   loadStorage();
   const now = new Date();
   currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -581,10 +595,21 @@ function getFilteredRows() {
   });
 }
 
+function loadMeta() {
+  try {
+    const m = JSON.parse(localStorage.getItem(META_KEY) || '{}');
+    manualSortMonths = new Set(m.manualSort || []);
+  } catch { manualSortMonths = new Set(); }
+}
+function saveMeta() {
+  localStorage.setItem(META_KEY, JSON.stringify({ manualSort: [...manualSortMonths] }));
+}
+
 function loadStorage() {
   try { billingData = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }
   catch { billingData = {}; }
   // 마이그레이션: 구버전 gubun(dropdown) → deliveryType, form → deliveryType
+  let migrated = false;
   Object.values(billingData).forEach(arr => {
     if (!Array.isArray(arr)) return;
     arr.forEach(r => {
@@ -592,8 +617,9 @@ function loadStorage() {
       if (r.form !== undefined && r.deliveryType === undefined) {
         r.deliveryType = r.form || '출고';
         delete r.form;
+        migrated = true;
       }
-      // 구버전: gubun이 출고/회수/지역간배송이면 deliveryType으로 이전, gubun은 빈 문자열로
+      // 구버전: gubun이 출고/회수/지역간배송이면 deliveryType으로 이전
       if (!r.deliveryType) {
         if (['출고','회수','지역간배송'].includes(r.gubun)) {
           r.deliveryType = r.gubun;
@@ -601,13 +627,24 @@ function loadStorage() {
         } else {
           r.deliveryType = '출고';
         }
+        migrated = true;
+      }
+      // ACT → 김포 지역 자동 설정
+      if ((r.departure || '').toUpperCase().includes('ACT') && !r.departureRegion) {
+        r.departureRegion = '김포'; migrated = true;
+      }
+      if ((r.destination || '').toUpperCase().includes('ACT') && !r.destinationRegion) {
+        r.destinationRegion = '김포'; migrated = true;
       }
       // 운송사 기본운임이 0이면 요금표에서 자동 채우기
       if ((r.carrierFare === 0 || !r.carrierFare) && (!r.carrier || r.carrier === '패스')) {
+        const before = r.carrierFare;
         autoLookup(r);
+        if (r.carrierFare !== before) migrated = true;
       }
     });
   });
+  if (migrated) saveStorage(); // 변경 내용 즉시 저장
 }
 function saveStorage() {
   localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
@@ -788,6 +825,101 @@ document.addEventListener('click', (e) => {
   }
 });
 
+/* ── 정렬 ── */
+function getSortedDisplayRows(rows) {
+  if (manualSortMonths.has(currentMonth)) return rows; // 수동 순서 유지
+  return [...rows].sort((a, b) => {
+    const da = a.orderDate || '9999-12-31';
+    const db = b.orderDate || '9999-12-31';
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
+}
+
+function sortByDate() {
+  if (!billingData[currentMonth]) return;
+  billingData[currentMonth].sort((a, b) => {
+    const da = a.orderDate || '9999-12-31';
+    const db = b.orderDate || '9999-12-31';
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
+  manualSortMonths.delete(currentMonth);
+  saveMeta();
+  saveStorage();
+  renderAll();
+  updateSortBtn();
+}
+
+function updateSortBtn() {
+  const btn = document.getElementById('btnDateSort');
+  if (!btn) return;
+  const isManual = manualSortMonths.has(currentMonth);
+  btn.classList.toggle('btn-sort-active', isManual);
+  btn.title = isManual
+    ? '현재 수동 정렬 중 — 클릭하면 ORDER일자순으로 재정렬'
+    : 'ORDER일자 기준 오름차순 정렬';
+}
+
+/* ── 드래그 & 드롭 행 이동 ── */
+function onDragStart(e, id) {
+  dragSrcId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => {
+    const el = document.getElementById('row-' + id);
+    if (el) el.classList.add('dragging');
+  }, 0);
+}
+
+function onDragOver(e, id) {
+  if (!dragSrcId || id === dragSrcId) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('tr.drag-over-top, tr.drag-over-bot').forEach(r =>
+    r.classList.remove('drag-over-top', 'drag-over-bot'));
+  const el = document.getElementById('row-' + id);
+  if (el) {
+    const rect = el.getBoundingClientRect();
+    el.classList.add(e.clientY < rect.top + rect.height / 2 ? 'drag-over-top' : 'drag-over-bot');
+  }
+}
+
+function onDrop(e, targetId) {
+  e.preventDefault();
+  document.querySelectorAll('tr.drag-over-top, tr.drag-over-bot, tr.dragging').forEach(r =>
+    r.classList.remove('drag-over-top', 'drag-over-bot', 'dragging'));
+  if (!dragSrcId || dragSrcId === targetId) { dragSrcId = null; return; }
+
+  const rows = billingData[currentMonth];
+  // 표시 순서 기준으로 처리 (date-sort 모드일 수도 있으므로)
+  const displayRows = getSortedDisplayRows(rows);
+  const srcIdx = displayRows.findIndex(r => r.id === dragSrcId);
+  const dstIdx = displayRows.findIndex(r => r.id === targetId);
+  if (srcIdx < 0 || dstIdx < 0) { dragSrcId = null; return; }
+
+  // 삽입 위치: 마우스가 대상 행의 위/아래 절반에 따라 결정
+  const el = document.getElementById('row-' + targetId);
+  const insertAfter = el
+    ? e.clientY >= el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2
+    : false;
+
+  const newRows = [...displayRows];
+  const [moved] = newRows.splice(srcIdx, 1);
+  const newDst = newRows.findIndex(r => r.id === targetId);
+  newRows.splice(insertAfter ? newDst + 1 : newDst, 0, moved);
+
+  billingData[currentMonth] = newRows;
+  manualSortMonths.add(currentMonth);
+  saveMeta();
+  saveStorage();
+  renderAll();
+  dragSrcId = null;
+}
+
+function onDragEnd() {
+  dragSrcId = null;
+  document.querySelectorAll('tr.drag-over-top, tr.drag-over-bot, tr.dragging').forEach(r =>
+    r.classList.remove('drag-over-top', 'drag-over-bot', 'dragging'));
+}
+
 function clearMonth() {
   const rows = billingData[currentMonth] || [];
   if (rows.length === 0) { alert('삭제할 데이터가 없습니다.'); return; }
@@ -828,12 +960,12 @@ function onFieldChange(id, field, value) {
 
   row[field] = NUM_FIELDS.has(field) ? (parseFloat(value) || 0) : value;
 
-  // Auto-detect 형태
+  // Auto-detect 형태 & ACT → 김포 지역 자동 설정
   if (field === 'departure' || field === 'destination') {
     const dep = (row.departure || '').toUpperCase();
     const dst = (row.destination || '').toUpperCase();
-    if (dep.includes('ACT')) row.deliveryType = '출고';
-    else if (dst.includes('ACT')) row.deliveryType = '회수';
+    if (dep.includes('ACT')) { row.deliveryType = '출고';  row.departureRegion = '김포'; }
+    else if (dst.includes('ACT')) { row.deliveryType = '회수'; row.destinationRegion = '김포'; }
     else if (dep || dst) row.deliveryType = '지역간배송';
   }
 
@@ -920,20 +1052,22 @@ function renderTable() {
     return;
   }
 
-  tbody.innerHTML = rows.map((r, i) => buildRow(r, i)).join('');
+  const displayRows = getSortedDisplayRows(rows);
+  tbody.innerHTML = displayRows.map((r, i) => buildRow(r, i)).join('');
+  updateSortBtn();
 
   // Footer
   let fCliTotal=0, fCarTotal=0, fCliFare=0, fCarFare=0, fDiff=0;
-  rows.forEach(r => {
+  displayRows.forEach(r => {
     fCliTotal += clientTotal(r); fCarTotal += carrierTotal(r);
     fCliFare  += r.clientFare;   fCarFare  += r.carrierFare;
     fDiff     += diffAmt(r);
   });
   const fRate = fCliTotal ? (fDiff/fCliTotal*100).toFixed(1)+'%' : '—';
 
-  const filterLabel = rows.length < allRows.length
-    ? `조회 ${rows.length}건 / 전체 ${allRows.length}건`
-    : `합 계 (${rows.length}건)`;
+  const filterLabel = displayRows.length < allRows.length
+    ? `조회 ${displayRows.length}건 / 전체 ${allRows.length}건`
+    : `합 계 (${displayRows.length}건)`;
 
   tfoot.innerHTML = `<tr>
     <td class="ft-act" colspan="4"></td>
@@ -965,7 +1099,11 @@ function buildRow(r, idx) {
   const hlClass = hl ? `hl-${hl}` : '';
   const dotClass = `hl-dot hl-dot-${hl||'none'}`;
 
-  return `<tr id="row-${r.id}" class="${hlClass}">
+  return `<tr id="row-${r.id}" class="${hlClass}" draggable="true"
+    ondragstart="onDragStart(event,'${r.id}')"
+    ondragover="onDragOver(event,'${r.id}')"
+    ondrop="onDrop(event,'${r.id}')"
+    ondragend="onDragEnd()">
     <td class="hl-bar" id="hlbar-${r.id}"></td>
     <td class="w34" style="text-align:center;background:#fff5f5;border-right:2px solid #fca5a5;">
       <button class="del-btn" onclick="deleteRow('${r.id}')" title="행 삭제">
@@ -1438,7 +1576,12 @@ function importExcel(buffer) {
     });
 
     if (hasAny) {
-      // 엑셀에 운임이 없는 경우(0) 자동 조회
+      // ACT → 김포 지역 자동 매핑
+      if ((obj.departure || '').toUpperCase().includes('ACT') && !obj.departureRegion)
+        obj.departureRegion = '김포';
+      if ((obj.destination || '').toUpperCase().includes('ACT') && !obj.destinationRegion)
+        obj.destinationRegion = '김포';
+      // 운임이 없으면 요금표 자동 조회
       if (obj.clientFare === 0 || obj.carrierFare === 0) autoLookup(obj);
       newRows.push(obj);
     }
