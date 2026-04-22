@@ -846,13 +846,20 @@ function recalcAllFares() {
     }
   });
 
-  // carrierFare=0인 행만 재조회 (clientFare는 보존)
+  // carrierFare=0인 행만 재조회 (clientFare는 절대 건드리지 않음)
   let filled = 0;
   rows.forEach(r => {
-    if (!r.carrierFare || r.carrierFare === 0) {
-      const before = r.carrierFare || 0;
-      autoLookup(r, { onlyEmpty: true });
-      if ((r.carrierFare || 0) !== before) filled++;
+    if (r.carrierFare && r.carrierFare > 0) return; // 이미 값 있으면 skip
+    const dt = r.deliveryType || '출고';
+    const veh = r.vehicle;
+    if (veh === '라보' || veh === '3.5톤') return; // 수기입력 전용
+    let rate = null;
+    if (dt === '출고')  rate = getCarrierRate(r.destinationRegion, veh, r.carrier);
+    else if (dt === '회수')  rate = getCarrierRate(r.departureRegion, veh, r.carrier);
+    // 지역간배송은 운송사 운임표 없음 (수기)
+    if (rate != null && rate > 0) {
+      r.carrierFare = rate;
+      filled++;
     }
   });
 
