@@ -641,11 +641,8 @@ function loadStorage() {
         const reg = extractRegion(r.destination);
         if (reg) { r.destinationRegion = reg; migrated = true; }
       }
-      // 0인 운임만 요금표에서 자동 채우기 (기존 값 보존)
-      const beforeC = r.carrierFare || 0;
-      const beforeL = r.clientFare  || 0;
-      autoLookup(r, { onlyEmpty: true });
-      if ((r.carrierFare || 0) !== beforeC || (r.clientFare || 0) !== beforeL) migrated = true;
+      // ※ 페이지 로드 시 자동 운임 채우기 제거 — Excel/수기 입력값 그대로 보존
+      //   운임을 채우려면 사용자가 "운임 재조회" 버튼을 명시적으로 눌러야 함
     });
   });
   if (migrated) saveStorage(); // 변경 내용 즉시 저장
