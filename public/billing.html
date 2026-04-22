@@ -280,6 +280,7 @@
         </button>
         <button class="btn btn-blue btn-sm" onclick="window.print()"><i class="fas fa-print"></i> 인쇄</button>
         <button class="btn btn-green btn-sm" onclick="exportExcel()"><i class="fas fa-file-excel"></i> 엑셀 다운로드</button>
+        <button class="btn btn-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;" onclick="repairClientCode()" title="client_code 누락 데이터 복구"><i class="fas fa-wrench"></i> 데이터 복구</button>
       </div>
     </div>
 
@@ -909,6 +910,31 @@
     document.getElementById('sumCarrier').textContent=cT.toLocaleString()+'원';
     document.getElementById('sumClient').textContent=kT.toLocaleString()+'원';
     document.getElementById('sumDiff').textContent=(kT-cT).toLocaleString()+'원';
+  }
+
+  // ── client_code 누락 데이터 복구 ──────────────────────────────
+  async function repairClientCode() {
+    const from = document.getElementById('dateFrom').value;
+    const to   = document.getElementById('dateTo').value;
+    const cc   = document.getElementById('clientCodeSel').value;
+    if (!cc) { alert('화주를 먼저 선택해주세요.'); return; }
+
+    const clientName = document.getElementById('billClientDisp')?.value || cc;
+    const msg = `⚠️ 데이터 복구\n\n기간: ${from || '전체'} ~ ${to || '전체'}\n화주: ${clientName} (${cc})\n\n해당 기간 내 client_code가 비어있거나\n한글명으로 저장된 데이터를 "${cc}"로 통일합니다.\n\n계속하시겠습니까?`;
+    if (!confirm(msg)) return;
+
+    try {
+      const res = await fetch('/api/records/repair-client-code', {
+        method: 'POST',
+        headers: authH(),
+        body: JSON.stringify({ target_code: cc, date_from: from, date_to: to })
+      });
+      const data = await res.json();
+      if (!res.ok) { alert('복구 실패: ' + (data.error || res.status)); return; }
+      alert(`✅ 복구 완료!\n화주 코드: ${data.updated_client_code}\n전체 ${data.updated_client_code} 데이터: ${data.total_count}건\n\n[데이터 조회] 버튼을 다시 눌러주세요.`);
+    } catch(e) {
+      alert('복구 중 오류: ' + e.message);
+    }
   }
 
   // ── 엑셀 내보내기 ──

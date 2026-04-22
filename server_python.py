@@ -776,7 +776,15 @@ class Handler(BaseHTTPRequestHandler):
             if date_from:   sql += ' AND delivery_date >= ?';      params.append(date_from)
             if date_to:     sql += ' AND delivery_date <= ?';      params.append(date_to)
             if status:      sql += ' AND status=?';                params.append(status)
-            if client_code: sql += ' AND client_code=?';           params.append(client_code)
+            if client_code:
+                # 코드(mettler) + 한글명(메틀러토레도) + 빈값 모두 매칭 (하위호환)
+                CODE_NAME = {'mettler':'메틀러토레도','chanel':'샤넬코리아','canon':'캐논메디칼시스템즈'}
+                alt = CODE_NAME.get(client_code, '')
+                if alt:
+                    sql += ' AND (client_code=? OR client_code=? OR client_code IS NULL OR client_code=\'\')'
+                    params.extend([client_code, alt])
+                else:
+                    sql += ' AND client_code=?'; params.append(client_code)
             sql += ' ORDER BY created_at DESC LIMIT ?'; params.append(limit)
             return self.send_json({'data': db_fetchall(sql, params)})
 
@@ -931,6 +939,35 @@ class Handler(BaseHTTPRequestHandler):
                 t = make_token(pw); valid_staff_tokens.add(t)
                 return self.send_json({'token': t, 'role': 'staff'})
             return self.send_json({'error':'비밀번호가 틀렸습니다.'}, 401)
+
+        # ── client_code 일괄 복구 ──────────────────────────────────────
+        if p == '/api/records/repair-client-code':
+            if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
+            date_from   = body.get('date_from', '')
+            date_to     = body.get('date_to', '')
+            target_code = body.get('target_code', '')
+            if not target_code: return self.send_json({'error':'target_code 필요'}, 400)
+            CODE_NAME = {'mettler':'메틀러토레도','chanel':'샤넬코리아','canon':'캐논메디칼시스템즈'}
+            alt = CODE_NAME.get(target_code, '')
+            # NULL / '' / 한글명 → 영문코드로 통일
+            if IS_PG:
+                sql = "UPDATE delivery_records SET client_code=%s WHERE (client_code IS NULL OR client_code=''"
+                params = [target_code]
+                if alt: sql += " OR client_code=%s"; params.append(alt)
+                if date_from: sql += " ) AND delivery_date>=%s"; params.append(date_from)
+                else: sql += ")"
+                if date_to:   sql += " AND delivery_date<=%s"; params.append(date_to)
+            else:
+                sql = "UPDATE delivery_records SET client_code=? WHERE (client_code IS NULL OR client_code=''"
+                params = [target_code]
+                if alt: sql += " OR client_code=?"; params.append(alt)
+                if date_from: sql += " ) AND delivery_date>=?"; params.append(date_from)
+                else: sql += ")"
+                if date_to:   sql += " AND delivery_date<=?"; params.append(date_to)
+            db_exec(sql, params)
+            # 변경 건수 확인
+            cnt = (db_fetch('SELECT COUNT(*) as c FROM delivery_records WHERE client_code=?', (target_code,)) or {}).get('c', 0)
+            return self.send_json({'success': True, 'updated_client_code': target_code, 'total_count': cnt})
 
         # 기사 서명 (공개)
         m = re.match(r'^/api/sign/(\d+)$', p)
