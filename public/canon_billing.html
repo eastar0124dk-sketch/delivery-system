@@ -67,6 +67,8 @@
     .btn-gray:hover   { background: #e2e8f0; }
     .btn-upload { background: #0f4c81; color: #fff; }
     .btn-upload:hover { background: #1565c0; transform: translateY(-1px); }
+    .btn-clear  { background: #fff; color: #dc2626; border: 1px solid #fca5a5; }
+    .btn-clear:hover  { background: #fee2e2; border-color: #ef4444; }
     /* 조회기간 */
     .period-wrap {
       display: flex; align-items: center; gap: 5px;
@@ -272,6 +274,9 @@
     <i class="fas fa-upload"></i> 엑셀 업로드
   </button>
   <input type="file" id="xlsxUpload" accept=".xlsx,.xls" style="display:none" onchange="handleUpload(this)">
+  <button class="btn btn-clear" onclick="clearMonth()" title="이번 달 데이터 전체 삭제">
+    <i class="fas fa-trash"></i> 전체 삭제
+  </button>
   <div class="spacer"></div>
   <span id="autoSaveMsg"></span>
 </div>
@@ -576,6 +581,15 @@ function deleteRow(id) {
   if (!billingData[currentMonth]) return;
   if (!confirm('이 행을 삭제하시겠습니까?')) return;
   billingData[currentMonth] = billingData[currentMonth].filter(r => r.id !== id);
+  saveStorage();
+  renderAll();
+}
+
+function clearMonth() {
+  const rows = billingData[currentMonth] || [];
+  if (rows.length === 0) { alert('삭제할 데이터가 없습니다.'); return; }
+  if (!confirm(`⚠️ ${currentMonth} 데이터 ${rows.length}건을 전체 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+  billingData[currentMonth] = [];
   saveStorage();
   renderAll();
 }
