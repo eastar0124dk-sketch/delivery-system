@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>캐논메디칼 운송청구서</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <script src="canon_rates.js"></script>
+  <style>
+    :root {
+      --primary: #e65100;
+      --primary-dark: #bf360c;
+      --primary-light: #fff3e0;
+      --client: #1565c0;
+      --client-bg: rgba(21,101,192,.06);
+      --carrier: #c62828;
+      --carrier-bg: rgba(198,40,40,.06);
+      --profit: #4a148c;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+           background: #f0f2f5; color: #1e293b; font-size: 12px; }
+
+    /* ── Header ── */
+    .page-header {
+      background: linear-gradient(135deg, #bf360c 0%, #e65100 60%, #ff6d00 100%);
+      color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 3px 10px rgba(230,81,0,.45); position: sticky; top: 0; z-index: 200;
+    }
+    .hdr-icon { font-size: 26px; }
+    .hdr-text h1 { font-size: 17px; font-weight: 800; letter-spacing: -.3px; }
+    .hdr-text .sub { font-size: 11px; opacity: .75; margin-top: 1px; }
+    .back-btn {
+      margin-left: auto; background: rgba(255,255,255,.22); border: none; color: #fff;
+      padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .back-btn:hover { background: rgba(255,255,255,.38); }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      background: #fff; padding: 10px 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      border-bottom: 2px solid #fbe9e7; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      position: sticky; top: 57px; z-index: 100;
+    }
+    .month-nav { display: flex; align-items: center; gap: 3px; }
+    .month-nav button {
+      width: 26px; height: 26px; border: 1px solid var(--border); background: #f8fafc;
+      border-radius: 5px; cursor: pointer; font-size: 15px; color: #475569;
+    }
+    .month-nav button:hover { background: #e2e8f0; }
+    input[type="month"] {
+      padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 12px; background: #f8fafc; color: #1e293b; font-weight: 700;
+    }
+    .btn {
+      padding: 6px 12px; border: none; border-radius: 7px; cursor: pointer; font-size: 11px;
+      font-weight: 700; display: inline-flex; align-items: center; gap: 5px; transition: all .12s;
+    }
+    .btn-orange { background: #e65100; color: #fff; }
+    .btn-orange:hover { background: #bf360c; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(230,81,0,.4); }
+    .btn-green  { background: #1b5e20; color: #fff; }
+    .btn-green:hover  { background: #2e7d32; transform: translateY(-1px); }
+    .btn-gray   { background: #f1f5f9; color: #475569; border: 1px solid var(--border); }
+    .btn-gray:hover   { background: #e2e8f0; }
+    .spacer { flex: 1; }
+    #autoSaveMsg { font-size: 11px; color: #10b981; font-weight: 600; }
+
+    /* ── Summary ── */
+    .summary-bar {
+      background: #fff; padding: 8px 16px; display: flex; gap: 18px; flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+    }
+    .sum-item { display: flex; flex-direction: column; gap: 1px; min-width: 80px; }
+    .sum-label { font-size: 10px; color: #64748b; font-weight: 600; }
+    .sum-value { font-size: 13px; font-weight: 800; }
+    .sum-value.cnt  { color: #334155; }
+    .sum-value.cli  { color: var(--client); }
+    .sum-value.car  { color: var(--carrier); }
+    .sum-value.prf  { color: var(--profit); }
+    .sum-divider { width: 1px; background: var(--border); align-self: stretch; }
+
+    /* ── Table container ── */
+    .table-wrap {
+      overflow: auto; height: calc(100vh - 170px);
+      background: #fff;
+    }
+
+    /* ── Table ── */
+    table { border-collapse: collapse; min-width: 3000px; white-space: nowrap; }
+
+    /* Sticky headers */
+    thead tr.gr-row th {
+      position: sticky; z-index: 12;
+      padding: 6px 6px; text-align: center; font-size: 11px; font-weight: 800;
+      border: 1px solid rgba(255,255,255,.3);
+    }
+    thead tr.gr-row { top: 0; }
+    thead tr.col-row th {
+      position: sticky; top: 28px; z-index: 11;
+      padding: 5px 3px; text-align: center; font-size: 10px; font-weight: 700;
+      border: 1px solid #ddd; background: #f8fafc; color: #475569; cursor: default;
+    }
+
+    /* Group colors */
+    .grp-base    { background: #37474f; color: #fff; }
+    .grp-client  { background: #1565c0; color: #fff; }
+    .grp-carrier { background: #c62828; color: #fff; }
+    .grp-analysis{ background: #4a148c; color: #fff; }
+    .grp-actions { background: #263238; color: #fff; }
+
+    /* Body rows */
+    tbody tr { background: #fff; transition: background .08s; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    tbody tr:hover { background: #fff8f0; }
+
+    tbody td {
+      padding: 2px 2px; border: 1px solid #e8ecf0;
+      vertical-align: middle;
+    }
+    td.seq {
+      text-align: center; font-weight: 800; color: #94a3b8; font-size: 11px;
+      min-width: 34px; width: 34px; background: #f8fafc !important;
+    }
+    td.col-client  { background: var(--client-bg); }
+    td.col-carrier { background: var(--carrier-bg); }
+    td.col-analysis{ background: rgba(74,20,140,.04); }
+
+    /* Cell inputs */
+    .ci {
+      width: 100%; border: none; background: transparent; font-size: 11px;
+      font-family: inherit; padding: 3px 4px; outline: none; border-radius: 3px;
+      color: #1e293b; text-align: center;
+    }
+    .ci:focus { background: #eff6ff; border: 1px solid #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.15); }
+    .ci.left    { text-align: left; }
+    .ci.right   { text-align: right; }
+    .ci.num     { text-align: right; font-variant-numeric: tabular-nums; }
+    select.ci   { cursor: pointer; background: transparent; }
+    .ci[readonly]{ color: #059669; font-weight: 700; cursor: default; }
+    .ci[readonly]:focus { background: transparent; border: none; box-shadow: none; }
+
+    /* Totals / computed cells */
+    .total-cli {
+      background: rgba(21,101,192,.14) !important; color: #1565c0;
+      font-weight: 800; font-size: 11px; text-align: right; padding: 3px 5px;
+    }
+    .total-car {
+      background: rgba(198,40,40,.14) !important; color: #c62828;
+      font-weight: 800; font-size: 11px; text-align: right; padding: 3px 5px;
+    }
+    .diff-pos { color: #1b5e20; font-weight: 800; font-size: 11px; text-align: right; padding: 3px 5px; }
+    .diff-neg { color: #b71c1c; font-weight: 800; font-size: 11px; text-align: right; padding: 3px 5px; }
+    .profit-cell { font-weight: 800; font-size: 11px; text-align: center; padding: 3px 4px; }
+
+    /* Gubun badges */
+    .badge {
+      display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700;
+    }
+    .badge-출고       { background: #e3f2fd; color: #1565c0; }
+    .badge-회수       { background: #fce4ec; color: #c62828; }
+    .badge-지역간배송  { background: #f3e5f5; color: #6a1b9a; }
+
+    /* Footer */
+    tfoot td {
+      padding: 6px 5px; border: 1px solid rgba(255,255,255,.2); font-weight: 800; font-size: 11px;
+      position: sticky; bottom: 0; z-index: 8;
+    }
+    tfoot td.ft-base { background: #37474f; color: #cfd8dc; text-align: center; }
+    tfoot td.ft-cli  { background: #1565c0; color: #fff; text-align: right; }
+    tfoot td.ft-car  { background: #c62828; color: #fff; text-align: right; }
+    tfoot td.ft-diff { background: #388e3c; color: #fff; text-align: right; }
+    tfoot td.ft-ana  { background: #4a148c; color: #e1bee7; text-align: right; }
+    tfoot td.ft-act  { background: #263238; color: #fff; }
+
+    /* Delete btn */
+    .del-btn {
+      width: 22px; height: 22px; border: none; background: transparent; color: #ef4444;
+      cursor: pointer; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+    }
+    .del-btn:hover { background: #fee2e2; }
+
+    /* Column widths */
+    .w34  { min-width:34px;  width:34px; }
+    .w50  { min-width:50px;  width:50px; }
+    .w55  { min-width:55px;  width:55px; }
+    .w65  { min-width:65px;  width:65px; }
+    .w70  { min-width:70px;  width:70px; }
+    .w80  { min-width:80px;  width:80px; }
+    .w88  { min-width:88px;  width:88px; }
+    .w95  { min-width:95px;  width:95px; }
+    .w105 { min-width:105px; width:105px; }
+    .w115 { min-width:115px; width:115px; }
+    .w120 { min-width:120px; width:120px; }
+
+    /* Empty */
+    .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
+    .empty-state .icon { font-size: 44px; margin-bottom: 10px; }
+
+    /* Scrollbar */
+    .table-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+    .table-wrap::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .table-wrap::-webkit-scrollbar-track { background: #f1f5f9; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="page-header">
+  <div class="hdr-icon">📷</div>
+  <div class="hdr-text">
+    <h1>캐논메디칼시스템즈 — 운송청구서</h1>
+    <div class="sub">CANON Medical Systems Korea &nbsp;|&nbsp; Transport Billing</div>
+  </div>
+  <button class="back-btn" onclick="history.back()"><i class="fas fa-arrow-left"></i> 홈</button>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <div class="month-nav">
+    <button onclick="prevMonth()" title="이전 달">‹</button>
+    <input type="month" id="monthPicker" onchange="onMonthChange()">
+    <button onclick="nextMonth()" title="다음 달">›</button>
+  </div>
+  <button class="btn btn-orange" onclick="addRow()">
+    <i class="fas fa-plus"></i> 행 추가
+  </button>
+  <button class="btn btn-green" onclick="exportExcel()">
+    <i class="fas fa-file-excel"></i> 엑셀 출력
+  </button>
+  <button class="btn btn-gray" onclick="copyPrevMonth()" title="이전 달 양식 복사">
+    <i class="fas fa-copy"></i> 이전달 복사
+  </button>
+  <div class="spacer"></div>
+  <span id="autoSaveMsg"></span>
+</div>
+
+<!-- Summary bar -->
+<div class="summary-bar" id="summaryBar">
+  <div class="sum-item"><span class="sum-label">건수</span><span class="sum-value cnt" id="sum-cnt">0</span></div>
+  <div class="sum-divider"></div>
+  <div class="sum-item"><span class="sum-label">캐논 청구금액 합계</span><span class="sum-value cli" id="sum-cli">₩0</span></div>
+  <div class="sum-item"><span class="sum-label">운임</span><span class="sum-value cli" id="sum-cli-fare">₩0</span></div>
+  <div class="sum-divider"></div>
+  <div class="sum-item"><span class="sum-label">운송사 지불금액 합계</span><span class="sum-value car" id="sum-car">₩0</span></div>
+  <div class="sum-item"><span class="sum-label">운임</span><span class="sum-value car" id="sum-car-fare">₩0</span></div>
+  <div class="sum-divider"></div>
+  <div class="sum-item"><span class="sum-label">차이금액 합계</span><span class="sum-value prf" id="sum-diff">₩0</span></div>
+  <div class="sum-item"><span class="sum-label">평균 수익율</span><span class="sum-value prf" id="sum-rate">0%</span></div>
+</div>
+
+<!-- Table -->
+<div class="table-wrap">
+  <table id="billingTable">
+    <thead>
+      <!-- Group row -->
+      <tr class="gr-row">
+        <th class="grp-base"  colspan="16">기 본 정 보</th>
+        <th class="grp-client"  colspan="7">캐 논 청 구 운 임</th>
+        <th class="grp-carrier" colspan="7">운 송 사 지 불 운 임</th>
+        <th class="grp-analysis" colspan="4">분 석</th>
+        <th class="grp-actions" colspan="1"></th>
+      </tr>
+      <!-- Column row -->
+      <tr class="col-row">
+        <!-- Base -->
+        <th class="w34">No</th>
+        <th class="w88">ORDER일자</th>
+        <th class="w70">구분</th>
+        <th class="w115">출발지</th>
+        <th class="w80">출발지역</th>
+        <th class="w88">출발일자</th>
+        <th class="w115">도착지</th>
+        <th class="w80">도착지역</th>
+        <th class="w88">도착일자</th>
+        <th class="w55">형태</th>
+        <th class="w80">연계지</th>
+        <th class="w70">담당자</th>
+        <th class="w70">인계자</th>
+        <th class="w80">차종</th>
+        <th class="w70">운송사</th>
+        <th class="w88">비고</th>
+        <!-- Canon billing -->
+        <th class="w88" style="color:#90caf9">운임</th>
+        <th class="w65" style="color:#90caf9">리프트</th>
+        <th class="w65" style="color:#90caf9">폐기</th>
+        <th class="w70" style="color:#90caf9">보관료</th>
+        <th class="w65" style="color:#90caf9">탁송료</th>
+        <th class="w65" style="color:#90caf9">기타</th>
+        <th class="w95" style="color:#fff;background:#1565c0;font-weight:900">청구금액</th>
+        <!-- Carrier billing -->
+        <th class="w88" style="color:#ffcdd2">운임</th>
+        <th class="w65" style="color:#ffcdd2">리프트</th>
+        <th class="w65" style="color:#ffcdd2">폐기</th>
+        <th class="w70" style="color:#ffcdd2">보관료</th>
+        <th class="w65" style="color:#ffcdd2">탁송료</th>
+        <th class="w65" style="color:#ffcdd2">기타</th>
+        <th class="w95" style="color:#fff;background:#c62828;font-weight:900">지불금액</th>
+        <!-- Analysis -->
+        <th class="w88">비고</th>
+        <th class="w55">거리km</th>
+        <th class="w88">차이금액</th>
+        <th class="w65">수익율</th>
+        <!-- Actions -->
+        <th class="w34">삭제</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+    <tfoot id="tableFoot"></tfoot>
+  </table>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   캐논 운임 유틸리티
+   (canon_rates.js에서 CANON_CLIENT_RATES, CANON_CARRIER_RATES 로드됨)
+════════════════════════════════════════════════════════════ */
+
+// 지역간배송 클라이언트 운임 (거리별 표준요금표) — CANON_CLIENT_RATES의 숫자 키
+const DIST_STEPS = [5,10,15,20,25,30,35,40,50,60,70,80,90,100];
+
+function getClientRate(region, vehicle) {
+  if (!region || !vehicle) return null;
+  if (vehicle === '라보' || vehicle === '3.5톤') return null;
+  const rates = CANON_CLIENT_RATES[region];
+  if (!rates) return null;
+  const v = rates[vehicle];
+  return (v !== undefined && v > 0) ? v : null;
+}
+
+function getCarrierRate(region, vehicle, carrier) {
+  if (!region || !vehicle) return null;
+  if (vehicle === '라보' || vehicle === '3.5톤') return null;
+  if (carrier !== '패스') return null;
+  const rates = CANON_CARRIER_RATES[region];
+  if (!rates) return null;
+  const v = rates[vehicle];
+  return (v !== undefined && v > 0) ? v : null;
+}
+
+function getDistanceClientRate(km, vehicle) {
+  if (!km || km <= 0 || !vehicle) return null;
+  if (vehicle === '라보' || vehicle === '3.5톤') return null;
+  let key = '5';
+  for (const s of DIST_STEPS) {
+    if (km >= s) key = String(s);
+    else break;
+  }
+  const rates = CANON_CLIENT_RATES[key];
+  if (!rates) return null;
+  const v = rates[vehicle];
+  return (v !== undefined && v > 0) ? v : null;
+}
+
+// 지역간배송 운송사 운임 — CANON_CARRIER_RATES의 숫자 키가 없으므로 수기입력
+// (패스 수도권 운임은 별도 구조이므로 지역간배송은 항상 수기)
+
+// 지역 목록 (geographic only — 숫자 키 및 special entry 제외)
+const GEO_REGIONS = (() => {
+  const skip = new Set([
+    'Additional Delivery Fee (동일 지역 경유)',
+    'Additional Delivery Fee (경기지역 경유)',
+    'Additional Delivery Fee (지방지역 경유)',
+    '서울경유비','경기경유비','거리별 표준요금표','거리(km)',
+    '해상운송료','항공운송료','수도권 운임','구분','소숫점첫째자리 반올림','지방 운임',
+    '* 오토바이 1박스(30*30*30, 10키로)','* 제주운송료',
+    '다마스','1톤','2.5톤','5톤'
+  ]);
+  const isNumeric = k => /^\d+$/.test(k);
+  const all = new Set([
+    ...Object.keys(CANON_CLIENT_RATES || {}),
+    ...Object.keys(CANON_CARRIER_RATES || {})
+  ]);
+  return [...all].filter(k => !skip.has(k) && !isNumeric(k)).sort((a,b) => a.localeCompare(b,'ko'));
+})();
+
+function regionOptions(selected='') {
+  return `<option value="">지역선택</option>` +
+    GEO_REGIONS.map(r =>
+      `<option value="${r}"${r === selected ? ' selected' : ''}>${r}</option>`
+    ).join('');
+}
+
+/* ════════════════════════════════════════════════════════════
+   앱 상태
+════════════════════════════════════════════════════════════ */
+const STORE_KEY = 'canon_billing_v1';
+let billingData = {};    // { "2026-04": [...rows] }
+let currentMonth = '';
+
+/* ════════════════════════════════════════════════════════════
+   초기화
+════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  loadStorage();
+  const now = new Date();
+  currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('monthPicker').value = currentMonth;
+  ensureMonth(currentMonth);
+  renderAll();
+});
+
+function loadStorage() {
+  try { billingData = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }
+  catch { billingData = {}; }
+}
+function saveStorage() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
+  const el = document.getElementById('autoSaveMsg');
+  el.textContent = '저장됨 ✓';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.textContent = ''; }, 1800);
+}
+function ensureMonth(m) {
+  if (!billingData[m]) billingData[m] = [];
+}
+
+/* ════════════════════════════════════════════════════════════
+   월 네비게이션
+════════════════════════════════════════════════════════════ */
+function onMonthChange() {
+  currentMonth = document.getElementById('monthPicker').value;
+  ensureMonth(currentMonth);
+  renderAll();
+}
+function prevMonth() {
+  const [y,m] = currentMonth.split('-').map(Number);
+  const d = new Date(y, m-2, 1);
+  currentMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('monthPicker').value = currentMonth;
+  ensureMonth(currentMonth);
+  renderAll();
+}
+function nextMonth() {
+  const [y,m] = currentMonth.split('-').map(Number);
+  const d = new Date(y, m, 1);
+  currentMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('monthPicker').value = currentMonth;
+  ensureMonth(currentMonth);
+  renderAll();
+}
+
+/* ════════════════════════════════════════════════════════════
+   행 추가 / 삭제
+════════════════════════════════════════════════════════════ */
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+function blankRow() {
+  return {
+    id: genId(),
+    orderDate:'', gubun:'출고',
+    departure:'', departureRegion:'',
+    departureDate:'', destination:'', destinationRegion:'',
+    arrivalDate:'', form:'', relay:'',
+    manager:'', handover:'',
+    vehicle:'1톤', carrier:'패스', remarks1:'',
+    clientFare:0, clientLift:0, clientDisposal:0,
+    clientStorage:0, clientTaksong:0, clientOther:0,
+    carrierFare:0, carrierLift:0, carrierDisposal:0,
+    carrierStorage:0, carrierTaksong:0, carrierOther:0,
+    remarks2:'', distanceKm:0
+  };
+}
+
+function addRow() {
+  ensureMonth(currentMonth);
+  billingData[currentMonth].push(blankRow());
+  saveStorage();
+  renderAll();
+  // 마지막 행으로 스크롤 후 포커스
+  requestAnimationFrame(() => {
+    const tbody = document.getElementById('tableBody');
+    const last = tbody.lastElementChild;
+    if (last) {
+      last.scrollIntoView({ behavior:'smooth', block:'nearest' });
+      const inp = last.querySelector('input,select');
+      if (inp) setTimeout(() => inp.focus(), 200);
+    }
+  });
+}
+
+function deleteRow(id) {
+  if (!billingData[currentMonth]) return;
+  if (!confirm('이 행을 삭제하시겠습니까?')) return;
+  billingData[currentMonth] = billingData[currentMonth].filter(r => r.id !== id);
+  saveStorage();
+  renderAll();
+}
+
+function copyPrevMonth() {
+  const [y,m] = currentMonth.split('-').map(Number);
+  const d = new Date(y, m-2, 1);
+  const prevKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  const prev = billingData[prevKey];
+  if (!prev || prev.length === 0) { alert('이전 달 데이터가 없습니다.'); return; }
+  if (!confirm(`${prevKey} 데이터 ${prev.length}건을 현재 달로 복사하시겠습니까?\n(기존 데이터는 유지됩니다)`)) return;
+  ensureMonth(currentMonth);
+  const copied = prev.map(r => ({ ...r, id: genId(), orderDate:'', departureDate:'', arrivalDate:'' }));
+  billingData[currentMonth].push(...copied);
+  saveStorage();
+  renderAll();
+}
+
+/* ════════════════════════════════════════════════════════════
+   필드 업데이트
+════════════════════════════════════════════════════════════ */
+const NUM_FIELDS = new Set([
+  'clientFare','clientLift','clientDisposal','clientStorage','clientTaksong','clientOther',
+  'carrierFare','carrierLift','carrierDisposal','carrierStorage','carrierTaksong','carrierOther',
+  'distanceKm'
+]);
+
+function onFieldChange(id, field, value) {
+  const rows = billingData[currentMonth];
+  if (!rows) return;
+  const row = rows.find(r => r.id === id);
+  if (!row) return;
+
+  row[field] = NUM_FIELDS.has(field) ? (parseFloat(value) || 0) : value;
+
+  // Auto-detect 구분
+  if (field === 'departure' || field === 'destination') {
+    const dep = (row.departure || '').toUpperCase();
+    const dst = (row.destination || '').toUpperCase();
+    if (dep.includes('ACT')) row.gubun = '출고';
+    else if (dst.includes('ACT')) row.gubun = '회수';
+    else if (dep || dst) row.gubun = '지역간배송';
+  }
+
+  // Auto-lookup rates
+  if (['gubun','departureRegion','destinationRegion','vehicle','carrier','distanceKm',
+       'departure','destination'].includes(field)) {
+    autoLookup(row);
+  }
+
+  saveStorage();
+  refreshRow(id);
+  refreshSummary();
+}
+
+function autoLookup(row) {
+  const { gubun, departureRegion, destinationRegion, vehicle, carrier, distanceKm } = row;
+  const noAuto = (vehicle === '라보' || vehicle === '3.5톤');
+
+  if (gubun === '출고') {
+    // 출고: 도착지 기준 운임
+    row.clientFare  = noAuto ? row.clientFare  : (getClientRate(destinationRegion, vehicle) ?? row.clientFare);
+    row.carrierFare = noAuto ? row.carrierFare : (getCarrierRate(destinationRegion, vehicle, carrier) ?? row.carrierFare);
+  } else if (gubun === '회수') {
+    // 회수: 출발지 기준 운임
+    row.clientFare  = noAuto ? row.clientFare  : (getClientRate(departureRegion, vehicle) ?? row.clientFare);
+    row.carrierFare = noAuto ? row.carrierFare : (getCarrierRate(departureRegion, vehicle, carrier) ?? row.carrierFare);
+  } else if (gubun === '지역간배송') {
+    // 지역간배송: 거리km 기준 캐논 운임 (운송사는 수기)
+    row.clientFare = noAuto ? row.clientFare : (getDistanceClientRate(distanceKm, vehicle) ?? row.clientFare);
+    // carrier fare: manual (지역간배송 carrier rates not in table)
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   계산
+════════════════════════════════════════════════════════════ */
+function clientTotal(r) {
+  return r.clientFare + r.clientLift + r.clientDisposal + r.clientStorage + r.clientTaksong + r.clientOther;
+}
+function carrierTotal(r) {
+  return r.carrierFare + r.carrierLift + r.carrierDisposal + r.carrierStorage + r.carrierTaksong + r.carrierOther;
+}
+function diffAmt(r) { return clientTotal(r) - carrierTotal(r); }
+function profitRate(r) {
+  const ct = clientTotal(r);
+  if (!ct) return '—';
+  return (diffAmt(r) / ct * 100).toFixed(1) + '%';
+}
+function won(n) {
+  if (!n && n !== 0) return '';
+  return n.toLocaleString('ko-KR');
+}
+
+/* ════════════════════════════════════════════════════════════
+   렌더링
+════════════════════════════════════════════════════════════ */
+function renderAll() {
+  renderTable();
+  renderSummary();
+}
+
+function renderTable() {
+  const rows = billingData[currentMonth] || [];
+  const tbody = document.getElementById('tableBody');
+  const tfoot = document.getElementById('tableFoot');
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="36" class="empty-state">
+      <div class="icon">📋</div>
+      <p>이번 달 데이터가 없습니다. <strong>"행 추가"</strong>를 눌러 입력하세요.</p>
+    </td></tr>`;
+    tfoot.innerHTML = '';
+    return;
+  }
+
+  tbody.innerHTML = rows.map((r, i) => buildRow(r, i)).join('');
+
+  // Footer
+  let fCliTotal=0, fCarTotal=0, fCliFare=0, fCarFare=0, fDiff=0;
+  rows.forEach(r => {
+    fCliTotal += clientTotal(r); fCarTotal += carrierTotal(r);
+    fCliFare  += r.clientFare;   fCarFare  += r.carrierFare;
+    fDiff     += diffAmt(r);
+  });
+  const fRate = fCliTotal ? (fDiff/fCliTotal*100).toFixed(1)+'%' : '—';
+
+  tfoot.innerHTML = `<tr>
+    <td class="ft-base" colspan="16">합 계 (${rows.length}건)</td>
+    <td class="ft-cli">${won(fCliFare)}</td>
+    <td class="ft-cli" colspan="5"></td>
+    <td class="ft-cli">${won(fCliTotal)}</td>
+    <td class="ft-car">${won(fCarFare)}</td>
+    <td class="ft-car" colspan="5"></td>
+    <td class="ft-car">${won(fCarTotal)}</td>
+    <td class="ft-ana" colspan="2"></td>
+    <td class="ft-diff">${won(fDiff)}</td>
+    <td class="ft-ana">${fRate}</td>
+    <td class="ft-act"></td>
+  </tr>`;
+}
+
+function buildRow(r, idx) {
+  const cT = clientTotal(r);
+  const crT = carrierTotal(r);
+  const diff = diffAmt(r);
+  const pRate = profitRate(r);
+  const diffClass = diff >= 0 ? 'diff-pos' : 'diff-neg';
+  const pColor = diff >= 0 ? '#1b5e20' : '#b71c1c';
+  const isManual = (r.vehicle === '라보' || r.vehicle === '3.5톤');
+  const isDistDelivery = (r.gubun === '지역간배송');
+
+  return `<tr id="row-${r.id}">
+    <td class="seq">${idx+1}</td>
+    <td class="w88"><input class="ci" type="date" value="${r.orderDate}"
+      onchange="onFieldChange('${r.id}','orderDate',this.value)"></td>
+    <td class="w70">
+      <select class="ci" onchange="onFieldChange('${r.id}','gubun',this.value)">
+        ${['출고','회수','지역간배송'].map(g=>`<option value="${g}"${g===r.gubun?' selected':''}>${g}</option>`).join('')}
+      </select>
+    </td>
+    <td class="w115"><input class="ci left" type="text" value="${r.departure}" placeholder="출발지"
+      oninput="onFieldChange('${r.id}','departure',this.value)"></td>
+    <td class="w80">
+      <select class="ci" onchange="onFieldChange('${r.id}','departureRegion',this.value)">
+        ${regionOptions(r.departureRegion)}
+      </select>
+    </td>
+    <td class="w88"><input class="ci" type="date" value="${r.departureDate}"
+      onchange="onFieldChange('${r.id}','departureDate',this.value)"></td>
+    <td class="w115"><input class="ci left" type="text" value="${r.destination}" placeholder="도착지"
+      oninput="onFieldChange('${r.id}','destination',this.value)"></td>
+    <td class="w80">
+      <select class="ci" onchange="onFieldChange('${r.id}','destinationRegion',this.value)">
+        ${regionOptions(r.destinationRegion)}
+      </select>
+    </td>
+    <td class="w88"><input class="ci" type="date" value="${r.arrivalDate}"
+      onchange="onFieldChange('${r.id}','arrivalDate',this.value)"></td>
+    <td class="w55"><input class="ci" type="text" value="${r.form}" placeholder="형태"
+      oninput="onFieldChange('${r.id}','form',this.value)"></td>
+    <td class="w80"><input class="ci" type="text" value="${r.relay}" placeholder="연계지"
+      oninput="onFieldChange('${r.id}','relay',this.value)"></td>
+    <td class="w70"><input class="ci" type="text" value="${r.manager}" placeholder="담당자"
+      oninput="onFieldChange('${r.id}','manager',this.value)"></td>
+    <td class="w70"><input class="ci" type="text" value="${r.handover}" placeholder="인계자"
+      oninput="onFieldChange('${r.id}','handover',this.value)"></td>
+    <td class="w80">
+      <select class="ci" onchange="onFieldChange('${r.id}','vehicle',this.value)">
+        ${['오토바이','다마스','라보','1톤','2.5톤','3.5톤','5톤','11톤'].map(v=>`<option value="${v}"${v===r.vehicle?' selected':''}>${v}</option>`).join('')}
+      </select>
+    </td>
+    <td class="w70">
+      <select class="ci" onchange="onFieldChange('${r.id}','carrier',this.value)">
+        ${['패스','기타'].map(c=>`<option value="${c}"${c===r.carrier?' selected':''}>${c}</option>`).join('')}
+      </select>
+    </td>
+    <td class="w88"><input class="ci left" type="text" value="${r.remarks1}" placeholder="비고"
+      oninput="onFieldChange('${r.id}','remarks1',this.value)"></td>
+
+    <!-- 캐논 청구 -->
+    <td class="w88 col-client"><input class="ci num" type="number" value="${r.clientFare||''}" placeholder="0"
+      title="${isManual?'수기입력':isDistDelivery?'거리기준 자동':'지역기준 자동'}"
+      onchange="onFieldChange('${r.id}','clientFare',this.value)"></td>
+    <td class="w65 col-client"><input class="ci num" type="number" value="${r.clientLift||''}" placeholder="0"
+      onchange="onFieldChange('${r.id}','clientLift',this.value)"></td>
+    <td class="w65 col-client"><input class="ci num" type="number" value="${r.clientDisposal||''}" placeholder="0"
+      onchange="onFieldChange('${r.id}','clientDisposal',this.value)"></td>
+    <td class="w70 col-client"><input class="ci num" type="number" value="${r.clientStorage||''}" placeholder="0"
+      onchange="onFieldChange('${r.id}','clientStorage',this.value)"></td>
+    <td class="w65 col-client"><input class="ci num" type="number" value="${r.clientTaksong||''}" placeholder="0"
+      onchange="onFieldChange('${r.id}','clientTaksong',this.value)"></td>
+    <td class="w65 col-client"><input class="ci num" type="number" value="${r.clientOther||''}" placeholder="0"
+      onchange="onFieldChange('${r.id}','clientOther',this.value)"></td>
+    <td class="w95 total-cli" id="cT-${r.id}">${won(cT)||'—'}</td>
+
+    <!-- 운송사 지불 -->
+    <td class="w88 col-carrier"><input class="ci num" type="number" value="${r.carrierFare||''}" placeholder="0"
+      title="${r.carrier==='기타'||isManual||isDistDelivery?'수기입력':'지역기준 자동'}"
+      onchange="onFieldChange('${r.id}','carrierFare',this.value)"></td>
+    <td class="w65 col-carrier"><input class="ci num" type="number" value="${r.carrierLift||''}" placeholder="0"
+      onchange="onFieldChange('${r.id}','carrierLift',this.value)"></td>
+    <td class="w65 col-carrier"><input class="ci num" type="number" value="${r.carrierDisposal||''}" placeholder="0"
+      onchange="onFieldChange('${r.id}','carrierDisposal',this.value)"></td>
+    <td class="w70 col-carrier"><input class="ci num" type="number" value="${r.carrierStorage||''}" placeholder="0"
+      onchange="onFieldChange('${r.id}','carrierStorage',this.value)"></td>
+    <td class="w65 col-carrier"><input class="ci num" type="number" value="${r.carrierTaksong||''}" placeholder="0"
+      onchange="onFieldChange('${r.id}','carrierTaksong',this.value)"></td>
+    <td class="w65 col-carrier"><input class="ci num" type="number" value="${r.carrierOther||''}" placeholder="0"
+      onchange="onFieldChange('${r.id}','carrierOther',this.value)"></td>
+    <td class="w95 total-car" id="crT-${r.id}">${won(crT)||'—'}</td>
+
+    <!-- 분석 -->
+    <td class="w88 col-analysis"><input class="ci left" type="text" value="${r.remarks2}" placeholder="비고"
+      oninput="onFieldChange('${r.id}','remarks2',this.value)"></td>
+    <td class="w55 col-analysis"><input class="ci num" type="number" value="${r.distanceKm||''}" placeholder="km"
+      title="지역간배송일 때 거리km 입력"
+      onchange="onFieldChange('${r.id}','distanceKm',this.value)"></td>
+    <td class="w88 ${diffClass}" id="diff-${r.id}">${won(diff)||'—'}</td>
+    <td class="w65 profit-cell" id="prf-${r.id}" style="color:${pColor}">${pRate}</td>
+
+    <!-- 삭제 -->
+    <td class="w34" style="text-align:center;background:#fafafa">
+      <button class="del-btn" onclick="deleteRow('${r.id}')" title="삭제">
+        <i class="fas fa-times"></i>
+      </button>
+    </td>
+  </tr>`;
+}
+
+function refreshRow(id) {
+  const rows = billingData[currentMonth] || [];
+  const idx  = rows.findIndex(r => r.id === id);
+  if (idx < 0) return;
+  const r = rows[idx];
+  const el = document.getElementById(`row-${id}`);
+  if (!el) return;
+
+  // Just re-build the row in-place
+  const tmp = document.createElement('tbody');
+  tmp.innerHTML = buildRow(r, idx);
+  const newRow = tmp.firstChild;
+  el.parentNode.replaceChild(newRow, el);
+}
+
+function refreshSummary() { renderSummary(); }
+
+function renderSummary() {
+  const rows = billingData[currentMonth] || [];
+  let cTotal=0, crTotal=0, cFare=0, crFare=0;
+  rows.forEach(r => {
+    cTotal  += clientTotal(r);
+    crTotal += carrierTotal(r);
+    cFare   += r.clientFare;
+    crFare  += r.carrierFare;
+  });
+  const diff  = cTotal - crTotal;
+  const rate  = cTotal ? (diff/cTotal*100).toFixed(1)+'%' : '0%';
+
+  document.getElementById('sum-cnt').textContent     = rows.length + '건';
+  document.getElementById('sum-cli').textContent     = '₩' + won(cTotal);
+  document.getElementById('sum-cli-fare').textContent= '₩' + won(cFare);
+  document.getElementById('sum-car').textContent     = '₩' + won(crTotal);
+  document.getElementById('sum-car-fare').textContent= '₩' + won(crFare);
+  document.getElementById('sum-diff').textContent    = '₩' + won(diff);
+  document.getElementById('sum-rate').textContent    = rate;
+}
+
+/* ════════════════════════════════════════════════════════════
+   엑셀 출력
+════════════════════════════════════════════════════════════ */
+function exportExcel() {
+  const rows = billingData[currentMonth] || [];
+  if (rows.length === 0) { alert('출력할 데이터가 없습니다.'); return; }
+
+  const [y, m] = currentMonth.split('-');
+
+  /* ── 스타일 헬퍼 ── */
+  const mkS = (bgRgb, fontRgb, bold=false, sz=10, halign='center') => ({
+    font:      { bold, sz, color: { rgb: fontRgb } },
+    fill:      { patternType:'solid', fgColor: { rgb: bgRgb } },
+    alignment: { horizontal: halign, vertical:'center', wrapText: false },
+    border: {
+      top:    { style:'thin', color:{ rgb:'CCCCCC' } },
+      bottom: { style:'thin', color:{ rgb:'CCCCCC' } },
+      left:   { style:'thin', color:{ rgb:'CCCCCC' } },
+      right:  { style:'thin', color:{ rgb:'CCCCCC' } }
+    }
+  });
+  const BOLD_BORDER = { style:'medium', color:{ rgb:'999999' } };
+
+  // Group header styles
+  const S_GRP_BASE    = mkS('37474F','FFFFFF',true,10,'center');
+  const S_GRP_CLI     = mkS('1565C0','FFFFFF',true,10,'center');
+  const S_GRP_CAR     = mkS('C62828','FFFFFF',true,10,'center');
+  const S_GRP_ANA     = mkS('4A148C','FFFFFF',true,10,'center');
+  // Col header
+  const S_COL_BASE    = mkS('455A64','CFD8DC',true,9,'center');
+  const S_COL_CLI     = mkS('1976D2','E3F2FD',true,9,'center');
+  const S_COL_CAR     = mkS('D32F2F','FFCDD2',true,9,'center');
+  const S_COL_ANA     = mkS('6A1B9A','F3E5F5',true,9,'center');
+  // Data
+  const S_DATA        = mkS('FFFFFF','1E293B',false,9,'center');
+  const S_DATA_L      = mkS('FFFFFF','1E293B',false,9,'left');
+  const S_DATA_R      = mkS('FFFFFF','1E293B',false,9,'right');
+  const S_DATA_E      = mkS('F8FAFB','6B7280',false,9,'center'); // even row
+  const S_DATA_EL     = mkS('F8FAFB','6B7280',false,9,'left');
+  const S_DATA_ER     = mkS('F8FAFB','6B7280',false,9,'right');
+  const S_CLI_D       = mkS('EBF3FF','1565C0',false,9,'right');
+  const S_CLI_T       = mkS('1565C0','FFFFFF',true ,9,'right');
+  const S_CAR_D       = mkS('FFF0F0','C62828',false,9,'right');
+  const S_CAR_T       = mkS('C62828','FFFFFF',true ,9,'right');
+  const S_DIFF_P      = mkS('E8F5E9','1B5E20',true ,9,'right');
+  const S_DIFF_N      = mkS('FFEBEE','B71C1C',true ,9,'right');
+  const S_PRF         = mkS('F3E5F5','4A148C',true ,9,'center');
+  const S_FOOT        = mkS('263238','90A4AE',true ,9,'center');
+  const S_FOOT_CLI    = mkS('1565C0','FFFFFF',true ,9,'right');
+  const S_FOOT_CAR    = mkS('C62828','FFFFFF',true ,9,'right');
+  const S_FOOT_DIFF   = mkS('388E3C','FFFFFF',true ,9,'right');
+  const S_FOOT_ANA    = mkS('4A148C','E1BEE7',true ,9,'right');
+
+  const ws = {};
+  const R = (s) => s; // row-col string
+
+  function cell(ws, addr, v, s, t='s') {
+    if (!ws[addr]) ws[addr] = {};
+    ws[addr] = { v, s, t: (typeof v === 'number' ? 'n' : 's') };
+  }
+  function num(ws, addr, v, s) {
+    ws[addr] = { v: v||0, s, t:'n' };
+  }
+
+  // ── Row 0: title ──
+  const COL_COUNT = 34; // A..AH (34 data columns)
+  const colLetter = (i) => {
+    if (i < 26) return String.fromCharCode(65+i);
+    return String.fromCharCode(64+Math.floor(i/26)) + String.fromCharCode(65+(i%26));
+  };
+
+  let rowIdx = 0;
+
+  // Title row
+  const titleAddr = `A${rowIdx+1}`;
+  cell(ws, titleAddr, `캐논메디칼시스템즈 운송청구서 — ${y}년 ${parseInt(m)}월`, mkS('BF360C','FFFFFF',true,13,'center'), 's');
+  ws['!merges'] = ws['!merges'] || [];
+  ws['!merges'].push({ s:{r:rowIdx,c:0}, e:{r:rowIdx,c:COL_COUNT-1} });
+  rowIdx++;
+
+  // Group header row
+  const GRP = [
+    { label:'기본정보', span:16, st: S_GRP_BASE },
+    { label:'캐논 청구 운임', span:7, st: S_GRP_CLI },
+    { label:'운송사 지불 운임', span:7, st: S_GRP_CAR },
+    { label:'분석', span:4, st: S_GRP_ANA },
+  ];
+  let gc = 0;
+  GRP.forEach(g => {
+    const addr = colLetter(gc) + (rowIdx+1);
+    cell(ws, addr, g.label, g.st);
+    if (g.span > 1) {
+      ws['!merges'].push({ s:{r:rowIdx,c:gc}, e:{r:rowIdx,c:gc+g.span-1} });
+      for (let i=1; i<g.span; i++) {
+        const a2 = colLetter(gc+i)+(rowIdx+1);
+        if (!ws[a2]) ws[a2] = {};
+        ws[a2] = { v:'', s:g.st, t:'s' };
+      }
+    }
+    gc += g.span;
+  });
+  rowIdx++;
+
+  // Column headers
+  const COLS = [
+    ['No',S_COL_BASE],['ORDER일자',S_COL_BASE],['구분',S_COL_BASE],
+    ['출발지',S_COL_BASE],['출발지역',S_COL_BASE],['출발일자',S_COL_BASE],
+    ['도착지',S_COL_BASE],['도착지역',S_COL_BASE],['도착일자',S_COL_BASE],
+    ['형태',S_COL_BASE],['연계지',S_COL_BASE],['담당자',S_COL_BASE],['인계자',S_COL_BASE],
+    ['차종',S_COL_BASE],['운송사',S_COL_BASE],['비고',S_COL_BASE],
+    ['운임',S_COL_CLI],['리프트',S_COL_CLI],['폐기',S_COL_CLI],
+    ['보관료',S_COL_CLI],['탁송료',S_COL_CLI],['기타',S_COL_CLI],['청구금액',S_COL_CLI],
+    ['운임',S_COL_CAR],['리프트',S_COL_CAR],['폐기',S_COL_CAR],
+    ['보관료',S_COL_CAR],['탁송료',S_COL_CAR],['기타',S_COL_CAR],['지불금액',S_COL_CAR],
+    ['비고',S_COL_ANA],['거리km',S_COL_ANA],['차이금액',S_COL_ANA],['수익율',S_COL_ANA],
+  ];
+  COLS.forEach(([h,s],ci) => cell(ws, colLetter(ci)+(rowIdx+1), h, s));
+  rowIdx++;
+
+  // Data rows
+  let totCliTotal=0, totCarTotal=0, totCliFare=0, totCarFare=0, totDiff=0;
+  rows.forEach((r, i) => {
+    const even = i % 2 === 1;
+    const sD = even ? S_DATA_E : S_DATA;
+    const sDL = even ? S_DATA_EL : S_DATA_L;
+    const sDR = even ? S_DATA_ER : S_DATA_R;
+    const cT = clientTotal(r);
+    const crT = carrierTotal(r);
+    const diff = diffAmt(r);
+    const pR = profitRate(r);
+    totCliTotal += cT; totCarTotal += crT;
+    totCliFare  += r.clientFare; totCarFare += r.carrierFare;
+    totDiff     += diff;
+
+    const row = rowIdx + 1;
+    const vals = [
+      [i+1, sD], [r.orderDate||'', sD], [r.gubun||'', sD],
+      [r.departure||'', sDL], [r.departureRegion||'', sD], [r.departureDate||'', sD],
+      [r.destination||'', sDL], [r.destinationRegion||'', sD], [r.arrivalDate||'', sD],
+      [r.form||'', sD], [r.relay||'', sD], [r.manager||'', sD], [r.handover||'', sD],
+      [r.vehicle||'', sD], [r.carrier||'', sD], [r.remarks1||'', sDL],
+      [r.clientFare, S_CLI_D], [r.clientLift, S_CLI_D], [r.clientDisposal, S_CLI_D],
+      [r.clientStorage, S_CLI_D], [r.clientTaksong, S_CLI_D], [r.clientOther, S_CLI_D],
+      [cT, S_CLI_T],
+      [r.carrierFare, S_CAR_D], [r.carrierLift, S_CAR_D], [r.carrierDisposal, S_CAR_D],
+      [r.carrierStorage, S_CAR_D], [r.carrierTaksong, S_CAR_D], [r.carrierOther, S_CAR_D],
+      [crT, S_CAR_T],
+      [r.remarks2||'', sDL], [r.distanceKm||0, sD],
+      [diff, diff>=0?S_DIFF_P:S_DIFF_N],
+      [pR, S_PRF]
+    ];
+    vals.forEach(([v,s],ci) => {
+      const a = colLetter(ci)+row;
+      ws[a] = { v, s, t: typeof v==='number' ? 'n' : 's' };
+    });
+    rowIdx++;
+  });
+
+  // Footer
+  const fRow = rowIdx + 1;
+  const fRate = totCliTotal ? (totDiff/totCliTotal*100).toFixed(1)+'%' : '—';
+  const fVals = [
+    ['합 계', S_FOOT], [`${rows.length}건`, S_FOOT], ['', S_FOOT],
+    ['', S_FOOT],['', S_FOOT],['', S_FOOT],
+    ['', S_FOOT],['', S_FOOT],['', S_FOOT],
+    ['', S_FOOT],['', S_FOOT],['', S_FOOT],['', S_FOOT],
+    ['', S_FOOT],['', S_FOOT],['', S_FOOT],
+    [totCliFare, S_FOOT_CLI],[0, S_FOOT_CLI],[0, S_FOOT_CLI],
+    [0, S_FOOT_CLI],[0, S_FOOT_CLI],[0, S_FOOT_CLI],[totCliTotal, S_FOOT_CLI],
+    [totCarFare, S_FOOT_CAR],[0, S_FOOT_CAR],[0, S_FOOT_CAR],
+    [0, S_FOOT_CAR],[0, S_FOOT_CAR],[0, S_FOOT_CAR],[totCarTotal, S_FOOT_CAR],
+    ['', S_FOOT_ANA],['', S_FOOT_ANA],[totDiff, S_FOOT_DIFF],[fRate, S_FOOT_ANA]
+  ];
+  fVals.forEach(([v,s],ci) => {
+    const a = colLetter(ci)+fRow;
+    ws[a] = { v: v||'', s, t: typeof v==='number' ? 'n' : 's' };
+  });
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:5},{wch:11},{wch:8},{wch:18},{wch:10},{wch:11},
+    {wch:18},{wch:10},{wch:11},{wch:8},{wch:12},{wch:9},{wch:9},
+    {wch:8},{wch:8},{wch:14},
+    {wch:11},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:12},
+    {wch:11},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:12},
+    {wch:14},{wch:8},{wch:12},{wch:9}
+  ];
+
+  // Row heights
+  ws['!rows'] = [
+    { hpt:28 }, // title
+    { hpt:20 }, // group header
+    { hpt:18 }, // col header
+    ...rows.map(() => ({ hpt:18 })),
+    { hpt:20 }  // footer
+  ];
+
+  // Ref range
+  ws['!ref'] = `A1:${colLetter(COL_COUNT-1)}${fRow}`;
+
+  const wb = { SheetNames:['운송청구서'], Sheets:{ '운송청구서': ws } };
+  const fname = `캐논메디칼_운송청구서_${y}${m}.xlsx`;
+  XLSX.writeFile(wb, fname);
+}
+</script>
+</body>
+</html>
