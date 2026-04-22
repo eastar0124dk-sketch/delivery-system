@@ -1666,7 +1666,7 @@ function importExcel(buffer) {
     });
 
     if (hasAny) {
-      // 지역이 비어있으면 출발지/도착지 텍스트에서 추출
+      // 지역이 비어있으면 출발지/도착지 텍스트에서 추출 (운임 조회용)
       if (!obj.departureRegion && obj.departure) {
         const r = extractRegion(obj.departure);
         if (r) obj.departureRegion = r;
@@ -1675,8 +1675,8 @@ function importExcel(buffer) {
         const r = extractRegion(obj.destination);
         if (r) obj.destinationRegion = r;
       }
-      // 0인 운임만 요금표에서 자동 채우기 (Excel 값은 보존)
-      autoLookup(obj, { onlyEmpty: true });
+      // ※ Excel 값 그대로 보존 (autoLookup 호출 안 함)
+      //   → 필요하면 업로드 후 "운임 재조회" 버튼으로 0원 행만 채움
       newRows.push(obj);
     }
   }
@@ -1694,9 +1694,15 @@ function importExcel(buffer) {
   if (!confirm(msg)) return;
 
   billingData[currentMonth].push(...newRows);
+  // 업로드 순서 보존: 수동 정렬 모드로 전환 (날짜순 자동 정렬 해제)
+  manualSortMonths.add(currentMonth);
+  saveMeta();
   saveStorage();
   renderAll();
-  alert(`✅ ${newRows.length}건 가져오기 완료! (총 ${billingData[currentMonth].length}건)`);
+  alert(`✅ ${newRows.length}건 가져오기 완료! (총 ${billingData[currentMonth].length}건)\n\n` +
+        `📌 Excel 순서 그대로 표시됩니다.\n` +
+        `   날짜순으로 정렬하려면 "날짜순" 버튼을 누르세요.\n` +
+        `   운송사 운임이 0원인 행은 "운임 재조회" 버튼으로 채울 수 있습니다.`);
 }
 </script>
 </body>
