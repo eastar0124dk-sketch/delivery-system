@@ -262,12 +262,14 @@
         /* ────────────────────────────────────────
            관리자 로그인: 공개 메뉴 + 관리자 메뉴
         ──────────────────────────────────────── */
-        // 허브 바로가기 상단 고정
-        html += `<a href="hub.html" style="display:flex;align-items:center;justify-content:center;gap:8px;
-          background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;
-          border-radius:14px;padding:12px 20px;margin-bottom:16px;font-size:14px;font-weight:700;">
-          <i class="fas fa-th-large"></i> 관리자 허브 (토탈 물류)
-        </a>`;
+        // 허브 바로가기 상단 고정 (hub 메뉴가 있는 화주만 표시)
+        if (c.adminMenus.includes('hub')) {
+          html += `<a href="hub.html" style="display:flex;align-items:center;justify-content:center;gap:8px;
+            background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;
+            border-radius:14px;padding:12px 20px;margin-bottom:16px;font-size:14px;font-weight:700;">
+            <i class="fas fa-th-large"></i> 관리자 허브 (토탈 물류)
+          </a>`;
+        }
 
         if (c.publicMenus.length) {
           html += makeSectionLabel('🚚 로그인 없이 사용 가능');
