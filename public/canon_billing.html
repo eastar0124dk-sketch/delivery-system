@@ -629,19 +629,20 @@ function loadStorage() {
         }
         migrated = true;
       }
-      // ACT → 김포 지역 자동 설정
-      if ((r.departure || '').toUpperCase().includes('ACT') && !r.departureRegion) {
-        r.departureRegion = '김포'; migrated = true;
+      // 지역이 비어있으면 출발지/도착지 텍스트에서 추출
+      if (!r.departureRegion && r.departure) {
+        const reg = extractRegion(r.departure);
+        if (reg) { r.departureRegion = reg; migrated = true; }
       }
-      if ((r.destination || '').toUpperCase().includes('ACT') && !r.destinationRegion) {
-        r.destinationRegion = '김포'; migrated = true;
+      if (!r.destinationRegion && r.destination) {
+        const reg = extractRegion(r.destination);
+        if (reg) { r.destinationRegion = reg; migrated = true; }
       }
-      // 운송사 기본운임이 0이면 요금표에서 자동 채우기
-      if ((r.carrierFare === 0 || !r.carrierFare) && (!r.carrier || r.carrier === '패스')) {
-        const before = r.carrierFare;
-        autoLookup(r);
-        if (r.carrierFare !== before) migrated = true;
-      }
+      // 0인 운임만 요금표에서 자동 채우기 (기존 값 보존)
+      const beforeC = r.carrierFare || 0;
+      const beforeL = r.clientFare  || 0;
+      autoLookup(r, { onlyEmpty: true });
+      if ((r.carrierFare || 0) !== beforeC || (r.clientFare || 0) !== beforeL) migrated = true;
     });
   });
   if (migrated) saveStorage(); // 변경 내용 즉시 저장
@@ -980,23 +981,51 @@ function onFieldChange(id, field, value) {
   refreshSummary();
 }
 
-function autoLookup(row) {
+function autoLookup(row, opts = {}) {
   const { deliveryType, departureRegion, destinationRegion, vehicle, carrier, distanceKm } = row;
   const noAuto = (vehicle === '라보' || vehicle === '3.5톤');
+  const onlyEmpty = opts.onlyEmpty === true; // true: 0인 값만 채우고 기존 값은 보존
+
+  const setClient = (v) => {
+    if (v == null) return;
+    if (onlyEmpty && row.clientFare) return;
+    row.clientFare = v;
+  };
+  const setCarrier = (v) => {
+    if (v == null) return;
+    if (onlyEmpty && row.carrierFare) return;
+    row.carrierFare = v;
+  };
+
+  if (noAuto) return;
 
   if (deliveryType === '출고') {
-    // 출고: 도착지 기준 운임
-    row.clientFare  = noAuto ? row.clientFare  : (getClientRate(destinationRegion, vehicle) ?? row.clientFare);
-    row.carrierFare = noAuto ? row.carrierFare : (getCarrierRate(destinationRegion, vehicle, carrier) ?? row.carrierFare);
+    setClient(getClientRate(destinationRegion, vehicle));
+    setCarrier(getCarrierRate(destinationRegion, vehicle, carrier));
   } else if (deliveryType === '회수') {
-    // 회수: 출발지 기준 운임
-    row.clientFare  = noAuto ? row.clientFare  : (getClientRate(departureRegion, vehicle) ?? row.clientFare);
-    row.carrierFare = noAuto ? row.carrierFare : (getCarrierRate(departureRegion, vehicle, carrier) ?? row.carrierFare);
+    setClient(getClientRate(departureRegion, vehicle));
+    setCarrier(getCarrierRate(departureRegion, vehicle, carrier));
   } else if (deliveryType === '지역간배송') {
-    // 지역간배송: 거리km 기준 캐논 운임 (운송사는 수기)
-    row.clientFare = noAuto ? row.clientFare : (getDistanceClientRate(distanceKm, vehicle) ?? row.clientFare);
+    setClient(getDistanceClientRate(distanceKm, vehicle));
     // carrier fare: manual (지역간배송 carrier rates not in table)
   }
+}
+
+/* 출발지/도착지 텍스트에서 지역명 추출 (예: "서울 강남구 ..." → "강남") */
+function extractRegion(text) {
+  if (!text) return null;
+  const t = text.trim();
+  if (t.toUpperCase().includes('ACT')) return '김포';
+  // 요금표의 모든 지역 키 중 문자열에 포함된 것 검색 (긴 이름 우선)
+  const keys = [...new Set([
+    ...Object.keys(CANON_CLIENT_RATES),
+    ...Object.keys(CANON_CARRIER_RATES)
+  ])].filter(k => isNaN(Number(k)) && !['다마스','1톤','2.5톤','5톤','11톤','오토바이','수도권 운임','해상운송료','항공운송료'].includes(k))
+     .sort((a,b) => b.length - a.length);
+  for (const k of keys) {
+    if (t.includes(k)) return k;
+  }
+  return null;
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -1576,13 +1605,17 @@ function importExcel(buffer) {
     });
 
     if (hasAny) {
-      // ACT → 김포 지역 자동 매핑
-      if ((obj.departure || '').toUpperCase().includes('ACT') && !obj.departureRegion)
-        obj.departureRegion = '김포';
-      if ((obj.destination || '').toUpperCase().includes('ACT') && !obj.destinationRegion)
-        obj.destinationRegion = '김포';
-      // 운임이 없으면 요금표 자동 조회
-      if (obj.clientFare === 0 || obj.carrierFare === 0) autoLookup(obj);
+      // 지역이 비어있으면 출발지/도착지 텍스트에서 추출
+      if (!obj.departureRegion && obj.departure) {
+        const r = extractRegion(obj.departure);
+        if (r) obj.departureRegion = r;
+      }
+      if (!obj.destinationRegion && obj.destination) {
+        const r = extractRegion(obj.destination);
+        if (r) obj.destinationRegion = r;
+      }
+      // 0인 운임만 요금표에서 자동 채우기 (Excel 값은 보존)
+      autoLookup(obj, { onlyEmpty: true });
       newRows.push(obj);
     }
   }
