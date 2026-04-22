@@ -1612,12 +1612,13 @@ function importExcel(buffer) {
       case '운송사':                  return 'carrier';
       case '비고':   return n === 1 ? 'remarks1' : 'remarks2';
       case '운임':   return n === 1 ? 'clientFare'     : 'carrierFare';
+      case '운송사운임': case '운송사 운임': case '지불운임': return 'carrierFare';
       case '리프트': return n === 1 ? 'clientLift'     : 'carrierLift';
       case '폐기':   return n === 1 ? 'clientDisposal' : 'carrierDisposal';
       case '보관료': return n === 1 ? 'clientStorage'  : 'carrierStorage';
       case '탁송료': return n === 1 ? 'clientTaksong'  : 'carrierTaksong';
       case '기타':   return n === 1 ? 'clientOther'    : 'carrierOther';
-      case '청구금액': case '지불금액': return '_total'; // 계산값, 무시
+      case '청구금액': case '지불금액': case '캐논청구금액': case '운송사청구금액': case '운송사 청구금액': return '_total'; // 계산값, 무시
       case '거리km': case '거리(km)': case '거리 km': return 'distanceKm';
       case '차이금액': case '수익율': case '수익률': return '_computed';
       default: return null;
