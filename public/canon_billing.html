@@ -464,7 +464,8 @@ function getClientRate(region, vehicle) {
 function getCarrierRate(region, vehicle, carrier) {
   if (!region || !vehicle) return null;
   if (vehicle === '라보' || vehicle === '3.5톤') return null;
-  if (carrier !== '패스') return null;
+  // '패스' 또는 미지정(빈값)일 때 요금표 조회 / '기타'는 수기 입력
+  if (carrier && carrier !== '패스') return null;
   const rates = CANON_CARRIER_RATES[region];
   if (!rates) return null;
   const v = rates[vehicle];
@@ -600,6 +601,10 @@ function loadStorage() {
         } else {
           r.deliveryType = '출고';
         }
+      }
+      // 운송사 기본운임이 0이면 요금표에서 자동 채우기
+      if ((r.carrierFare === 0 || !r.carrierFare) && (!r.carrier || r.carrier === '패스')) {
+        autoLookup(r);
       }
     });
   });
@@ -1432,7 +1437,11 @@ function importExcel(buffer) {
       }
     });
 
-    if (hasAny) newRows.push(obj);
+    if (hasAny) {
+      // 엑셀에 운임이 없는 경우(0) 자동 조회
+      if (obj.clientFare === 0 || obj.carrierFare === 0) autoLookup(obj);
+      newRows.push(obj);
+    }
   }
 
   if (newRows.length === 0) {
