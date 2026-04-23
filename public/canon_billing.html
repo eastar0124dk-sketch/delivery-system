@@ -938,10 +938,11 @@ function saveStorage() {
   el.textContent = '저장 중...';
   clearTimeout(el._t);
   saveStorage._pendingMonth = currentMonth;
+  saveStorage._lastEditAt = Date.now(); // 마지막 편집 시각
   // 서버 저장 (debounce)
   clearTimeout(saveStorage._srvT);
   saveStorage._srvT = setTimeout(() => {
-    saveStorage._pendingMonth = null;
+    saveStorage._inFlight = true; // POST 진행중 표시
     syncCurrentMonthToServer().then(() => {
       el.textContent = '서버 저장됨 ✓';
       clearTimeout(el._t);
@@ -951,6 +952,10 @@ function saveStorage() {
       el.textContent = '⚠ 로컬만 저장됨';
       clearTimeout(el._t);
       el._t = setTimeout(() => { el.textContent = ''; }, 3000);
+    }).finally(() => {
+      saveStorage._inFlight = false;
+      saveStorage._pendingMonth = null;
+      saveStorage._lastSyncAt = Date.now();
     });
   }, 500);
 }
@@ -982,17 +987,26 @@ window.addEventListener('pagehide', flushPendingSave);
 // 탭이 다시 활성화되면 서버에서 최신 데이터 재동기화 (다른 PC의 편집 반영)
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible') return;
-  if (saveStorage._pendingMonth) return; // 내 저장 대기중엔 스킵
+  // 내 저장 대기/진행중이면 스킵 (race 방지)
+  if (saveStorage._pendingMonth || saveStorage._inFlight) return;
+  // 최근 5초 이내에 편집/저장이 있었으면 스킵 (서버 커밋 지연 대비)
+  const now = Date.now();
+  if (saveStorage._lastEditAt && now - saveStorage._lastEditAt < 5000) return;
+  if (saveStorage._lastSyncAt && now - saveStorage._lastSyncAt < 5000) return;
   try {
     const res = await fetch('/api/canon/billing', { cache:'no-store' });
     if (!res.ok) return;
     const json = await res.json();
     const serverData = json.data || {};
-    // 서버에 현재 월 데이터가 있으면 덮어쓰기
+    // 서버에 현재 월 데이터가 있고, 로컬과 다를 때만 덮어쓰기
     if (Array.isArray(serverData[currentMonth])) {
-      billingData[currentMonth] = serverData[currentMonth];
-      localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
-      renderAll();
+      const localStr  = JSON.stringify(billingData[currentMonth] || []);
+      const serverStr = JSON.stringify(serverData[currentMonth]);
+      if (localStr !== serverStr) {
+        billingData[currentMonth] = serverData[currentMonth];
+        localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
+        renderAll();
+      }
     }
   } catch(e) { /* 무시 */ }
 });
