@@ -313,14 +313,16 @@
         </div>
         <div class="form-group span2">
           <label>고객사명 (배송지) <span class="req">*</span></label>
-          <div style="display:flex;gap:8px;">
+          <div style="display:flex;gap:8px;align-items:center;">
             <select id="customer_company_select" onchange="onCompanySelect(this.value)"
               style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;color:#1a202c;max-width:220px;">
               <option value="">📋 저장된 고객사 선택</option>
             </select>
+            <button type="button" onclick="deleteSavedCompany()" title="선택한 저장 고객사 삭제"
+              style="padding:8px 10px;border:none;border-radius:6px;background:#fed7d7;color:#c53030;cursor:pointer;font-size:12px;font-weight:700;flex-shrink:0;">🗑 삭제</button>
             <input type="text" id="customer_company" class="req-field" placeholder="예: ABC 주식회사" oninput="onCompanyInput(this.value)" style="flex:1;">
           </div>
-          <div style="font-size:11px;color:#a0aec0;margin-top:3px;">저장된 고객사 선택 또는 새 고객사명 직접 입력</div>
+          <div style="font-size:11px;color:#a0aec0;margin-top:3px;">저장된 고객사 선택 또는 새 고객사명 직접 입력 · 드롭다운에서 선택 후 🗑 삭제 가능</div>
         </div>
         <div class="form-group span2">
           <label>배송지 주소 <button type="button" onclick="fillActAddress()" style="margin-left:8px;padding:2px 10px;font-size:11px;font-weight:600;border:none;border-radius:6px;background:#667eea;color:#fff;cursor:pointer;">ACT 자동입력</button></label>
@@ -1384,6 +1386,10 @@ https://delivery-system-r6pr.onrender.com`;
   // ── 배차정보 자동저장/불러오기 ──────────────────────────────────────
   function saveCustomerHistory(company, address, receiver_name, receiver_phone, dest_sido, dest_sigun) {
     if(!company) return;
+    // 이전에 차단(삭제)된 이름으로 새 주문이 들어오면 차단 해제
+    const blocked = JSON.parse(localStorage.getItem('delivery_customer_blocked') || '[]');
+    const bi = blocked.indexOf(company);
+    if (bi >= 0) { blocked.splice(bi, 1); localStorage.setItem('delivery_customer_blocked', JSON.stringify(blocked)); }
     const hist = JSON.parse(localStorage.getItem('delivery_customer_history') || '{}');
     hist[company] = { address, receiver_name, receiver_phone, dest_sido, dest_sigun };
     // 수취인 이름 역인덱스: 수취인 → 회사명
@@ -1396,13 +1402,17 @@ https://delivery-system-r6pr.onrender.com`;
     refreshCompanyDropdown();
   }
 
-  // 저장된 고객사 드롭다운 갱신 (localStorage + 서버 기록 병합)
+  // 저장된 고객사 드롭다운 갱신 (localStorage + 서버 기록 병합, 삭제된 항목 제외)
   async function refreshCompanyDropdown() {
     const sel = document.getElementById('customer_company_select');
     if(!sel) return;
     const hist = JSON.parse(localStorage.getItem('delivery_customer_history') || '{}');
+    const blocked = new Set(JSON.parse(localStorage.getItem('delivery_customer_blocked') || '[]'));
 
-    // 서버에서 최근 기록 가져와 localStorage에 없는 고객사 자동 병합
+    // 차단 목록에 있는 항목은 hist에서도 제거
+    Object.keys(hist).forEach(k => { if (blocked.has(k)) delete hist[k]; });
+
+    // 서버에서 최근 기록 가져와 localStorage에 없는 고객사 자동 병합 (차단된 이름 제외)
     if (adminToken) {
       try {
         const res = await fetch('/api/records?limit=2000', {
@@ -1414,6 +1424,7 @@ https://delivery-system-r6pr.onrender.com`;
           (data || []).forEach(r => {
             const c = (r.customer_company || '').trim();
             if (!c) return;
+            if (blocked.has(c)) return; // 삭제된 항목 스킵
             if (!hist[c]) {
               hist[c] = {
                 address: r.customer_address || '',
@@ -1462,6 +1473,37 @@ https://delivery-system-r6pr.onrender.com`;
     // 직접 입력 시 드롭다운 선택 해제
     const sel = document.getElementById('customer_company_select');
     if(sel && sel.value && sel.value !== val) sel.value = '';
+  }
+
+  // 저장된 고객사(드롭다운 항목) 삭제 — localStorage에서 제거 (서버 주문 기록은 유지)
+  function deleteSavedCompany() {
+    const sel = document.getElementById('customer_company_select');
+    const target = sel ? sel.value : '';
+    if (!target) { alert('삭제할 고객사를 드롭다운에서 먼저 선택해주세요.'); return; }
+    if (!confirm(`"${target}" 을(를) 저장 목록에서 삭제할까요?\n\n※ 서버의 주문 기록은 그대로 유지되며, 자동완성 드롭다운에서만 사라집니다.\n※ 같은 고객사로 새 주문을 등록하면 다시 추가됩니다.`)) return;
+
+    const hist = JSON.parse(localStorage.getItem('delivery_customer_history') || '{}');
+    delete hist[target];
+    localStorage.setItem('delivery_customer_history', JSON.stringify(hist));
+
+    // 삭제 목록(deny list)에 추가 — 서버 기록에서 자동 병합 방지
+    const blocked = JSON.parse(localStorage.getItem('delivery_customer_blocked') || '[]');
+    if (!blocked.includes(target)) blocked.push(target);
+    localStorage.setItem('delivery_customer_blocked', JSON.stringify(blocked));
+
+    // 수취인 역인덱스에서도 해당 회사 레퍼런스 제거
+    const idx = JSON.parse(localStorage.getItem('delivery_receiver_index') || '{}');
+    let removed = 0;
+    Object.keys(idx).forEach(k => {
+      if (idx[k] === target) { delete idx[k]; removed++; }
+    });
+    localStorage.setItem('delivery_receiver_index', JSON.stringify(idx));
+
+    // 입력란 초기화
+    document.getElementById('customer_company').value = '';
+    sel.value = '';
+    refreshCompanyDropdown();
+    showAlert(`✅ "${target}" 삭제됨 (역인덱스 ${removed}건 정리). 서버 주문 기록은 유지됩니다.`, 'success');
   }
 
   function applyCustomerAutofill() {
