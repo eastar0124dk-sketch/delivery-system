@@ -839,24 +839,58 @@ function saveMeta() {
 }
 
 async function loadStorage() {
-  // 1차: 서버에서 로드 (PC 간 공유)
+  // 로컬 캐시 먼저 읽기
+  let localData = {};
+  try { localData = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch { localData = {}; }
+
+  let serverData = null;
   try {
     const res = await fetch('/api/canon/billing', { cache:'no-store' });
     if (res.ok) {
       const json = await res.json();
-      billingData = json.data || {};
-      if (Array.isArray(json.manualSort)) manualSortMonths = new Set(json.manualSort);
-      // 로컬 캐시 동기화
-      localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
+      serverData = json.data || {};
+      if (Array.isArray(json.manualSort) && json.manualSort.length) {
+        manualSortMonths = new Set(json.manualSort);
+      }
     } else {
-      throw new Error('server fetch failed');
+      throw new Error('server fetch failed '+res.status);
     }
   } catch(e) {
-    // 서버 실패 시 로컬 캐시 폴백
-    console.warn('서버 로드 실패 → 로컬 캐시 사용', e);
-    try { billingData = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }
-    catch { billingData = {}; }
+    console.warn('서버 로드 실패 → 로컬만 사용', e);
+    billingData = localData;
+    return;
   }
+
+  // ── 머지 전략 ──
+  // - 서버에 있는 월: 서버 데이터 사용
+  // - 서버에 없는데 로컬에 있는 월: 로컬 사용 + 서버로 업로드 (최초 마이그레이션)
+  billingData = { ...serverData };
+  const monthsToUpload = [];
+  for (const m of Object.keys(localData)) {
+    const localArr = localData[m] || [];
+    const serverArr = serverData[m];
+    if (!Array.isArray(serverArr) || serverArr.length === 0) {
+      if (Array.isArray(localArr) && localArr.length > 0) {
+        billingData[m] = localArr;
+        monthsToUpload.push(m);
+      }
+    }
+  }
+  // 로컬에만 있던 월은 서버로 올림 (최초 1회 마이그레이션)
+  if (monthsToUpload.length) {
+    console.log('로컬 데이터를 서버로 마이그레이션:', monthsToUpload);
+    for (const m of monthsToUpload) {
+      try {
+        await fetch('/api/canon/billing', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ month: m, rows: billingData[m], manualSort: [...manualSortMonths] })
+        });
+      } catch(e) { console.warn('마이그레이션 실패', m, e); }
+    }
+  }
+  // 로컬 캐시도 최신 상태로
+  localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
   // 마이그레이션: 구버전 gubun(dropdown) → deliveryType, form → deliveryType
   let migrated = false;
   Object.values(billingData).forEach(arr => {
