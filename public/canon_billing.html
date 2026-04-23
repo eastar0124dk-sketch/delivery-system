@@ -478,25 +478,25 @@
         <th class="w88" data-fkey="remarks1">비고<span class="flt-btn" onclick="openFilter(event,'remarks1',this)">▼</span></th>
         <!-- Canon billing -->
         <th class="w88" style="color:#0d47a1;font-weight:800" data-fkey="clientFare">운임<span class="flt-btn" onclick="openFilter(event,'clientFare',this)">▼</span></th>
-        <th class="w65" style="color:#0d47a1;font-weight:800">리프트</th>
-        <th class="w65" style="color:#0d47a1;font-weight:800">폐기</th>
-        <th class="w70" style="color:#0d47a1;font-weight:800">보관료</th>
-        <th class="w65" style="color:#0d47a1;font-weight:800">탁송료</th>
-        <th class="w65" style="color:#0d47a1;font-weight:800">기타</th>
-        <th class="w95" style="color:#fff;background:#1565c0;font-weight:900">청구금액</th>
+        <th class="w65" style="color:#0d47a1;font-weight:800" data-fkey="clientLift">리프트<span class="flt-btn" onclick="openFilter(event,'clientLift',this)">▼</span></th>
+        <th class="w65" style="color:#0d47a1;font-weight:800" data-fkey="clientDisposal">폐기<span class="flt-btn" onclick="openFilter(event,'clientDisposal',this)">▼</span></th>
+        <th class="w70" style="color:#0d47a1;font-weight:800" data-fkey="clientStorage">보관료<span class="flt-btn" onclick="openFilter(event,'clientStorage',this)">▼</span></th>
+        <th class="w65" style="color:#0d47a1;font-weight:800" data-fkey="clientTaksong">탁송료<span class="flt-btn" onclick="openFilter(event,'clientTaksong',this)">▼</span></th>
+        <th class="w65" style="color:#0d47a1;font-weight:800" data-fkey="clientOther">기타<span class="flt-btn" onclick="openFilter(event,'clientOther',this)">▼</span></th>
+        <th class="w95" style="color:#fff;background:#1565c0;font-weight:900" data-fkey="_clientTotal">청구금액<span class="flt-btn" style="color:rgba(255,255,255,.7)" onclick="openFilter(event,'_clientTotal',this)">▼</span></th>
         <!-- Carrier billing -->
         <th class="w88" style="color:#b71c1c;font-weight:800" data-fkey="carrierFare">운임<span class="flt-btn" onclick="openFilter(event,'carrierFare',this)">▼</span></th>
-        <th class="w65" style="color:#b71c1c;font-weight:800">리프트</th>
-        <th class="w65" style="color:#b71c1c;font-weight:800">폐기</th>
-        <th class="w70" style="color:#b71c1c;font-weight:800">보관료</th>
-        <th class="w65" style="color:#b71c1c;font-weight:800">탁송료</th>
-        <th class="w65" style="color:#b71c1c;font-weight:800">기타</th>
-        <th class="w95" style="color:#fff;background:#c62828;font-weight:900">지불금액</th>
+        <th class="w65" style="color:#b71c1c;font-weight:800" data-fkey="carrierLift">리프트<span class="flt-btn" onclick="openFilter(event,'carrierLift',this)">▼</span></th>
+        <th class="w65" style="color:#b71c1c;font-weight:800" data-fkey="carrierDisposal">폐기<span class="flt-btn" onclick="openFilter(event,'carrierDisposal',this)">▼</span></th>
+        <th class="w70" style="color:#b71c1c;font-weight:800" data-fkey="carrierStorage">보관료<span class="flt-btn" onclick="openFilter(event,'carrierStorage',this)">▼</span></th>
+        <th class="w65" style="color:#b71c1c;font-weight:800" data-fkey="carrierTaksong">탁송료<span class="flt-btn" onclick="openFilter(event,'carrierTaksong',this)">▼</span></th>
+        <th class="w65" style="color:#b71c1c;font-weight:800" data-fkey="carrierOther">기타<span class="flt-btn" onclick="openFilter(event,'carrierOther',this)">▼</span></th>
+        <th class="w95" style="color:#fff;background:#c62828;font-weight:900" data-fkey="_carrierTotal">지불금액<span class="flt-btn" style="color:rgba(255,255,255,.7)" onclick="openFilter(event,'_carrierTotal',this)">▼</span></th>
         <!-- Analysis -->
-        <th class="w88">비고</th>
-        <th class="w55">거리km</th>
+        <th class="w88" data-fkey="remarks2">비고<span class="flt-btn" onclick="openFilter(event,'remarks2',this)">▼</span></th>
+        <th class="w55" data-fkey="distanceKm">거리km<span class="flt-btn" onclick="openFilter(event,'distanceKm',this)">▼</span></th>
         <th class="w88" data-fkey="_diff">차이금액<span class="flt-btn" onclick="openFilter(event,'_diff',this)">▼</span></th>
-        <th class="w65">수익율</th>
+        <th class="w65" data-fkey="_rate">수익율<span class="flt-btn" onclick="openFilter(event,'_rate',this)">▼</span></th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
@@ -674,6 +674,10 @@ function getFieldVal(r, k) {
   if (k === '_clientTotal')  return clientTotal(r);
   if (k === '_carrierTotal') return carrierTotal(r);
   if (k === '_diff')         return diffAmt(r);
+  if (k === '_rate') {
+    const cT = clientTotal(r);
+    return cT ? ((diffAmt(r)/cT)*100).toFixed(1)+'%' : '0.0%';
+  }
   return r[k];
 }
 
