@@ -177,9 +177,7 @@
           <option value="signed">서명완료</option>
         </select>
       </div>
-      <div class="fg"><label>화주</label>
-        <select id="clientFilter"></select>
-      </div>
+      <!-- 화주 고정: 메틀러토레도 전용 페이지 -->
     </div>
     <div class="quick-dates">
       <span style="font-size:11px;color:#718096;align-self:center;">빠른선택:</span>
@@ -251,15 +249,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="clients.js"></script>
 <script>
-  // 화주 필터 셀렉트 초기화 (DOMContentLoaded 후)
-  document.addEventListener('DOMContentLoaded', function() {
-    const sel = document.getElementById('clientFilter');
-    if (sel && typeof ClientsLib !== 'undefined') {
-      sel.innerHTML = ClientsLib.buildOptions(ClientsLib.getCurrentCode(), { includeAll: true });
-    }
-  });
-  // 화주 표시 라벨
-  (function(){ if(typeof ClientsLib!=='undefined'){ const c=ClientsLib.getCurrentCode(); const cl=ClientsLib.getClient(c); const el=document.getElementById('clientLabel'); if(el&&cl) el.textContent=cl.name; } })();
+  // 화주 고정: 메틀러토레도 전용 (화주 선택 불필요)
 
   // index.html에서 로그인한 토큰(admin or staff) 모두 수용
   let adminToken = sessionStorage.getItem('adminToken') || sessionStorage.getItem('staffToken') || '';
@@ -311,7 +301,7 @@
 
   // ── 데이터 로드 ──
   async function loadAll() {
-    const res=await fetch('/api/records?limit=2000',{headers:authH()}).then(r=>r.json());
+    const res=await fetch('/api/records?limit=2000&client_code=mettler',{headers:authH()}).then(r=>r.json());
     allData=(res.data||[]);
   }
 
@@ -362,8 +352,6 @@
       if(dn&&!(d.order_no||'').toLowerCase().includes(dn)) return false;
       if(co&&!(d.customer_company||'').toLowerCase().includes(co)) return false;
       if(st&&d.status!==st) return false;
-      const cf=document.getElementById('clientFilter').value;
-      if(cf&&(d.client_code||'')!==cf) return false;
       return true;
     });
     currentPage=1;
