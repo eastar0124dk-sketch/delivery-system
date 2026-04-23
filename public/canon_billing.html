@@ -441,6 +441,9 @@
   <button class="btn-sel-cancel" onclick="clearSelection()"><i class="fas fa-times"></i> 선택 취소</button>
 </div>
 
+<!-- 지역 자동완성 datalist (모든 지역 input에서 공유) -->
+<datalist id="regionListDL"></datalist>
+
 <!-- Table -->
 <div class="table-wrap">
   <table id="billingTable">
@@ -613,6 +616,41 @@ function regionOptions(selected='') {
     ).join('');
 }
 
+// datalist 용 옵션 (검색형 input)
+function regionDatalistOptions() {
+  return GEO_REGIONS.map(r => `<option value="${r}">`).join('');
+}
+
+// 지역 셀 렌더: 입력 가능한 텍스트 + datalist 자동완성
+function regionInputCell(id, field, value) {
+  return `<input class="ci region-input" type="text" list="regionListDL"
+    value="${value || ''}" placeholder="지역선택"
+    onchange="onRegionChange('${id}','${field}',this)"
+    onfocus="this.select()">`;
+}
+
+// 입력된 값이 GEO_REGIONS에 없으면 부분일치로 자동 매칭
+function onRegionChange(id, field, el) {
+  const v = (el.value || '').trim();
+  let finalVal = '';
+  if (v) {
+    // 정확히 일치
+    if (GEO_REGIONS.includes(v)) {
+      finalVal = v;
+    } else {
+      // 부분 일치 우선순위: 시작문자열 > 포함
+      const starts = GEO_REGIONS.filter(r => r.startsWith(v));
+      if (starts.length === 1) finalVal = starts[0];
+      else if (starts.length === 0) {
+        const contains = GEO_REGIONS.filter(r => r.includes(v));
+        if (contains.length === 1) finalVal = contains[0];
+      }
+    }
+  }
+  el.value = finalVal; // 목록에 없으면 비움
+  onFieldChange(id, field, finalVal);
+}
+
 /* ════════════════════════════════════════════════════════════
    앱 상태
 ════════════════════════════════════════════════════════════ */
@@ -628,6 +666,9 @@ let dragSrcId = null;
 ════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
   loadMeta();
+  // 지역 자동완성 datalist 채우기
+  const dl = document.getElementById('regionListDL');
+  if (dl) dl.innerHTML = regionDatalistOptions();
   const now = new Date();
   currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   document.getElementById('monthPicker').value = currentMonth;
@@ -1665,18 +1706,14 @@ function buildRow(r, idx) {
     <td class="w115"><input class="ci left" type="text" value="${r.departure}" placeholder="출발지"
       onchange="onFieldChange('${r.id}','departure',this.value)"></td>
     <td class="w80">
-      <select class="ci" onchange="onFieldChange('${r.id}','departureRegion',this.value)">
-        ${regionOptions(r.departureRegion)}
-      </select>
+      ${regionInputCell(r.id, 'departureRegion', r.departureRegion)}
     </td>
     <td class="w88"><input class="ci" type="date" value="${r.departureDate}"
       onchange="onFieldChange('${r.id}','departureDate',this.value)"></td>
     <td class="w115"><input class="ci left" type="text" value="${r.destination}" placeholder="도착지"
       onchange="onFieldChange('${r.id}','destination',this.value)"></td>
     <td class="w80">
-      <select class="ci" onchange="onFieldChange('${r.id}','destinationRegion',this.value)">
-        ${regionOptions(r.destinationRegion)}
-      </select>
+      ${regionInputCell(r.id, 'destinationRegion', r.destinationRegion)}
     </td>
     <td class="w88"><input class="ci" type="date" value="${r.arrivalDate}"
       onchange="onFieldChange('${r.id}','arrivalDate',this.value)"></td>
