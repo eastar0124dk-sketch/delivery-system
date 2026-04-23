@@ -609,46 +609,70 @@ const GEO_REGIONS = (() => {
   return [...all].filter(k => !skip.has(k) && !isNumeric(k)).sort((a,b) => a.localeCompare(b,'ko'));
 })();
 
+// 약어 → 풀네임 표시 매핑 (저장값은 약어 유지, 표시만 풀네임)
+const REGION_DISPLAY = {
+  // 서울 자치구
+  '강남':'강남구','강동':'강동구','강북':'강북구','강서':'강서구',
+  '관악':'관악구','광진':'광진구','구로':'구로구','금천':'금천구',
+  '노원':'노원구','도봉':'도봉구','동대':'동대문구','동작':'동작구',
+  '마포':'마포구','서대':'서대문구','서초':'서초구',
+  '성동':'성동구','성북':'성북구','송파':'송파구',
+  '양천':'양천구','영등':'영등포구','용산':'용산구','은평':'은평구',
+  '종로':'종로구','중랑':'중랑구',
+  // 약어로 잘린 기타 지역
+  '동두':'동두천','남양':'남양주','서귀':'서귀포','의정':'의정부'
+};
+const REGION_REVERSE = Object.fromEntries(
+  Object.entries(REGION_DISPLAY).map(([k,v]) => [v, k])
+);
+const toRegionDisplay = code => REGION_DISPLAY[code] || code || '';
+const toRegionCode    = disp => REGION_REVERSE[disp] || disp || '';
+
 function regionOptions(selected='') {
   return `<option value="">지역선택</option>` +
     GEO_REGIONS.map(r =>
-      `<option value="${r}"${r === selected ? ' selected' : ''}>${r}</option>`
+      `<option value="${r}"${r === selected ? ' selected' : ''}>${toRegionDisplay(r)}</option>`
     ).join('');
 }
 
-// datalist 용 옵션 (검색형 input)
+// datalist 용 옵션 (검색형 input) — 풀네임 노출
 function regionDatalistOptions() {
-  return GEO_REGIONS.map(r => `<option value="${r}">`).join('');
+  return GEO_REGIONS.map(r => `<option value="${toRegionDisplay(r)}">`).join('');
 }
 
-// 지역 셀 렌더: 입력 가능한 텍스트 + datalist 자동완성
+// 지역 셀 렌더: 입력 가능한 텍스트 + datalist 자동완성 (풀네임 표시)
 function regionInputCell(id, field, value) {
+  const disp = toRegionDisplay(value);
   return `<input class="ci region-input" type="text" list="regionListDL"
-    value="${value || ''}" placeholder="지역선택"
+    value="${disp}" placeholder="지역선택"
     onchange="onRegionChange('${id}','${field}',this)"
     onfocus="this.select()">`;
 }
 
-// 입력된 값이 GEO_REGIONS에 없으면 부분일치로 자동 매칭
+// 입력값(약어/풀네임/부분일치 모두 허용) → 약어 코드로 정규화 후 저장, 표시는 풀네임
 function onRegionChange(id, field, el) {
   const v = (el.value || '').trim();
-  let finalVal = '';
+  let code = '';
   if (v) {
-    // 정확히 일치
-    if (GEO_REGIONS.includes(v)) {
-      finalVal = v;
+    // 1) 풀네임 → 약어 변환
+    const asCode = toRegionCode(v);
+    if (GEO_REGIONS.includes(asCode)) {
+      code = asCode;
+    } else if (GEO_REGIONS.includes(v)) {
+      // 2) 이미 약어인 경우
+      code = v;
     } else {
-      // 부분 일치 우선순위: 시작문자열 > 포함
-      const starts = GEO_REGIONS.filter(r => r.startsWith(v));
-      if (starts.length === 1) finalVal = starts[0];
-      else if (starts.length === 0) {
-        const contains = GEO_REGIONS.filter(r => r.includes(v));
-        if (contains.length === 1) finalVal = contains[0];
+      // 3) 부분일치 (약어 또는 풀네임 기준)
+      const matches = GEO_REGIONS.filter(r => r.startsWith(v) || toRegionDisplay(r).startsWith(v));
+      if (matches.length === 1) code = matches[0];
+      else if (matches.length === 0) {
+        const contains = GEO_REGIONS.filter(r => r.includes(v) || toRegionDisplay(r).includes(v));
+        if (contains.length === 1) code = contains[0];
       }
     }
   }
-  el.value = finalVal; // 목록에 없으면 비움
-  onFieldChange(id, field, finalVal);
+  el.value = toRegionDisplay(code); // 입력창엔 풀네임 표시
+  onFieldChange(id, field, code);   // 저장은 약어 코드
 }
 
 /* ════════════════════════════════════════════════════════════
