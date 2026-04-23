@@ -340,6 +340,7 @@
     .w105 { min-width:105px; width:105px; }
     .w115 { min-width:115px; width:115px; }
     .w120 { min-width:120px; width:120px; }
+    .w150 { min-width:150px; width:150px; }
 
     /* Empty */
     .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
@@ -461,7 +462,7 @@
         </th>
         <th class="w34">No</th>
         <!-- Base -->
-        <th class="w88" data-fkey="orderDate">ORDER일자<span class="flt-btn" onclick="openFilter(event,'orderDate',this)">▼</span></th>
+        <th class="w150" data-fkey="orderDate">ORDER일자<span class="flt-btn" onclick="openFilter(event,'orderDate',this)">▼</span></th>
         <th class="w70" data-fkey="gubun">구분<span class="flt-btn" onclick="openFilter(event,'gubun',this)">▼</span></th>
         <th class="w115" data-fkey="departure">출발지<span class="flt-btn" onclick="openFilter(event,'departure',this)">▼</span></th>
         <th class="w80" data-fkey="departureRegion">지역<span class="flt-btn" onclick="openFilter(event,'departureRegion',this)">▼</span></th>
@@ -1434,7 +1435,7 @@ function buildRow(r, idx) {
         ).join('')}
       </div>
     </td>
-    <td class="w88"><input class="ci" type="date" value="${r.orderDate}"
+    <td class="w150"><input class="ci" type="datetime-local" value="${r.orderDate || ''}"
       onchange="onFieldChange('${r.id}','orderDate',this.value)"></td>
     <td class="w70"><input class="ci" type="text" value="${r.gubun}" placeholder="구분"
       oninput="onFieldChange('${r.id}','gubun',this.value)"></td>
@@ -1633,8 +1634,21 @@ function exportExcel() {
         ws[a] = { v:String(v), s, t:'s' };
       }
     };
+    // orderDate 포맷: "YYYY-MM-DDTHH:MM" → "YYYY-MM-DD (요일) 오전/오후 H:MM"
+    const fmtOrder = (s) => {
+      if (!s) return '';
+      const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+      if (!m) return s;
+      const [_, y, mo, d, hh, mi] = m;
+      const dow = ['일','월','화','수','목','금','토'][new Date(+y, +mo-1, +d).getDay()];
+      if (hh === undefined) return `${y}-${mo}-${d} (${dow})`;
+      let h = parseInt(hh);
+      const ap = h < 12 ? '오전' : '오후';
+      if (h === 0) h = 12; else if (h > 12) h -= 12;
+      return `${y}-${mo}-${d} (${dow}) ${ap} ${h}:${mi}`;
+    };
     put(0,  i+1,                       S_TXT, 'n');
-    put(1,  r.orderDate||'',           S_DATE);
+    put(1,  fmtOrder(r.orderDate),     S_DATE);
     put(2,  r.gubun||'',                S_TXT);
     put(3,  r.departure||'',            S_TXT_L);
     put(4,  r.departureRegion||'',      S_TXT);
@@ -1825,12 +1839,34 @@ function importExcel(buffer) {
           const yy = raw_val.getFullYear();
           const mm = String(raw_val.getMonth()+1).padStart(2,'0');
           const dd = String(raw_val.getDate()).padStart(2,'0');
-          obj[field] = `${yy}-${mm}-${dd}`;
+          if (field === 'orderDate') {
+            const HH = String(raw_val.getHours()).padStart(2,'0');
+            const MM = String(raw_val.getMinutes()).padStart(2,'0');
+            obj[field] = `${yy}-${mm}-${dd}T${HH}:${MM}`;
+          } else {
+            obj[field] = `${yy}-${mm}-${dd}`;
+          }
         } else {
-          // 날짜 형식 문자열 정규화 (YYYY.MM.DD → YYYY-MM-DD)
+          // 날짜 형식 문자열 정규화
           let sv = String(raw_val).trim();
-          sv = sv.replace(/(\d{4})[./](\d{1,2})[./](\d{1,2})/, (_, y,m,d) =>
-            `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`);
+          if (field === 'orderDate') {
+            // "2026-02-23 (월) 오후 2:53" 또는 "2026-02-23 14:53" 등 → YYYY-MM-DDTHH:MM
+            const m = sv.match(/(\d{4})[-./](\d{1,2})[-./](\d{1,2}).*?(오전|오후|AM|PM)?\s*(\d{1,2}):(\d{2})/);
+            if (m) {
+              const [_, y, mo, d, ap, h, mi] = m;
+              let hh = parseInt(h);
+              if ((ap === '오후' || ap === 'PM') && hh < 12) hh += 12;
+              if ((ap === '오전' || ap === 'AM') && hh === 12) hh = 0;
+              sv = `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}T${String(hh).padStart(2,'0')}:${mi}`;
+            } else {
+              // 시간이 없으면 날짜만 YYYY-MM-DD
+              sv = sv.replace(/(\d{4})[./-](\d{1,2})[./-](\d{1,2}).*/, (_, y, mo, d) =>
+                `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`);
+            }
+          } else {
+            sv = sv.replace(/(\d{4})[./](\d{1,2})[./](\d{1,2})/, (_, y,m,d) =>
+              `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`);
+          }
           obj[field] = sv;
         }
       }
