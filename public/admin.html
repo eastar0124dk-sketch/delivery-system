@@ -677,6 +677,7 @@
         document.getElementById('loginModal').classList.remove('show');
         document.getElementById('mainWrap').style.display='block';
         applyRoleUI();
+        refreshCompanyDropdown();
       } else {
         document.getElementById('loginError').style.display='block';
         document.getElementById('loginPw').value='';
@@ -726,6 +727,7 @@
     document.getElementById('loginModal').classList.remove('show');
     document.getElementById('mainWrap').style.display = 'block';
     applyRoleUI();
+    refreshCompanyDropdown();
     // 백그라운드에서 토큰 유효성 검증
     try {
       const res = await fetch('/api/auth/check', { headers:{'Authorization':`Bearer ${adminToken}`} });
@@ -1394,14 +1396,46 @@ https://delivery-system-r6pr.onrender.com`;
     refreshCompanyDropdown();
   }
 
-  // 저장된 고객사 드롭다운 갱신
-  function refreshCompanyDropdown() {
+  // 저장된 고객사 드롭다운 갱신 (localStorage + 서버 기록 병합)
+  async function refreshCompanyDropdown() {
     const sel = document.getElementById('customer_company_select');
     if(!sel) return;
     const hist = JSON.parse(localStorage.getItem('delivery_customer_history') || '{}');
+
+    // 서버에서 최근 기록 가져와 localStorage에 없는 고객사 자동 병합
+    if (adminToken) {
+      try {
+        const res = await fetch('/api/records?limit=2000', {
+          headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+        if (res.ok) {
+          const { data } = await res.json();
+          const nameIdx = JSON.parse(localStorage.getItem('delivery_receiver_index') || '{}');
+          (data || []).forEach(r => {
+            const c = (r.customer_company || '').trim();
+            if (!c) return;
+            if (!hist[c]) {
+              hist[c] = {
+                address: r.customer_address || '',
+                receiver_name: r.receiver_name || '',
+                receiver_phone: r.receiver_phone || '',
+                dest_sido: r.dest_sido || '',
+                dest_sigun: r.dest_sigun || ''
+              };
+            }
+            if (r.receiver_name && !nameIdx[r.receiver_name]) {
+              nameIdx[r.receiver_name] = c;
+            }
+          });
+          localStorage.setItem('delivery_customer_history', JSON.stringify(hist));
+          localStorage.setItem('delivery_receiver_index', JSON.stringify(nameIdx));
+        }
+      } catch(e) { /* 서버 오류 무시, 로컬만 사용 */ }
+    }
+
     const companies = Object.keys(hist).sort();
     const cur = sel.value;
-    sel.innerHTML = '<option value="">📋 저장된 고객사 선택</option>';
+    sel.innerHTML = `<option value="">📋 저장된 고객사 선택 (${companies.length}개)</option>`;
     companies.forEach(c => {
       sel.innerHTML += `<option value="${c}"${c===cur?' selected':''}>${c}</option>`;
     });
