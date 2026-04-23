@@ -128,19 +128,51 @@
       padding: 5px 3px; text-align: center; font-size: 10px; font-weight: 700;
       border: 1px solid #ddd; background: #f8fafc; color: #475569; cursor: default;
     }
-    thead tr.filter-row th {
-      position: sticky; top: 56px; z-index: 10;
-      padding: 2px; border: 1px solid #ddd;
+    /* 컬럼 헤더 필터 버튼 */
+    .flt-btn {
+      cursor: pointer; font-size: 8px; color: #94a3b8;
+      padding: 1px 2px; border-radius: 2px;
+      user-select: none; margin-left: 2px;
+      display: inline-block; line-height: 1;
     }
-    thead tr.filter-row input.f-in {
-      width: 100%; box-sizing: border-box;
-      padding: 3px 4px; font-size: 10px; border: 1px solid #cbd5e1;
-      border-radius: 3px; background: #fff; color: #0f172a;
-      outline: none;
+    .flt-btn:hover { background: rgba(0,0,0,.12); color: #475569; }
+    .flt-btn.active { color: #2563eb; font-weight: 900; }
+    thead tr.col-row th[data-fkey] { cursor: default; }
+
+    /* 필터 드롭다운 */
+    #filterDropdown {
+      position: fixed; z-index: 9999;
+      background: #fff; border: 1px solid #cbd5e1;
+      border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,.18);
+      min-width: 170px; max-height: 300px;
+      display: none; font-size: 12px; color: #1e293b;
     }
-    thead tr.filter-row input.f-in:focus {
-      border-color: #2563eb; box-shadow: 0 0 0 1px #2563eb;
+    #filterDropdown .fdd-search { padding: 6px 8px 4px; }
+    #filterDropdown .fdd-search input {
+      width: 100%; box-sizing: border-box; padding: 4px 6px;
+      border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; outline: none;
     }
+    #filterDropdown .fdd-list { overflow-y: auto; max-height: 200px; }
+    #filterDropdown .fdd-item {
+      display: flex; align-items: center; gap: 7px;
+      padding: 4px 10px; cursor: pointer; white-space: nowrap;
+    }
+    #filterDropdown .fdd-item:hover { background: #f1f5f9; }
+    #filterDropdown .fdd-item input { cursor: pointer; flex-shrink: 0; }
+    #filterDropdown .fdd-item label { cursor: pointer; flex: 1; overflow: hidden; text-overflow: ellipsis; }
+    #filterDropdown .fdd-sep { border: none; border-top: 1px solid #e2e8f0; margin: 3px 0; }
+    #filterDropdown .fdd-actions {
+      display: flex; gap: 6px; padding: 6px 8px;
+      border-top: 1px solid #e2e8f0;
+    }
+    #filterDropdown .fdd-btn {
+      flex: 1; padding: 5px; border: 1px solid #e2e8f0;
+      border-radius: 4px; cursor: pointer; font-size: 11px;
+      background: #f8fafc; font-weight: 600;
+    }
+    #filterDropdown .fdd-btn:hover { background: #e2e8f0; }
+    #filterDropdown .fdd-btn.apply { background: #1565c0; color: #fff; border-color: #1565c0; }
+    #filterDropdown .fdd-btn.apply:hover { background: #0d47a1; }
 
     /* Group colors */
     .grp-base    { background: #37474f; color: #fff; }
@@ -378,11 +410,8 @@
   <button class="btn" style="background:#7c3aed;color:#fff;" onclick="recalcAllFares()" title="0원인 운임을 요금표에서 자동 채우기">
     <i class="fas fa-sync-alt"></i> 운임 재조회
   </button>
-  <button class="btn" id="btnFilter" style="background:#f59e0b;color:#fff;" onclick="toggleFilterRow()" title="컬럼별 필터 표시/숨김">
-    <i class="fas fa-filter"></i> 필터
-  </button>
-  <button class="btn btn-gray" onclick="clearAllFilters()" title="모든 필터 초기화">
-    <i class="fas fa-times"></i> 필터 초기화
+  <button class="btn btn-gray" onclick="clearAllFilters()" title="모든 컬럼 필터 초기화" style="background:#f59e0b;color:#fff;">
+    <i class="fas fa-filter"></i> 필터 초기화
   </button>
   <div class="spacer"></div>
   <span id="autoSaveMsg"></span>
@@ -432,23 +461,23 @@
         </th>
         <th class="w34">No</th>
         <!-- Base -->
-        <th class="w88">ORDER일자</th>
-        <th class="w70">구분</th>
-        <th class="w115">출발지</th>
-        <th class="w80">지역</th>
-        <th class="w88">출발일자</th>
-        <th class="w115">도착지</th>
-        <th class="w80">지역</th>
-        <th class="w88">도착일자</th>
-        <th class="w70">형태</th>
-        <th class="w80">연계지</th>
-        <th class="w70">담당자</th>
-        <th class="w70">인계자</th>
-        <th class="w80">차종</th>
-        <th class="w70">운송사</th>
-        <th class="w88">비고</th>
+        <th class="w88" data-fkey="orderDate">ORDER일자<span class="flt-btn" onclick="openFilter(event,'orderDate',this)">▼</span></th>
+        <th class="w70" data-fkey="gubun">구분<span class="flt-btn" onclick="openFilter(event,'gubun',this)">▼</span></th>
+        <th class="w115" data-fkey="departure">출발지<span class="flt-btn" onclick="openFilter(event,'departure',this)">▼</span></th>
+        <th class="w80" data-fkey="departureRegion">지역<span class="flt-btn" onclick="openFilter(event,'departureRegion',this)">▼</span></th>
+        <th class="w88" data-fkey="departureDate">출발일자<span class="flt-btn" onclick="openFilter(event,'departureDate',this)">▼</span></th>
+        <th class="w115" data-fkey="destination">도착지<span class="flt-btn" onclick="openFilter(event,'destination',this)">▼</span></th>
+        <th class="w80" data-fkey="destinationRegion">지역<span class="flt-btn" onclick="openFilter(event,'destinationRegion',this)">▼</span></th>
+        <th class="w88" data-fkey="arrivalDate">도착일자<span class="flt-btn" onclick="openFilter(event,'arrivalDate',this)">▼</span></th>
+        <th class="w70" data-fkey="deliveryType">형태<span class="flt-btn" onclick="openFilter(event,'deliveryType',this)">▼</span></th>
+        <th class="w80" data-fkey="relay">연계지<span class="flt-btn" onclick="openFilter(event,'relay',this)">▼</span></th>
+        <th class="w70" data-fkey="manager">담당자<span class="flt-btn" onclick="openFilter(event,'manager',this)">▼</span></th>
+        <th class="w70" data-fkey="handover">인계자<span class="flt-btn" onclick="openFilter(event,'handover',this)">▼</span></th>
+        <th class="w80" data-fkey="vehicle">차종<span class="flt-btn" onclick="openFilter(event,'vehicle',this)">▼</span></th>
+        <th class="w70" data-fkey="carrier">운송사<span class="flt-btn" onclick="openFilter(event,'carrier',this)">▼</span></th>
+        <th class="w88" data-fkey="remarks1">비고<span class="flt-btn" onclick="openFilter(event,'remarks1',this)">▼</span></th>
         <!-- Canon billing -->
-        <th class="w88" style="color:#0d47a1;font-weight:800">운임</th>
+        <th class="w88" style="color:#0d47a1;font-weight:800" data-fkey="clientFare">운임<span class="flt-btn" onclick="openFilter(event,'clientFare',this)">▼</span></th>
         <th class="w65" style="color:#0d47a1;font-weight:800">리프트</th>
         <th class="w65" style="color:#0d47a1;font-weight:800">폐기</th>
         <th class="w70" style="color:#0d47a1;font-weight:800">보관료</th>
@@ -456,7 +485,7 @@
         <th class="w65" style="color:#0d47a1;font-weight:800">기타</th>
         <th class="w95" style="color:#fff;background:#1565c0;font-weight:900">청구금액</th>
         <!-- Carrier billing -->
-        <th class="w88" style="color:#b71c1c;font-weight:800">운임</th>
+        <th class="w88" style="color:#b71c1c;font-weight:800" data-fkey="carrierFare">운임<span class="flt-btn" onclick="openFilter(event,'carrierFare',this)">▼</span></th>
         <th class="w65" style="color:#b71c1c;font-weight:800">리프트</th>
         <th class="w65" style="color:#b71c1c;font-weight:800">폐기</th>
         <th class="w70" style="color:#b71c1c;font-weight:800">보관료</th>
@@ -466,50 +495,23 @@
         <!-- Analysis -->
         <th class="w88">비고</th>
         <th class="w55">거리km</th>
-        <th class="w88">차이금액</th>
+        <th class="w88" data-fkey="_diff">차이금액<span class="flt-btn" onclick="openFilter(event,'_diff',this)">▼</span></th>
         <th class="w65">수익율</th>
-      </tr>
-      <!-- Filter row -->
-      <tr class="filter-row" id="filterRow" style="display:none;">
-        <th colspan="4" style="background:#fef3c7;text-align:center;font-size:10px;color:#92400e;">🔍 필터</th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="orderDate" class="f-in" placeholder="일자"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="gubun" class="f-in" placeholder="구분"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="departure" class="f-in" placeholder="출발지"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="departureRegion" class="f-in" placeholder="지역"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="departureDate" class="f-in" placeholder="출발일"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="destination" class="f-in" placeholder="도착지"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="destinationRegion" class="f-in" placeholder="지역"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="arrivalDate" class="f-in" placeholder="도착일"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="deliveryType" class="f-in" placeholder="형태"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="relay" class="f-in" placeholder="연계지"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="manager" class="f-in" placeholder="담당자"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="handover" class="f-in" placeholder="인계자"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="vehicle" class="f-in" placeholder="차종"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="carrier" class="f-in" placeholder="운송사"/></th>
-        <th style="background:#fffbeb;padding:2px;"><input data-fkey="remarks1" class="f-in" placeholder="비고"/></th>
-        <th style="background:#eff6ff;padding:2px;"><input data-fkey="clientFare" class="f-in" placeholder="운임"/></th>
-        <th style="background:#eff6ff;padding:2px;"><input data-fkey="clientLift" class="f-in" placeholder="리프트"/></th>
-        <th style="background:#eff6ff;padding:2px;"><input data-fkey="clientDisposal" class="f-in" placeholder="폐기"/></th>
-        <th style="background:#eff6ff;padding:2px;"><input data-fkey="clientStorage" class="f-in" placeholder="보관"/></th>
-        <th style="background:#eff6ff;padding:2px;"><input data-fkey="clientTaksong" class="f-in" placeholder="탁송"/></th>
-        <th style="background:#eff6ff;padding:2px;"><input data-fkey="clientOther" class="f-in" placeholder="기타"/></th>
-        <th style="background:#eff6ff;padding:2px;"><input data-fkey="_clientTotal" class="f-in" placeholder="청구"/></th>
-        <th style="background:#fef2f2;padding:2px;"><input data-fkey="carrierFare" class="f-in" placeholder="운임"/></th>
-        <th style="background:#fef2f2;padding:2px;"><input data-fkey="carrierLift" class="f-in" placeholder="리프트"/></th>
-        <th style="background:#fef2f2;padding:2px;"><input data-fkey="carrierDisposal" class="f-in" placeholder="폐기"/></th>
-        <th style="background:#fef2f2;padding:2px;"><input data-fkey="carrierStorage" class="f-in" placeholder="보관"/></th>
-        <th style="background:#fef2f2;padding:2px;"><input data-fkey="carrierTaksong" class="f-in" placeholder="탁송"/></th>
-        <th style="background:#fef2f2;padding:2px;"><input data-fkey="carrierOther" class="f-in" placeholder="기타"/></th>
-        <th style="background:#fef2f2;padding:2px;"><input data-fkey="_carrierTotal" class="f-in" placeholder="지불"/></th>
-        <th style="background:#f5f3ff;padding:2px;"><input data-fkey="remarks2" class="f-in" placeholder="비고"/></th>
-        <th style="background:#f5f3ff;padding:2px;"><input data-fkey="distanceKm" class="f-in" placeholder="km"/></th>
-        <th style="background:#f5f3ff;padding:2px;"><input data-fkey="_diff" class="f-in" placeholder="차이"/></th>
-        <th style="background:#f5f3ff;padding:2px;"><input data-fkey="_rate" class="f-in" placeholder="수익"/></th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
     <tfoot id="tableFoot"></tfoot>
   </table>
+</div>
+
+<!-- Excel 스타일 필터 드롭다운 -->
+<div id="filterDropdown" onclick="event.stopPropagation()">
+  <div class="fdd-search"><input type="text" id="fddSearchInp" placeholder="검색..." oninput="fddSearch(this)"></div>
+  <div class="fdd-list" id="fddList"></div>
+  <div class="fdd-actions">
+    <button class="fdd-btn" onclick="fddClear()">초기화</button>
+    <button class="fdd-btn apply" onclick="fddApply()">확인</button>
+  </div>
 </div>
 
 <script>
@@ -518,8 +520,47 @@
    (canon_rates.js에서 CANON_CLIENT_RATES, CANON_CARRIER_RATES 로드됨)
 ════════════════════════════════════════════════════════════ */
 
-// 지역간배송 클라이언트 운임 (거리별 표준요금표) — CANON_CLIENT_RATES의 숫자 키
+// ── ACT 거리별 표준요금표 (지역간배송 캐논청구 전용) ──
+// 출처: ACT 거리별 표준요금표 (다마스/1톤만 100km+ 적용, 2.5톤 이상 지역간 없음)
+const DIST_TABLE = {
+   5: { 오토바이:  8400, 다마스:  30000, '1톤':  48000 },
+  10: { 오토바이: 12000, 다마스:  30000, '1톤':  48000 },
+  15: { 오토바이: 18000, 다마스:  36000, '1톤':  54000 },
+  20: { 오토바이: 24000, 다마스:  36000, '1톤':  60000 },
+  25: { 오토바이: 30000, 다마스:  42000, '1톤':  66000 },
+  30: { 오토바이: 36000, 다마스:  48000, '1톤':  72000 },
+  35: { 오토바이: 42000, 다마스:  54000, '1톤':  78000 },
+  40: { 오토바이: 48000, 다마스:  60000, '1톤':  84000 },
+  50: { 오토바이: 54000, 다마스:  66000, '1톤':  90000 },
+  60: { 오토바이: 60000, 다마스:  72000, '1톤':  96000 },
+  70: { 오토바이: 66000, 다마스:  78000, '1톤': 102000 },
+  80: { 오토바이: 72000, 다마스:  84000, '1톤': 108000 },
+  90: { 오토바이: 78000, 다마스:  90000, '1톤': 114000 },
+ 100: { 오토바이: 84000, 다마스:  96000, '1톤': 120000 },
+};
+const DIST_EXTRA = { 다마스: 8000, '1톤': 10000 };  // 100km 초과 10km당 추가
+const DIST_MAX   = 370000;                           // 최대 운임 상한 (350km 이상)
 const DIST_STEPS = [5,10,15,20,25,30,35,40,50,60,70,80,90,100];
+
+function getDistanceClientRate(km, vehicle) {
+  if (!km || km <= 0 || !vehicle) return null;
+  if (!['오토바이','다마스','1톤'].includes(vehicle)) return null; // 2.5톤 이상 수기입력
+  const numKm = parseFloat(km);
+  if (isNaN(numKm) || numKm <= 0) return null;
+
+  let base;
+  if (numKm <= 100) {
+    let key = 5;
+    for (const s of DIST_STEPS) { if (numKm >= s) key = s; else break; }
+    base = DIST_TABLE[key][vehicle];
+  } else {
+    // 100km 기본 + 초과분 10km당 추가 (다마스/1톤만)
+    base = DIST_TABLE[100][vehicle];
+    const extra = DIST_EXTRA[vehicle] || 0;
+    base += extra * Math.ceil((numKm - 100) / 10);
+  }
+  return Math.min(base || 0, DIST_MAX);
+}
 
 function getClientRate(region, vehicle) {
   if (!region || !vehicle) return null;
@@ -541,21 +582,7 @@ function getCarrierRate(region, vehicle, carrier) {
   return (v !== undefined && v > 0) ? v : null;
 }
 
-function getDistanceClientRate(km, vehicle) {
-  if (!km || km <= 0 || !vehicle) return null;
-  if (vehicle === '라보' || vehicle === '3.5톤') return null;
-  let key = '5';
-  for (const s of DIST_STEPS) {
-    if (km >= s) key = String(s);
-    else break;
-  }
-  const rates = CANON_CLIENT_RATES[key];
-  if (!rates) return null;
-  const v = rates[vehicle];
-  return (v !== undefined && v > 0) ? v : null;
-}
-
-// 지역간배송 운송사 운임 — CANON_CARRIER_RATES의 숫자 키가 없으므로 수기입력
+// 지역간배송 운송사 운임 — 수기입력 전용
 // (패스 수도권 운임은 별도 구조이므로 지역간배송은 항상 수기)
 
 // 지역 목록 (geographic only — 숫자 키 및 special entry 제외)
@@ -605,7 +632,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('monthPicker').value = currentMonth;
   ensureMonth(currentMonth);
   setDefaultPeriod(currentMonth);
-  bindFilterInputs();
   renderAll();
 });
 
@@ -640,55 +666,139 @@ function updatePeriodStyle() {
   if (wrap) wrap.classList.toggle('active', from !== df || to !== dt);
 }
 
-/* 컬럼 필터 state */
-let columnFilters = {};
+/* ── Excel 스타일 컬럼 필터 ── */
+let colFilters = {};       // { fkey: Set<string> }  없으면 전체표시
+let _fddKey    = null;     // 현재 열려있는 필터 컬럼키
 
-function toggleFilterRow() {
-  const row = document.getElementById('filterRow');
-  const isHidden = row.style.display === 'none' || !row.style.display;
-  row.style.display = isHidden ? 'table-row' : 'none';
-  const btn = document.getElementById('btnFilter');
-  if (btn) btn.style.background = isHidden ? '#d97706' : '#f59e0b';
-  if (!isHidden) { // 필터 숨길 때 필터 초기화
-    clearAllFilters();
+function getFieldVal(r, k) {
+  if (k === '_clientTotal')  return clientTotal(r);
+  if (k === '_carrierTotal') return carrierTotal(r);
+  if (k === '_diff')         return diffAmt(r);
+  return r[k];
+}
+
+function openFilter(e, fkey, btn) {
+  e.stopPropagation();
+  const dd = document.getElementById('filterDropdown');
+  if (_fddKey === fkey && dd.style.display !== 'none') {
+    dd.style.display = 'none'; _fddKey = null; return;
   }
+  _fddKey = fkey;
+
+  // 현재 월 전체 데이터에서 유니크 값 수집
+  const allRows = billingData[currentMonth] || [];
+  const valMap  = new Map(); // value → count
+  allRows.forEach(r => {
+    const v = getFieldVal(r, fkey);
+    const s = (v == null || v === '' || v === 0) ? '__BLANK__' : String(v);
+    valMap.set(s, (valMap.get(s) || 0) + 1);
+  });
+  const sorted = [...valMap.keys()].sort((a, b) => {
+    if (a === '__BLANK__') return -1;
+    if (b === '__BLANK__') return 1;
+    return a.localeCompare(b, 'ko');
+  });
+
+  const curSet  = colFilters[fkey];          // undefined = 전체
+  const allSel  = !curSet;
+
+  // 드롭다운 HTML
+  let html = `<div class="fdd-item" id="fddAllRow">
+    <input type="checkbox" id="fddAllChk" ${allSel?'checked':''} onchange="fddToggleAll(this)">
+    <label for="fddAllChk" style="font-weight:700">(전체 선택)</label>
+  </div>
+  <hr class="fdd-sep">`;
+  sorted.forEach(v => {
+    const lbl   = v === '__BLANK__' ? '(빈칸)' : v;
+    const cnt   = valMap.get(v) || 0;
+    const chkd  = allSel || (curSet && curSet.has(v)) ? 'checked' : '';
+    html += `<div class="fdd-item">
+      <input type="checkbox" value="${v}" ${chkd} onchange="fddItemChange()">
+      <label>${lbl} <span style="color:#94a3b8;font-size:10px">(${cnt})</span></label>
+    </div>`;
+  });
+  document.getElementById('fddList').innerHTML = html;
+  document.getElementById('fddSearchInp').value = '';
+
+  // 위치 지정
+  const rect = btn.getBoundingClientRect();
+  dd.style.left = Math.min(rect.left, window.innerWidth - 190) + 'px';
+  dd.style.top  = Math.min(rect.bottom + 2, window.innerHeight - 320) + 'px';
+  dd.style.display = 'block';
 }
 
-function clearAllFilters() {
-  columnFilters = {};
-  document.querySelectorAll('input.f-in').forEach(i => i.value = '');
-  renderTable();
-  renderSummary();
-}
-
-function bindFilterInputs() {
-  document.querySelectorAll('input.f-in').forEach(inp => {
-    inp.addEventListener('input', (e) => {
-      const k = e.target.dataset.fkey;
-      const v = e.target.value.trim();
-      if (!v) delete columnFilters[k];
-      else columnFilters[k] = v.toLowerCase();
-      renderTable();
-      renderSummary();
-    });
+function fddSearch(inp) {
+  const q = inp.value.toLowerCase();
+  document.querySelectorAll('#fddList .fdd-item:not(#fddAllRow)').forEach(el => {
+    const lbl = el.querySelector('label').textContent.toLowerCase();
+    el.style.display = lbl.includes(q) ? '' : 'none';
   });
 }
 
+function fddToggleAll(chk) {
+  document.querySelectorAll('#fddList .fdd-item input[type=checkbox]').forEach(c => c.checked = chk.checked);
+}
+
+function fddItemChange() {
+  const all  = [...document.querySelectorAll('#fddList .fdd-item:not(#fddAllRow) input')];
+  const chkd = all.filter(c => c.checked).length;
+  document.getElementById('fddAllChk').checked = (chkd === all.length);
+}
+
+function fddClear() {
+  delete colFilters[_fddKey];
+  document.getElementById('filterDropdown').style.display = 'none';
+  _fddKey = null;
+  updateFltBtnStyle();
+  renderTable(); renderSummary();
+}
+
+function fddApply() {
+  const allChk = document.getElementById('fddAllChk');
+  if (allChk && allChk.checked) {
+    delete colFilters[_fddKey];
+  } else {
+    const sel = new Set(
+      [...document.querySelectorAll('#fddList .fdd-item:not(#fddAllRow) input:checked')].map(c => c.value)
+    );
+    if (sel.size === 0) delete colFilters[_fddKey];
+    else colFilters[_fddKey] = sel;
+  }
+  document.getElementById('filterDropdown').style.display = 'none';
+  _fddKey = null;
+  updateFltBtnStyle();
+  renderTable(); renderSummary();
+}
+
+function updateFltBtnStyle() {
+  document.querySelectorAll('th[data-fkey] .flt-btn').forEach(btn => {
+    const fkey = btn.closest('th').dataset.fkey;
+    btn.classList.toggle('active', fkey && fkey in colFilters);
+    btn.textContent = (fkey && fkey in colFilters) ? '▼' : '▼';
+  });
+}
+
+function clearAllFilters() {
+  colFilters = {};
+  const dd = document.getElementById('filterDropdown');
+  if (dd) dd.style.display = 'none';
+  _fddKey = null;
+  updateFltBtnStyle();
+  renderTable(); renderSummary();
+}
+
+document.addEventListener('click', () => {
+  const dd = document.getElementById('filterDropdown');
+  if (dd && dd.style.display !== 'none') {
+    dd.style.display = 'none'; _fddKey = null;
+  }
+});
+
 function rowMatchesFilters(r) {
-  for (const [k, v] of Object.entries(columnFilters)) {
-    let val;
-    if      (k === '_clientTotal')  val = clientTotal(r);
-    else if (k === '_carrierTotal') val = carrierTotal(r);
-    else if (k === '_diff')         val = diffAmt(r);
-    else if (k === '_rate') {
-      const cT = clientTotal(r);
-      val = cT ? ((diffAmt(r)/cT)*100).toFixed(1) + '%' : '';
-    } else {
-      val = r[k];
-    }
-    if (val == null) val = '';
-    const s = String(val).toLowerCase();
-    if (!s.includes(v)) return false;
+  for (const [k, sel] of Object.entries(colFilters)) {
+    const v = getFieldVal(r, k);
+    const s = (v == null || v === '' || v === 0) ? '__BLANK__' : String(v);
+    if (!sel.has(s)) return false;
   }
   return true;
 }
@@ -698,7 +808,7 @@ function getFilteredRows() {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   updatePeriodStyle();
-  const hasCol = Object.keys(columnFilters).length > 0;
+  const hasCol = Object.keys(colFilters).length > 0;
   if (!from && !to && !hasCol) return rows;
   return rows.filter(r => {
     const d = r.orderDate || r.departureDate || '';
