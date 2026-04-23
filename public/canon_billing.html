@@ -1571,203 +1571,132 @@ function exportExcel() {
   if (rows.length === 0) { alert('출력할 데이터가 없습니다.'); return; }
 
   const [y, m] = currentMonth.split('-');
-  const from = document.getElementById('dateFrom').value;
-  const to   = document.getElementById('dateTo').value;
 
-  /* ── 스타일 헬퍼 ── */
+  /* ────────────────────────────────────────────────
+     CMSK "운송내역" 시트 레이아웃 그대로 출력
+     A번호 B요청일자 C구분 D출발지 E지역 F출발일자
+     G도착지 H프로젝트명 I지역 J도착일자 K형태 L연계지
+     M담당자 N인계자 O차종 P비고 Q운임 R리프트 S폐기
+     T보관료 U탁송료 V기타 W운송비용 X비고 Y거리
+     1행: 제목(A1:Y1 병합), 2행: 헤더, 3행~: 데이터
+     마지막 4행: CS/UL/BU/TTL 집계(SUMIF/COUNTIF/SUM)
+  ──────────────────────────────────────────────── */
+
   const mkS = (bgRgb, fontRgb, bold=false, sz=10, halign='center') => ({
-    font:      { bold, sz, color: { rgb: fontRgb } },
-    fill:      { patternType:'solid', fgColor: { rgb: bgRgb } },
+    font:      { bold, sz, color: { rgb: fontRgb }, name:'맑은 고딕' },
+    fill:      bgRgb ? { patternType:'solid', fgColor: { rgb: bgRgb } } : undefined,
     alignment: { horizontal: halign, vertical:'center', wrapText: false },
     border: {
-      top:    { style:'thin', color:{ rgb:'CCCCCC' } },
-      bottom: { style:'thin', color:{ rgb:'CCCCCC' } },
-      left:   { style:'thin', color:{ rgb:'CCCCCC' } },
-      right:  { style:'thin', color:{ rgb:'CCCCCC' } }
+      top:    { style:'thin', color:{ rgb:'999999' } },
+      bottom: { style:'thin', color:{ rgb:'999999' } },
+      left:   { style:'thin', color:{ rgb:'999999' } },
+      right:  { style:'thin', color:{ rgb:'999999' } }
     }
   });
-  const BOLD_BORDER = { style:'medium', color:{ rgb:'999999' } };
 
-  // Group header styles
-  const S_GRP_BASE    = mkS('37474F','FFFFFF',true,10,'center');
-  const S_GRP_CLI     = mkS('1565C0','FFFFFF',true,10,'center');
-  const S_GRP_CAR     = mkS('C62828','FFFFFF',true,10,'center');
-  const S_GRP_ANA     = mkS('4A148C','FFFFFF',true,10,'center');
-  // Col header
-  const S_COL_BASE    = mkS('455A64','CFD8DC',true,9,'center');
-  const S_COL_CLI     = mkS('1976D2','E3F2FD',true,9,'center');
-  const S_COL_CAR     = mkS('D32F2F','FFCDD2',true,9,'center');
-  const S_COL_ANA     = mkS('6A1B9A','F3E5F5',true,9,'center');
-  // Data
-  const S_DATA        = mkS('FFFFFF','1E293B',false,9,'center');
-  const S_DATA_L      = mkS('FFFFFF','1E293B',false,9,'left');
-  const S_DATA_R      = mkS('FFFFFF','1E293B',false,9,'right');
-  const S_DATA_E      = mkS('F8FAFB','6B7280',false,9,'center'); // even row
-  const S_DATA_EL     = mkS('F8FAFB','6B7280',false,9,'left');
-  const S_DATA_ER     = mkS('F8FAFB','6B7280',false,9,'right');
-  const S_CLI_D       = mkS('EBF3FF','1565C0',false,9,'right');
-  const S_CLI_T       = mkS('1565C0','FFFFFF',true ,9,'right');
-  const S_CAR_D       = mkS('FFF0F0','C62828',false,9,'right');
-  const S_CAR_T       = mkS('C62828','FFFFFF',true ,9,'right');
-  const S_DIFF_P      = mkS('E8F5E9','1B5E20',true ,9,'right');
-  const S_DIFF_N      = mkS('FFEBEE','B71C1C',true ,9,'right');
-  const S_PRF         = mkS('F3E5F5','4A148C',true ,9,'center');
-  const S_FOOT        = mkS('263238','90A4AE',true ,9,'center');
-  const S_FOOT_CLI    = mkS('1565C0','FFFFFF',true ,9,'right');
-  const S_FOOT_CAR    = mkS('C62828','FFFFFF',true ,9,'right');
-  const S_FOOT_DIFF   = mkS('388E3C','FFFFFF',true ,9,'right');
-  const S_FOOT_ANA    = mkS('4A148C','E1BEE7',true ,9,'right');
+  const S_TITLE  = mkS('1F4E78','FFFFFF',true,14,'center');
+  const S_HDR    = mkS('BDD7EE','000000',true,10,'center');
+  const S_TXT    = mkS(null,'000000',false,10,'center');
+  const S_TXT_L  = mkS(null,'000000',false,10,'left');
+  const S_NUM    = { ...mkS(null,'000000',false,10,'right'), numFmt:'#,##0' };
+  const S_DATE   = mkS(null,'000000',false,10,'center');
+  const S_SUM_L  = mkS('FFF2CC','000000',true,10,'center');
+  const S_SUM_N  = { ...mkS('FFF2CC','000000',true,10,'right'), numFmt:'#,##0' };
+  const S_TTL_L  = mkS('F4B084','000000',true,10,'center');
+  const S_TTL_N  = { ...mkS('F4B084','000000',true,10,'right'), numFmt:'#,##0' };
 
+  const COL_N = 25; // A..Y
+  const colLetter = (i) => String.fromCharCode(65+i);
   const ws = {};
-  const R = (s) => s; // row-col string
+  ws['!merges'] = [];
 
-  function cell(ws, addr, v, s, t='s') {
-    if (!ws[addr]) ws[addr] = {};
-    ws[addr] = { v, s, t: (typeof v === 'number' ? 'n' : 's') };
-  }
-  function num(ws, addr, v, s) {
-    ws[addr] = { v: v||0, s, t:'n' };
-  }
+  // Row 1: title A1:Y1
+  ws['A1'] = { v:`${y}년 ${parseInt(m)}월 CMSK Delivery List`, s:S_TITLE, t:'s' };
+  for (let c=1; c<COL_N; c++) ws[colLetter(c)+'1'] = { v:'', s:S_TITLE, t:'s' };
+  ws['!merges'].push({ s:{r:0,c:0}, e:{r:0,c:COL_N-1} });
 
-  // ── Row 0: title ──
-  const COL_COUNT = 34; // A..AH (34 data columns)
-  const colLetter = (i) => {
-    if (i < 26) return String.fromCharCode(65+i);
-    return String.fromCharCode(64+Math.floor(i/26)) + String.fromCharCode(65+(i%26));
-  };
+  // Row 2: headers
+  const HDR = ['번호','요청일자','구분','출발지','지역','출발일자','도착지','프로젝트명','지역','도착일자','형태','연계지','담당자','인계자','차종','비고','운임','리프트','폐기','보관료','탁송료','기타','운송비용','비고','거리'];
+  HDR.forEach((h,ci) => { ws[colLetter(ci)+'2'] = { v:h, s:S_HDR, t:'s' }; });
 
-  let rowIdx = 0;
-
-  // Title row
-  const titleAddr = `A${rowIdx+1}`;
-  const periodStr = (from && to) ? `  (${from} ~ ${to})` : `  ${y}년 ${parseInt(m)}월`;
-  cell(ws, titleAddr, `캐논메디칼시스템즈 운송청구서 —${periodStr}`, mkS('BF360C','FFFFFF',true,13,'center'), 's');
-  ws['!merges'] = ws['!merges'] || [];
-  ws['!merges'].push({ s:{r:rowIdx,c:0}, e:{r:rowIdx,c:COL_COUNT-1} });
-  rowIdx++;
-
-  // Group header row
-  const GRP = [
-    { label:'기본정보', span:16, st: S_GRP_BASE },
-    { label:'캐논 청구 운임', span:7, st: S_GRP_CLI },
-    { label:'운송사 지불 운임', span:7, st: S_GRP_CAR },
-    { label:'분석', span:4, st: S_GRP_ANA },
-  ];
-  let gc = 0;
-  GRP.forEach(g => {
-    const addr = colLetter(gc) + (rowIdx+1);
-    cell(ws, addr, g.label, g.st);
-    if (g.span > 1) {
-      ws['!merges'].push({ s:{r:rowIdx,c:gc}, e:{r:rowIdx,c:gc+g.span-1} });
-      for (let i=1; i<g.span; i++) {
-        const a2 = colLetter(gc+i)+(rowIdx+1);
-        if (!ws[a2]) ws[a2] = {};
-        ws[a2] = { v:'', s:g.st, t:'s' };
-      }
-    }
-    gc += g.span;
-  });
-  rowIdx++;
-
-  // Column headers
-  const COLS = [
-    ['No',S_COL_BASE],['ORDER일자',S_COL_BASE],['구분',S_COL_BASE],
-    ['출발지',S_COL_BASE],['지역',S_COL_BASE],['출발일자',S_COL_BASE],
-    ['도착지',S_COL_BASE],['지역',S_COL_BASE],['도착일자',S_COL_BASE],
-    ['형태',S_COL_BASE],['연계지',S_COL_BASE],['담당자',S_COL_BASE],['인계자',S_COL_BASE],
-    ['차종',S_COL_BASE],['운송사',S_COL_BASE],['비고',S_COL_BASE],
-    ['운임',S_COL_CLI],['리프트',S_COL_CLI],['폐기',S_COL_CLI],
-    ['보관료',S_COL_CLI],['탁송료',S_COL_CLI],['기타',S_COL_CLI],['청구금액',S_COL_CLI],
-    ['운임',S_COL_CAR],['리프트',S_COL_CAR],['폐기',S_COL_CAR],
-    ['보관료',S_COL_CAR],['탁송료',S_COL_CAR],['기타',S_COL_CAR],['지불금액',S_COL_CAR],
-    ['비고',S_COL_ANA],['거리km',S_COL_ANA],['차이금액',S_COL_ANA],['수익율',S_COL_ANA],
-  ];
-  COLS.forEach(([h,s],ci) => cell(ws, colLetter(ci)+(rowIdx+1), h, s));
-  rowIdx++;
-
-  // Data rows
-  let totCliTotal=0, totCarTotal=0, totCliFare=0, totCarFare=0, totDiff=0;
+  // Row 3+: data
   rows.forEach((r, i) => {
-    const even = i % 2 === 1;
-    const sD = even ? S_DATA_E : S_DATA;
-    const sDL = even ? S_DATA_EL : S_DATA_L;
-    const sDR = even ? S_DATA_ER : S_DATA_R;
+    const row = i + 3;
     const cT = clientTotal(r);
-    const crT = carrierTotal(r);
-    const diff = diffAmt(r);
-    const pR = profitRate(r);
-    totCliTotal += cT; totCarTotal += crT;
-    totCliFare  += r.clientFare; totCarFare += r.carrierFare;
-    totDiff     += diff;
-
-    const row = rowIdx + 1;
-    const vals = [
-      [i+1, sD], [r.orderDate||'', sD], [r.gubun||'', sD],
-      [r.departure||'', sDL], [r.departureRegion||'', sD], [r.departureDate||'', sD],
-      [r.destination||'', sDL], [r.destinationRegion||'', sD], [r.arrivalDate||'', sD],
-      [r.deliveryType||'', sD], [r.relay||'', sD], [r.manager||'', sD], [r.handover||'', sD],
-      [r.vehicle||'', sD], [r.carrier||'', sD], [r.remarks1||'', sDL],
-      [r.clientFare, S_CLI_D], [r.clientLift, S_CLI_D], [r.clientDisposal, S_CLI_D],
-      [r.clientStorage, S_CLI_D], [r.clientTaksong, S_CLI_D], [r.clientOther, S_CLI_D],
-      [cT, S_CLI_T],
-      [r.carrierFare, S_CAR_D], [r.carrierLift, S_CAR_D], [r.carrierDisposal, S_CAR_D],
-      [r.carrierStorage, S_CAR_D], [r.carrierTaksong, S_CAR_D], [r.carrierOther, S_CAR_D],
-      [crT, S_CAR_T],
-      [r.remarks2||'', sDL], [r.distanceKm||0, sD],
-      [diff, diff>=0?S_DIFF_P:S_DIFF_N],
-      [pR, S_PRF]
-    ];
-    vals.forEach(([v,s],ci) => {
-      const a = colLetter(ci)+row;
-      ws[a] = { v, s, t: typeof v==='number' ? 'n' : 's' };
-    });
-    rowIdx++;
+    const put = (ci, v, s, t) => {
+      const a = colLetter(ci) + row;
+      if (v === '' || v === null || v === undefined) {
+        ws[a] = { v:'', s, t:'s' };
+      } else if (t === 'n') {
+        ws[a] = { v: Number(v)||0, s, t:'n' };
+      } else {
+        ws[a] = { v:String(v), s, t:'s' };
+      }
+    };
+    put(0,  i+1,                       S_TXT, 'n');
+    put(1,  r.orderDate||'',           S_DATE);
+    put(2,  r.gubun||'',                S_TXT);
+    put(3,  r.departure||'',            S_TXT_L);
+    put(4,  r.departureRegion||'',      S_TXT);
+    put(5,  r.departureDate||'',        S_DATE);
+    put(6,  r.destination||'',          S_TXT_L);
+    put(7,  r.project||'',              S_TXT_L);
+    put(8,  r.destinationRegion||'',    S_TXT);
+    put(9,  r.arrivalDate||'',          S_DATE);
+    put(10, r.deliveryType||'',         S_TXT);
+    put(11, r.relay||'',                S_TXT);
+    put(12, r.manager||'',              S_TXT);
+    put(13, r.handover||'',             S_TXT);
+    put(14, r.vehicle||'',              S_TXT);
+    put(15, r.remarks1||'',             S_TXT_L);
+    put(16, r.clientFare||0,            S_NUM, 'n');
+    put(17, r.clientLift||0,            S_NUM, 'n');
+    put(18, r.clientDisposal||0,        S_NUM, 'n');
+    put(19, r.clientStorage||0,         S_NUM, 'n');
+    put(20, r.clientTaksong||0,         S_NUM, 'n');
+    put(21, r.clientOther||0,           S_NUM, 'n');
+    put(22, cT,                         S_NUM, 'n');
+    put(23, r.remarks2||'',             S_TXT_L);
+    put(24, r.distanceKm||'',           r.distanceKm ? S_NUM : S_TXT, r.distanceKm ? 'n' : 's');
   });
 
-  // Footer
-  const fRow = rowIdx + 1;
-  const fRate = totCliTotal ? (totDiff/totCliTotal*100).toFixed(1)+'%' : '—';
-  const fVals = [
-    ['합 계', S_FOOT], [`${rows.length}건`, S_FOOT], ['', S_FOOT],
-    ['', S_FOOT],['', S_FOOT],['', S_FOOT],
-    ['', S_FOOT],['', S_FOOT],['', S_FOOT],
-    ['', S_FOOT],['', S_FOOT],['', S_FOOT],['', S_FOOT],
-    ['', S_FOOT],['', S_FOOT],['', S_FOOT],
-    [totCliFare, S_FOOT_CLI],[0, S_FOOT_CLI],[0, S_FOOT_CLI],
-    [0, S_FOOT_CLI],[0, S_FOOT_CLI],[0, S_FOOT_CLI],[totCliTotal, S_FOOT_CLI],
-    [totCarFare, S_FOOT_CAR],[0, S_FOOT_CAR],[0, S_FOOT_CAR],
-    [0, S_FOOT_CAR],[0, S_FOOT_CAR],[0, S_FOOT_CAR],[totCarTotal, S_FOOT_CAR],
-    ['', S_FOOT_ANA],['', S_FOOT_ANA],[totDiff, S_FOOT_DIFF],[fRate, S_FOOT_ANA]
+  // Footer: CS / UL / BU / TTL (집계 행)
+  const dataStart = 3;
+  const dataEnd   = rows.length + 2;
+  const sumRows = [
+    { label:'CS', row: dataEnd + 1 },
+    { label:'UL', row: dataEnd + 2 },
+    { label:'BU', row: dataEnd + 3 },
   ];
-  fVals.forEach(([v,s],ci) => {
-    const a = colLetter(ci)+fRow;
-    ws[a] = { v: v||'', s, t: typeof v==='number' ? 'n' : 's' };
+  sumRows.forEach(sr => {
+    // A, B blank
+    ws['A'+sr.row] = { v:'', s:S_SUM_L, t:'s' };
+    ws['B'+sr.row] = { v:'', s:S_SUM_L, t:'s' };
+    ws['C'+sr.row] = { v:sr.label, s:S_SUM_L, t:'s' };
+    ws['D'+sr.row] = { f:`SUMIF($C$${dataStart}:$C$${dataEnd},C${sr.row},$W$${dataStart}:$W$${dataEnd})`, s:S_SUM_N, t:'n' };
+    ws['E'+sr.row] = { f:`COUNTIF($C$${dataStart}:$C$${dataEnd},C${sr.row})`, s:S_SUM_N, t:'n' };
+    for (let c=5; c<COL_N; c++) ws[colLetter(c)+sr.row] = { v:'', s:S_SUM_L, t:'s' };
   });
+  const ttlRow = dataEnd + 4;
+  ws['A'+ttlRow] = { v:'', s:S_TTL_L, t:'s' };
+  ws['B'+ttlRow] = { v:'', s:S_TTL_L, t:'s' };
+  ws['C'+ttlRow] = { v:'TTL', s:S_TTL_L, t:'s' };
+  ws['D'+ttlRow] = { f:`SUM(D${sumRows[0].row}:D${sumRows[2].row})`, s:S_TTL_N, t:'n' };
+  ws['E'+ttlRow] = { f:`SUM(E${sumRows[0].row}:E${sumRows[2].row})`, s:S_TTL_N, t:'n' };
+  for (let c=5; c<COL_N; c++) ws[colLetter(c)+ttlRow] = { v:'', s:S_TTL_L, t:'s' };
 
-  // Column widths
+  // Column widths (원본과 동일)
   ws['!cols'] = [
-    {wch:5},{wch:11},{wch:8},{wch:18},{wch:10},{wch:11},
-    {wch:18},{wch:10},{wch:11},{wch:8},{wch:12},{wch:9},{wch:9},
-    {wch:8},{wch:8},{wch:14},
-    {wch:11},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:12},
-    {wch:11},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:12},
-    {wch:14},{wch:8},{wch:12},{wch:9}
+    {wch:9.5}, {wch:25}, {wch:9.5}, {wch:21.5}, {wch:9.5}, {wch:12.8},
+    {wch:29.3}, {wch:18.8}, {wch:9.5}, {wch:12.8}, {wch:10.1}, {wch:16},
+    {wch:11.2}, {wch:11}, {wch:9.5}, {wch:12.8}, {wch:11}, {wch:12.5},
+    {wch:11}, {wch:12.5}, {wch:11}, {wch:11}, {wch:14.3}, {wch:17.4}, {wch:9.5}
   ];
+  ws['!rows'] = [ {hpt:28}, {hpt:22}, ...rows.map(()=>({hpt:18})), {hpt:20}, {hpt:20}, {hpt:20}, {hpt:22} ];
+  ws['!ref'] = `A1:${colLetter(COL_N-1)}${ttlRow}`;
 
-  // Row heights
-  ws['!rows'] = [
-    { hpt:28 }, // title
-    { hpt:20 }, // group header
-    { hpt:18 }, // col header
-    ...rows.map(() => ({ hpt:18 })),
-    { hpt:20 }  // footer
-  ];
-
-  // Ref range
-  ws['!ref'] = `A1:${colLetter(COL_COUNT-1)}${fRow}`;
-
-  const wb = { SheetNames:['운송청구서'], Sheets:{ '운송청구서': ws } };
-  const fname = `캐논메디칼_운송청구서_${y}${m}.xlsx`;
+  const wb = { SheetNames:['운송내역'], Sheets:{ '운송내역': ws } };
+  const fname = `CMSK_운송내역_${y}${m}.xlsx`;
   XLSX.writeFile(wb, fname);
 }
 
