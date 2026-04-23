@@ -121,6 +121,11 @@ if DATABASE_URL:
             start_time TEXT, end_time TEXT, work_content TEXT,
             ot_hours REAL DEFAULT 0, meal_ticket TEXT DEFAULT 'X',
             notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        cur.execute('''CREATE TABLE IF NOT EXISTS canon_billing (
+            month TEXT PRIMARY KEY, data TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        cur.execute('''CREATE TABLE IF NOT EXISTS canon_billing_meta (
+            key TEXT PRIMARY KEY, value TEXT)''')
         # OT 시드 데이터 (테이블이 비어있을 때만 삽입)
         cur.execute('SELECT COUNT(*) as cnt FROM ot_records')
         row = cur.fetchone(); cnt = dict(row).get('cnt', 0) if row else 0
@@ -246,6 +251,11 @@ else:
             start_time TEXT, end_time TEXT, work_content TEXT,
             ot_hours REAL DEFAULT 0, meal_ticket TEXT DEFAULT 'X',
             notes TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS canon_billing (
+            month TEXT PRIMARY KEY, data TEXT NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS canon_billing_meta (
+            key TEXT PRIMARY KEY, value TEXT)''')
         # OT 시드 데이터 (테이블이 비어있을 때만 삽입)
         cnt = c.execute('SELECT COUNT(*) FROM ot_records').fetchone()[0]
         if cnt == 0:
@@ -658,6 +668,18 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/config':
             return self.send_json({'companyName': COMPANY})
 
+        # ── 캐논 청구 데이터 (PC 간 공유) ──
+        if path == '/api/canon/billing':
+            rows = db_fetchall('SELECT month, data FROM canon_billing', ())
+            out = {}
+            for r in rows:
+                try: out[r['month']] = json.loads(r['data'])
+                except: out[r['month']] = []
+            meta = db_fetch("SELECT value FROM canon_billing_meta WHERE key=?", ('manualSort',))
+            try: ms = json.loads(meta['value']) if meta and meta.get('value') else []
+            except: ms = []
+            return self.send_json({'data': out, 'manualSort': ms})
+
         # ── 로컬 파일 열기 (Windows os.startfile) ──
         if path == '/api/open-file':
             if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
@@ -927,6 +949,29 @@ class Handler(BaseHTTPRequestHandler):
         p    = urlparse(self.path).path.rstrip('/')
         body = self.read_body()
 
+        # ── 캐논 청구 데이터 저장 (월별 덮어쓰기) ──
+        if p == '/api/canon/billing':
+            month = body.get('month','')
+            rows_in = body.get('rows')
+            manual_sort = body.get('manualSort')
+            if not month or not isinstance(rows_in, list):
+                return self.send_json({'error':'month와 rows 필수'}, 400)
+            payload = json.dumps(rows_in, ensure_ascii=False)
+            # upsert
+            exists = db_fetch('SELECT 1 AS x FROM canon_billing WHERE month=?', (month,))
+            if exists:
+                db_exec('UPDATE canon_billing SET data=?, updated_at=CURRENT_TIMESTAMP WHERE month=?', (payload, month))
+            else:
+                db_exec('INSERT INTO canon_billing (month, data) VALUES (?, ?)', (month, payload))
+            if isinstance(manual_sort, list):
+                ms_json = json.dumps(manual_sort, ensure_ascii=False)
+                meta_exists = db_fetch("SELECT 1 AS x FROM canon_billing_meta WHERE key=?", ('manualSort',))
+                if meta_exists:
+                    db_exec("UPDATE canon_billing_meta SET value=? WHERE key=?", (ms_json, 'manualSort'))
+                else:
+                    db_exec("INSERT INTO canon_billing_meta (key, value) VALUES (?, ?)", ('manualSort', ms_json))
+            return self.send_json({'success': True})
+
         # 인증
         if p == '/api/auth':
             pw = body.get('password','')
@@ -1160,6 +1205,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_DELETE(self):
       try:
         p = urlparse(self.path).path.rstrip('/')
+
+        # 캐논 청구: 월 삭제 (인증 없이 허용)
+        mc = re.match(r'^/api/canon/billing/([^/]+)$', p)
+        if mc:
+            db_exec('DELETE FROM canon_billing WHERE month=?', (mc.group(1),))
+            return self.send_json({'success': True})
+
         if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
 
         m = re.match(r'^/api/records/(\d+)$', p)
