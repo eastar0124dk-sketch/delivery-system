@@ -415,6 +415,9 @@
   <button class="btn btn-gray" id="btnDateSort" onclick="sortByDate()" title="ORDER일자 기준 오름차순 정렬 (수동 이동 후 재정렬)">
     <i class="fas fa-sort-amount-up-alt"></i> 날짜순
   </button>
+  <button class="btn" style="background:#7c3aed;color:#fff;" onclick="shiftDatesPlusOne()" title="타임존 버그로 하루 밀린 출발일자/도착일자를 +1일 보정합니다 (ORDER일자는 건드리지 않음)">
+    <i class="fas fa-calendar-plus"></i> 일자 +1일 교정
+  </button>
   <div class="spacer"></div>
   <span id="autoSaveMsg"></span>
 </div>
@@ -1325,6 +1328,40 @@ const NUM_FIELDS = new Set([
   'carrierFare','carrierLift','carrierDisposal','carrierStorage','carrierTaksong','carrierOther',
   'distanceKm'
 ]);
+
+/* 출발/도착일자 +1일 교정 (타임존 버그 사후 보정) */
+function shiftDatesPlusOne() {
+  const rows = billingData[currentMonth] || [];
+  if (rows.length === 0) { alert('교정할 데이터가 없습니다.'); return; }
+  const scope = prompt(
+    `현재 월(${currentMonth}) ${rows.length}건의 출발일자/도착일자를 +1일 이동합니다.\n` +
+    `ORDER일자는 건드리지 않습니다.\n\n` +
+    `주의: 이 작업은 이미 수정된 일자도 +1일 이동합니다.\n` +
+    `실행하려면 "확인"을 입력하세요 (취소하려면 빈칸).`,
+    ''
+  );
+  if (scope !== '확인') { alert('취소되었습니다.'); return; }
+
+  const addOneDay = (s) => {
+    if (!s) return s;
+    const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return s; // 형식 다르면 스킵
+    const d = new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+    d.setUTCDate(d.getUTCDate() + 1);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+  };
+
+  let count = 0;
+  rows.forEach(r => {
+    const before1 = r.departureDate, before2 = r.arrivalDate;
+    if (r.departureDate) r.departureDate = addOneDay(r.departureDate);
+    if (r.arrivalDate)   r.arrivalDate   = addOneDay(r.arrivalDate);
+    if (r.departureDate !== before1 || r.arrivalDate !== before2) count++;
+  });
+  saveStorage();
+  renderAll();
+  alert(`${count}건 교정 완료.\n서버에도 자동 저장됩니다.`);
+}
 
 /* ORDER일자 셀 렌더러 (날짜 + 오전/오후 + 시 + 분) */
 function renderOrderDateCell(r) {
