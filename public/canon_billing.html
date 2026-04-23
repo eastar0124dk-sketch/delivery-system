@@ -341,6 +341,12 @@
     .w115 { min-width:115px; width:115px; }
     .w120 { min-width:120px; width:120px; }
     .w150 { min-width:150px; width:150px; }
+    .w220 { min-width:220px; width:220px; }
+    .od-wrap { display:flex; gap:2px; align-items:center; }
+    .od-wrap input[type="date"] { flex:1; min-width:105px; padding:2px 4px; font-size:12px; }
+    .od-wrap select { padding:2px 2px; font-size:12px; border:1px solid #d1d5db; border-radius:3px; background:#fff; }
+    .od-ap { width:42px; }
+    .od-hr, .od-mi { width:40px; }
 
     /* Empty */
     .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
@@ -453,7 +459,7 @@
         </th>
         <th class="w34">No</th>
         <!-- Base -->
-        <th class="w150" data-fkey="orderDate">ORDER일자<span class="flt-btn" onclick="openFilter(event,'orderDate',this)">▼</span></th>
+        <th class="w220" data-fkey="orderDate">ORDER일자<span class="flt-btn" onclick="openFilter(event,'orderDate',this)">▼</span></th>
         <th class="w70" data-fkey="gubun">구분<span class="flt-btn" onclick="openFilter(event,'gubun',this)">▼</span></th>
         <th class="w115" data-fkey="departure">출발지<span class="flt-btn" onclick="openFilter(event,'departure',this)">▼</span></th>
         <th class="w80" data-fkey="departureRegion">지역<span class="flt-btn" onclick="openFilter(event,'departureRegion',this)">▼</span></th>
@@ -1226,6 +1232,73 @@ const NUM_FIELDS = new Set([
   'distanceKm'
 ]);
 
+/* ORDER일자 셀 렌더러 (날짜 + 오전/오후 + 시 + 분) */
+function renderOrderDateCell(r) {
+  const val = r.orderDate || '';
+  let datePart = '', ap = '오전', hh = '', mm = '';
+  const m = val.match(/^(\d{4}-\d{2}-\d{2})(?:T(\d{2}):(\d{2}))?/);
+  if (m) {
+    datePart = m[1];
+    if (m[2] !== undefined) {
+      const h24 = parseInt(m[2]);
+      ap = h24 < 12 ? '오전' : '오후';
+      let h12 = h24 % 12; if (h12 === 0) h12 = 12;
+      hh = String(h12);
+      mm = m[3];
+    }
+  }
+  const hourOpts = ['<option value="">시</option>']
+    .concat([1,2,3,4,5,6,7,8,9,10,11,12].map(h => `<option value="${h}" ${String(h)===hh?'selected':''}>${h}</option>`)).join('');
+  const minOpts = ['<option value="">분</option>']
+    .concat(['00','05','10','15','20','25','30','35','40','45','50','55']
+      .map(m => `<option value="${m}" ${m===mm?'selected':''}>${m}</option>`)).join('');
+  return `<div class="od-wrap">
+    <input type="date" value="${datePart}" onchange="onOrderDatePart('${r.id}','d',this.value)">
+    <select class="od-ap" onchange="onOrderDatePart('${r.id}','ap',this.value)">
+      <option value="오전" ${ap==='오전'?'selected':''}>오전</option>
+      <option value="오후" ${ap==='오후'?'selected':''}>오후</option>
+    </select>
+    <select class="od-hr" onchange="onOrderDatePart('${r.id}','h',this.value)">${hourOpts}</select>
+    <select class="od-mi" onchange="onOrderDatePart('${r.id}','m',this.value)">${minOpts}</select>
+  </div>`;
+}
+
+function onOrderDatePart(id, part, val) {
+  const rows = billingData[currentMonth];
+  if (!rows) return;
+  const row = rows.find(r => r.id === id);
+  if (!row) return;
+  // 현재 값 분해
+  let datePart = '', ap = '오전', hh = '', mm = '';
+  const cur = row.orderDate || '';
+  const m = cur.match(/^(\d{4}-\d{2}-\d{2})(?:T(\d{2}):(\d{2}))?/);
+  if (m) {
+    datePart = m[1];
+    if (m[2] !== undefined) {
+      const h24 = parseInt(m[2]);
+      ap = h24 < 12 ? '오전' : '오후';
+      let h12 = h24 % 12; if (h12 === 0) h12 = 12;
+      hh = String(h12);
+      mm = m[3];
+    }
+  }
+  if (part === 'd')  datePart = val;
+  if (part === 'ap') ap = val;
+  if (part === 'h')  hh = val;
+  if (part === 'm')  mm = val;
+  // 조립
+  if (!datePart) { row.orderDate = ''; }
+  else if (!hh || !mm) { row.orderDate = datePart; }
+  else {
+    let h24 = parseInt(hh);
+    if (ap === '오후' && h24 < 12) h24 += 12;
+    if (ap === '오전' && h24 === 12) h24 = 0;
+    row.orderDate = `${datePart}T${String(h24).padStart(2,'0')}:${mm}`;
+  }
+  saveStorage();
+  refreshRow(id);
+}
+
 function onFieldChange(id, field, value) {
   const rows = billingData[currentMonth];
   if (!rows) return;
@@ -1426,8 +1499,7 @@ function buildRow(r, idx) {
         ).join('')}
       </div>
     </td>
-    <td class="w150"><input class="ci" type="datetime-local" value="${r.orderDate || ''}"
-      onchange="onFieldChange('${r.id}','orderDate',this.value)"></td>
+    <td class="w220">${renderOrderDateCell(r)}</td>
     <td class="w70"><input class="ci" type="text" value="${r.gubun}" placeholder="구분"
       oninput="onFieldChange('${r.id}','gubun',this.value)"></td>
     <td class="w115"><input class="ci left" type="text" value="${r.departure}" placeholder="출발지"
