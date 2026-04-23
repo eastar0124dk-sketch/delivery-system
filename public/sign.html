@@ -171,14 +171,33 @@
         <!-- 사진 업로드 영역 -->
         <div id="receiverPhotoArea" style="display:none;">
           <p style="font-size:12px;color:#e53e3e;font-weight:600;margin-bottom:10px;">⚠️ 수령인 부재 — 배송 사진을 업로드하세요</p>
-          <label for="photoInput" style="display:block;border:2.5px dashed #e2e8f0;border-radius:12px;padding:24px;text-align:center;cursor:pointer;background:#fafafa;transition:all .2s;" id="photoLabel">
-            <i class="fas fa-camera" style="font-size:36px;color:#a0aec0;display:block;margin-bottom:10px;"></i>
-            <span style="font-size:13px;color:#718096;">사진을 탭하여 선택 또는 촬영</span>
-          </label>
-          <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="onPhotoSelected(this)">
+
+          <!-- 업로드 버튼 3종 -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+            <label for="photoInputCamera" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;background:#ebf8ff;border:1.5px solid #bee3f8;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:#2b6cb0;">
+              <i class="fas fa-camera"></i> 촬영 / 파일
+            </label>
+            <button onclick="pasteFromClipboard()" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;background:#f0fff4;border:1.5px solid #9ae6b4;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:#276749;font-family:inherit;">
+              <i class="fas fa-paste"></i> 캡처 붙여넣기
+            </button>
+          </div>
+          <div style="font-size:11px;color:#a0aec0;text-align:center;margin-bottom:10px;">💡 캡처 후 Ctrl+V 로도 붙여넣기 가능</div>
+
+          <!-- 드롭/붙여넣기 히트 영역 -->
+          <div id="photoDropZone" style="border:2.5px dashed #e2e8f0;border-radius:12px;padding:24px;text-align:center;background:#fafafa;transition:all .2s;" id="photoLabel"
+            ondragover="event.preventDefault();this.style.borderColor='#667eea';this.style.background='#ebf4ff';"
+            ondragleave="this.style.borderColor='#e2e8f0';this.style.background='#fafafa';"
+            ondrop="onPhotoDrop(event)">
+            <i class="fas fa-image" style="font-size:36px;color:#a0aec0;display:block;margin-bottom:8px;"></i>
+            <span style="font-size:13px;color:#718096;">여기에 이미지를 드래그하거나<br>위 버튼으로 선택하세요</span>
+          </div>
+
+          <!-- hidden inputs -->
+          <input type="file" id="photoInputCamera" accept="image/*" style="display:none;" onchange="onPhotoSelected(this)">
+
           <div id="photoPreview" style="display:none;margin-top:10px;text-align:center;">
             <img id="photoImg" style="max-width:100%;border-radius:10px;border:1.5px solid #e2e8f0;" alt="배송 사진">
-            <button class="btn btn-secondary" style="margin-top:8px;width:100%;justify-content:center;" onclick="clearPhoto()"><i class="fas fa-redo"></i> 다시 찍기</button>
+            <button class="btn btn-secondary" style="margin-top:8px;width:100%;justify-content:center;" onclick="clearPhoto()"><i class="fas fa-redo"></i> 다시 선택</button>
           </div>
         </div>
 
@@ -228,24 +247,78 @@
       document.getElementById('modePhotoBtn').style.color        = mode==='photo' ? '#fff' : '#718096';
     }
 
+    // 공통 사진 로드 함수
+    function loadPhotoData(dataUrl) {
+      photoData = dataUrl;
+      document.getElementById('photoImg').src = dataUrl;
+      document.getElementById('photoPreview').style.display = 'block';
+      document.getElementById('photoDropZone').style.display = 'none';
+    }
+
     function onPhotoSelected(input) {
       const file = input.files[0];
       if(!file) return;
+      readFileAsPhoto(file);
+    }
+
+    function readFileAsPhoto(file) {
+      if(!file || !file.type.startsWith('image/')) {
+        alert('이미지 파일만 업로드 가능합니다.'); return;
+      }
       const reader = new FileReader();
-      reader.onload = function(e) {
-        photoData = e.target.result;
-        document.getElementById('photoImg').src = photoData;
-        document.getElementById('photoPreview').style.display = 'block';
-        document.getElementById('photoLabel').style.display   = 'none';
-      };
+      reader.onload = e => loadPhotoData(e.target.result);
       reader.readAsDataURL(file);
+    }
+
+    // 클립보드 버튼 (navigator.clipboard API)
+    async function pasteFromClipboard() {
+      try {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const imgType = item.types.find(t => t.startsWith('image/'));
+          if (imgType) {
+            const blob = await item.getType(imgType);
+            const reader = new FileReader();
+            reader.onload = e => loadPhotoData(e.target.result);
+            reader.readAsDataURL(blob);
+            return;
+          }
+        }
+        alert('클립보드에 이미지가 없습니다.\n화면을 캡처(PrintScreen)한 후 다시 시도하세요.');
+      } catch(err) {
+        // 권한 거부 시 Ctrl+V 안내
+        alert('클립보드 접근 권한이 필요합니다.\n캡처 후 Ctrl+V 로 붙여넣기 해주세요.');
+      }
+    }
+
+    // Ctrl+V 전역 붙여넣기
+    document.addEventListener('paste', function(e) {
+      if (receiverMode !== 'photo') return;
+      const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          readFileAsPhoto(item.getAsFile());
+          return;
+        }
+      }
+    });
+
+    // 드래그앤드롭
+    function onPhotoDrop(e) {
+      e.preventDefault();
+      const dz = document.getElementById('photoDropZone');
+      dz.style.borderColor = '#e2e8f0';
+      dz.style.background  = '#fafafa';
+      const file = e.dataTransfer.files[0];
+      if (file) readFileAsPhoto(file);
     }
 
     function clearPhoto() {
       photoData = null;
-      document.getElementById('photoInput').value = '';
+      document.getElementById('photoInputCamera').value = '';
       document.getElementById('photoPreview').style.display = 'none';
-      document.getElementById('photoLabel').style.display   = 'block';
+      document.getElementById('photoDropZone').style.display = 'block';
     }
 
     // 캔버스 초기화
