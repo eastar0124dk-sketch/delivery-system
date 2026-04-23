@@ -937,9 +937,11 @@ function saveStorage() {
   const el = document.getElementById('autoSaveMsg');
   el.textContent = '저장 중...';
   clearTimeout(el._t);
+  saveStorage._pendingMonth = currentMonth;
   // 서버 저장 (debounce)
   clearTimeout(saveStorage._srvT);
   saveStorage._srvT = setTimeout(() => {
+    saveStorage._pendingMonth = null;
     syncCurrentMonthToServer().then(() => {
       el.textContent = '서버 저장됨 ✓';
       clearTimeout(el._t);
@@ -952,6 +954,48 @@ function saveStorage() {
     });
   }, 500);
 }
+
+// 페이지 이탈 직전 대기중인 저장을 즉시 서버로 플러시 (디바운스 유실 방지)
+function flushPendingSave() {
+  if (!saveStorage._pendingMonth) return;
+  const m = saveStorage._pendingMonth;
+  saveStorage._pendingMonth = null;
+  clearTimeout(saveStorage._srvT);
+  const rows = billingData[m] || [];
+  const body = JSON.stringify({ month: m, rows, manualSort: [...manualSortMonths] });
+  // sendBeacon은 페이지 unload 중에도 보장 전송
+  try {
+    const blob = new Blob([body], { type: 'application/json' });
+    if (navigator.sendBeacon('/api/canon/billing', blob)) return;
+  } catch(e) {}
+  // 폴백
+  try {
+    fetch('/api/canon/billing', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body, keepalive: true
+    });
+  } catch(e) {}
+}
+window.addEventListener('beforeunload', flushPendingSave);
+window.addEventListener('pagehide', flushPendingSave);
+
+// 탭이 다시 활성화되면 서버에서 최신 데이터 재동기화 (다른 PC의 편집 반영)
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return;
+  if (saveStorage._pendingMonth) return; // 내 저장 대기중엔 스킵
+  try {
+    const res = await fetch('/api/canon/billing', { cache:'no-store' });
+    if (!res.ok) return;
+    const json = await res.json();
+    const serverData = json.data || {};
+    // 서버에 현재 월 데이터가 있으면 덮어쓰기
+    if (Array.isArray(serverData[currentMonth])) {
+      billingData[currentMonth] = serverData[currentMonth];
+      localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
+      renderAll();
+    }
+  } catch(e) { /* 무시 */ }
+});
 
 async function syncCurrentMonthToServer(month) {
   const m = month || currentMonth;
