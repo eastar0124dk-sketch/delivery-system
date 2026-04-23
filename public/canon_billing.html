@@ -2001,14 +2001,21 @@ function importExcel(buffer) {
       } else {
         // SheetJS cellDates:true → Date 객체로 파싱
         if (raw_val instanceof Date) {
-          const yy = raw_val.getFullYear();
-          const mm = String(raw_val.getMonth()+1).padStart(2,'0');
-          const dd = String(raw_val.getDate()).padStart(2,'0');
           if (field === 'orderDate') {
-            const HH = String(raw_val.getHours()).padStart(2,'0');
-            const MM = String(raw_val.getMinutes()).padStart(2,'0');
+            // orderDate: 시각이 의미 있음 → 로컬 표시 기준 유지
+            // SheetJS는 시간 정보 포함 셀도 UTC로 해석하여 Date 생성하는 경우가 있어
+            // UTC 기준으로 읽어 로컬 타임존 오프셋 영향 제거
+            const yy = raw_val.getUTCFullYear();
+            const mm = String(raw_val.getUTCMonth()+1).padStart(2,'0');
+            const dd = String(raw_val.getUTCDate()).padStart(2,'0');
+            const HH = String(raw_val.getUTCHours()).padStart(2,'0');
+            const MM = String(raw_val.getUTCMinutes()).padStart(2,'0');
             obj[field] = `${yy}-${mm}-${dd}T${HH}:${MM}`;
           } else {
+            // 날짜만: SheetJS가 UTC 자정으로 만들므로 UTC getter로 읽어야 날짜 유지
+            const yy = raw_val.getUTCFullYear();
+            const mm = String(raw_val.getUTCMonth()+1).padStart(2,'0');
+            const dd = String(raw_val.getUTCDate()).padStart(2,'0');
             obj[field] = `${yy}-${mm}-${dd}`;
           }
         } else {
