@@ -1344,7 +1344,7 @@ function renderOrderDateCell(r) {
   const hourOpts = ['<option value="">시</option>']
     .concat([1,2,3,4,5,6,7,8,9,10,11,12].map(h => `<option value="${h}" ${String(h)===hh?'selected':''}>${h}</option>`)).join('');
   const minOpts = ['<option value="">분</option>']
-    .concat(['00','05','10','15','20','25','30','35','40','45','50','55']
+    .concat(Array.from({length:60}, (_,i) => String(i).padStart(2,'0'))
       .map(m => `<option value="${m}" ${m===mm?'selected':''}>${m}</option>`)).join('');
   return `<div class="od-wrap">
     <input type="date" value="${datePart}" onchange="onOrderDatePart('${r.id}','d',this.value)">
@@ -1381,13 +1381,21 @@ function onOrderDatePart(id, part, val) {
   if (part === 'h')  hh = val;
   if (part === 'm')  mm = val;
   // 조립
-  if (!datePart) { row.orderDate = ''; }
-  else if (!hh || !mm) { row.orderDate = datePart; }
-  else {
-    let h24 = parseInt(hh);
-    if (ap === '오후' && h24 < 12) h24 += 12;
-    if (ap === '오전' && h24 === 12) h24 = 0;
-    row.orderDate = `${datePart}T${String(h24).padStart(2,'0')}:${mm}`;
+  if (!datePart) {
+    row.orderDate = '';
+  } else {
+    // 시·분 중 하나만 선택했을 때 나머지는 기본값 부여 (사용자 선택 보존)
+    const anyTime = hh !== '' || mm !== '' || (part === 'ap');
+    if (anyTime) {
+      if (hh === '') hh = '9';           // 분만 선택 → 시 기본 9
+      if (mm === '') mm = '00';          // 시만 선택 → 분 기본 00
+      let h24 = parseInt(hh);
+      if (ap === '오후' && h24 < 12) h24 += 12;
+      if (ap === '오전' && h24 === 12) h24 = 0;
+      row.orderDate = `${datePart}T${String(h24).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+    } else {
+      row.orderDate = datePart;
+    }
   }
   saveStorage();
   refreshRow(id);
