@@ -52,6 +52,21 @@ try {
   db.exec("UPDATE delivery_records SET client_code='mettler' WHERE client_code IS NULL");
 } catch(e) { /* 이미 존재하면 무시 */ }
 
+// 캐논 청구 데이터 (월별 JSON 저장) - PC 간 공유용
+db.exec(`
+  CREATE TABLE IF NOT EXISTS canon_billing (
+    month      TEXT PRIMARY KEY,
+    data       TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS canon_billing_meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+  )
+`);
+
 // ──────────────────────────────────────────
 //  인증 토큰 관리 (메모리)
 // ──────────────────────────────────────────
@@ -201,6 +216,44 @@ app.delete('/api/records/:id', requireAdmin, (req, res) => {
 // 회사명 제공 (프론트엔드용)
 app.get('/api/config', (req, res) => {
   res.json({ companyName: COMPANY_NAME });
+});
+
+// ──────────────────────────────────────────
+//  캐논 청구 데이터 (서버 저장 - PC 간 공유)
+// ──────────────────────────────────────────
+// 전체 월 데이터 조회
+app.get('/api/canon/billing', (req, res) => {
+  const rows = db.prepare('SELECT month, data FROM canon_billing').all();
+  const out = {};
+  for (const r of rows) {
+    try { out[r.month] = JSON.parse(r.data); } catch(e) { out[r.month] = []; }
+  }
+  const meta = db.prepare('SELECT value FROM canon_billing_meta WHERE key=?').get('manualSort');
+  res.json({ data: out, manualSort: meta ? JSON.parse(meta.value) : [] });
+});
+
+// 특정 월 저장 (덮어쓰기)
+app.post('/api/canon/billing', (req, res) => {
+  const { month, rows, manualSort } = req.body || {};
+  if (!month || !Array.isArray(rows)) return res.status(400).json({ error: 'month와 rows 필수' });
+  const payload = JSON.stringify(rows);
+  db.prepare(`
+    INSERT INTO canon_billing (month, data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(month) DO UPDATE SET data=excluded.data, updated_at=CURRENT_TIMESTAMP
+  `).run([month, payload]);
+  if (Array.isArray(manualSort)) {
+    db.prepare(`
+      INSERT INTO canon_billing_meta (key, value) VALUES ('manualSort', ?)
+      ON CONFLICT(key) DO UPDATE SET value=excluded.value
+    `).run([JSON.stringify(manualSort)]);
+  }
+  res.json({ success: true });
+});
+
+// 특정 월 삭제
+app.delete('/api/canon/billing/:month', (req, res) => {
+  db.prepare('DELETE FROM canon_billing WHERE month=?').run(req.params.month);
+  res.json({ success: true });
 });
 
 // ──────────────────────────────────────────

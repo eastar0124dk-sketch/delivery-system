@@ -622,14 +622,19 @@ let dragSrcId = null;
 /* ════════════════════════════════════════════════════════════
    초기화
 ════════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   loadMeta();
-  loadStorage();
   const now = new Date();
   currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   document.getElementById('monthPicker').value = currentMonth;
-  ensureMonth(currentMonth);
   setDefaultPeriod(currentMonth);
+  // 1차: 로컬 캐시로 즉시 렌더 (빠른 표시)
+  try { billingData = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch { billingData = {}; }
+  ensureMonth(currentMonth);
+  renderAll();
+  // 2차: 서버에서 최신 데이터 받아와 덮어쓰기
+  await loadStorage();
+  ensureMonth(currentMonth);
   renderAll();
 });
 
@@ -833,9 +838,25 @@ function saveMeta() {
   localStorage.setItem(META_KEY, JSON.stringify({ manualSort: [...manualSortMonths] }));
 }
 
-function loadStorage() {
-  try { billingData = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }
-  catch { billingData = {}; }
+async function loadStorage() {
+  // 1차: 서버에서 로드 (PC 간 공유)
+  try {
+    const res = await fetch('/api/canon/billing', { cache:'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      billingData = json.data || {};
+      if (Array.isArray(json.manualSort)) manualSortMonths = new Set(json.manualSort);
+      // 로컬 캐시 동기화
+      localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
+    } else {
+      throw new Error('server fetch failed');
+    }
+  } catch(e) {
+    // 서버 실패 시 로컬 캐시 폴백
+    console.warn('서버 로드 실패 → 로컬 캐시 사용', e);
+    try { billingData = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }
+    catch { billingData = {}; }
+  }
   // 마이그레이션: 구버전 gubun(dropdown) → deliveryType, form → deliveryType
   let migrated = false;
   Object.values(billingData).forEach(arr => {
@@ -873,11 +894,46 @@ function loadStorage() {
   if (migrated) saveStorage(); // 변경 내용 즉시 저장
 }
 function saveStorage() {
+  // 로컬 캐시 즉시 저장
   localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
   const el = document.getElementById('autoSaveMsg');
-  el.textContent = '저장됨 ✓';
+  el.textContent = '저장 중...';
   clearTimeout(el._t);
-  el._t = setTimeout(() => { el.textContent = ''; }, 1800);
+  // 서버 저장 (debounce)
+  clearTimeout(saveStorage._srvT);
+  saveStorage._srvT = setTimeout(() => {
+    syncCurrentMonthToServer().then(() => {
+      el.textContent = '서버 저장됨 ✓';
+      clearTimeout(el._t);
+      el._t = setTimeout(() => { el.textContent = ''; }, 2000);
+    }).catch(err => {
+      console.warn('서버 저장 실패', err);
+      el.textContent = '⚠ 로컬만 저장됨';
+      clearTimeout(el._t);
+      el._t = setTimeout(() => { el.textContent = ''; }, 3000);
+    });
+  }, 500);
+}
+
+async function syncCurrentMonthToServer(month) {
+  const m = month || currentMonth;
+  if (!m) return;
+  const rows = billingData[m] || [];
+  const manualSort = [...manualSortMonths];
+  const res = await fetch('/api/canon/billing', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ month: m, rows, manualSort })
+  });
+  if (!res.ok) throw new Error('save failed: '+res.status);
+}
+
+// 전체 월 일괄 동기화 (업로드/붙여넣기 등 대량 변경 시)
+async function syncAllMonthsToServer() {
+  for (const m of Object.keys(billingData)) {
+    try { await syncCurrentMonthToServer(m); }
+    catch(e) { console.warn('월 저장 실패', m, e); }
+  }
 }
 function ensureMonth(m) {
   if (!billingData[m]) billingData[m] = [];
