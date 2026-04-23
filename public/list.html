@@ -45,6 +45,13 @@
     .qd-btn{padding:5px 12px;border:1.5px solid #e2e8f0;border-radius:20px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;background:#fff;color:#4a5568;transition:all .2s;}
     .qd-btn:hover,.qd-btn.active{background:#43e97b;border-color:#43e97b;color:#1a202c;}
     .filter-btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+    /* 상태 빠른 필터 */
+    .sqf-btn{padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:20px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;background:#fff;color:#4a5568;transition:all .2s;}
+    .sqf-btn:hover{border-color:#667eea;color:#667eea;}
+    .sqf-btn.sqf-active{background:#667eea;border-color:#667eea;color:#fff;}
+    #sqf-signed.sqf-active{background:#38a169;border-color:#38a169;color:#fff;}
+    #sqf-draft.sqf-active{background:#d69e2e;border-color:#d69e2e;color:#fff;}
+    .sqf-cnt{font-size:11px;opacity:.85;margin-left:2px;}
     /* 개인정보 토글 */
     .privacy-toggle{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;font-size:12px;color:#856404;cursor:pointer;transition:all .2s;}
     .privacy-toggle:hover{background:#fff0b3;}
@@ -208,6 +215,20 @@
     </div>
   </div>
 
+  <!-- 상태 빠른 필터 -->
+  <div id="statusQuickFilter" style="display:none;padding:8px 0 4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <span style="font-size:12px;color:#718096;font-weight:600;">상태 필터:</span>
+    <button id="sqf-all"    class="sqf-btn sqf-active" onclick="setStatusQuick('')">
+      전체 <span id="sqf-cnt-all" class="sqf-cnt"></span>
+    </button>
+    <button id="sqf-signed" class="sqf-btn" onclick="setStatusQuick('signed')">
+      ✅ 완료 <span id="sqf-cnt-signed" class="sqf-cnt"></span>
+    </button>
+    <button id="sqf-draft"  class="sqf-btn" onclick="setStatusQuick('draft')">
+      🕐 대기 <span id="sqf-cnt-draft" class="sqf-cnt"></span>
+    </button>
+  </div>
+
   <!-- 초기 가이드 -->
   <div class="main-card" id="initGuide">
     <div class="no-data">
@@ -363,6 +384,47 @@
     let rng='';
     if(from||to) rng=`(${from||'처음'} ~ ${to||'현재'})`;
     document.getElementById('resultDateRange').textContent=rng;
+    updateStatusQuickFilter(filtered);
+    renderPage();
+  }
+
+  // 상태 빠른 필터
+  let _sqfStatus = '';  // '' | 'signed' | 'draft'
+
+  function updateStatusQuickFilter(base) {
+    const all    = base.length;
+    const signed = base.filter(d=>d.status==='signed').length;
+    const draft  = base.filter(d=>d.status!=='signed').length;
+    document.getElementById('sqf-cnt-all').textContent    = all;
+    document.getElementById('sqf-cnt-signed').textContent = signed;
+    document.getElementById('sqf-cnt-draft').textContent  = draft;
+    document.getElementById('statusQuickFilter').style.display = 'flex';
+    // 버튼 활성화 상태 반영
+    ['all','signed','draft'].forEach(k => {
+      document.getElementById('sqf-'+k).classList.toggle('sqf-active', _sqfStatus===(k==='all'?'':k));
+    });
+  }
+
+  function setStatusQuick(st) {
+    _sqfStatus = st;
+    // 상태 필터 select도 동기화
+    document.getElementById('statusFilter').value = st;
+    // 현재 filtered 기반으로 상태만 재필터
+    const base = allData.filter(d => {
+      const from=document.getElementById('dateFrom').value;
+      const to=document.getElementById('dateTo').value;
+      const dn=document.getElementById('dnInput').value.trim().toLowerCase();
+      const co=document.getElementById('companyInput').value.trim().toLowerCase();
+      if(from&&d.delivery_date<from) return false;
+      if(to&&d.delivery_date>to) return false;
+      if(dn&&!(d.order_no||'').toLowerCase().includes(dn)) return false;
+      if(co&&!(d.customer_company||'').toLowerCase().includes(co)) return false;
+      return true;
+    });
+    filtered = st ? base.filter(d=>(st==='draft' ? d.status!=='signed' : d.status===st)) : base;
+    currentPage=1;
+    document.getElementById('resultCount').textContent=filtered.length;
+    updateStatusQuickFilter(base);  // 카운트는 전체 기준 유지
     renderPage();
   }
 
@@ -370,6 +432,8 @@
     ['dateFrom','dateTo','dnInput','companyInput'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('statusFilter').value='';
     document.querySelectorAll('.qd-btn').forEach(b=>b.classList.remove('active'));
+    _sqfStatus='';
+    document.getElementById('statusQuickFilter').style.display='none';
     document.getElementById('resultHeader').style.display='none';
     document.getElementById('mainCard').style.display='none';
     document.getElementById('initGuide').style.display='block';
