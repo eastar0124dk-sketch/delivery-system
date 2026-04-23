@@ -1862,14 +1862,10 @@ function exportExcel() {
   ws['C'+ttlRow] = { v:'TTL', s:S_TTL_L, t:'s' };
   ws['D'+ttlRow] = { f:`SUM(W${dataStart}:W${dataEnd})`, s:S_TTL_N, t:'n' };
   ws['E'+ttlRow] = { v: rows.length, s:S_TTL_N, t:'n' };
-  // F~P (텍스트 영역) 빈칸
-  for (let c=5; c<16; c++) ws[colLetter(c)+ttlRow] = { v:'', s:S_TTL_L, t:'s' };
-  // Q~W 금액 컬럼 합계
-  const sumCols = [16,17,18,19,20,21,22]; // Q 운임 ~ W 운송비용
-  sumCols.forEach(c => {
-    const L = colLetter(c);
-    ws[L+ttlRow] = { f:`SUM(${L}${dataStart}:${L}${dataEnd})`, s:S_TTL_N, t:'n' };
-  });
+  // F~V (Q~V 개별 금액 컬럼 포함) 빈칸
+  for (let c=5; c<22; c++) ws[colLetter(c)+ttlRow] = { v:'', s:S_TTL_L, t:'s' };
+  // W 운송비용 합계만 표시
+  ws['W'+ttlRow] = { f:`SUM(W${dataStart}:W${dataEnd})`, s:S_TTL_N, t:'n' };
   // X, Y 빈칸
   ws['X'+ttlRow] = { v:'', s:S_TTL_L, t:'s' };
   ws['Y'+ttlRow] = { v:'', s:S_TTL_L, t:'s' };
