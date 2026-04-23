@@ -1661,9 +1661,9 @@ function buildRow(r, idx) {
     </td>
     <td class="w220">${renderOrderDateCell(r)}</td>
     <td class="w70"><input class="ci" type="text" value="${r.gubun}" placeholder="구분"
-      oninput="onFieldChange('${r.id}','gubun',this.value)"></td>
+      onchange="onFieldChange('${r.id}','gubun',this.value)"></td>
     <td class="w115"><input class="ci left" type="text" value="${r.departure}" placeholder="출발지"
-      oninput="onFieldChange('${r.id}','departure',this.value)"></td>
+      onchange="onFieldChange('${r.id}','departure',this.value)"></td>
     <td class="w80">
       <select class="ci" onchange="onFieldChange('${r.id}','departureRegion',this.value)">
         ${regionOptions(r.departureRegion)}
@@ -1672,7 +1672,7 @@ function buildRow(r, idx) {
     <td class="w88"><input class="ci" type="date" value="${r.departureDate}"
       onchange="onFieldChange('${r.id}','departureDate',this.value)"></td>
     <td class="w115"><input class="ci left" type="text" value="${r.destination}" placeholder="도착지"
-      oninput="onFieldChange('${r.id}','destination',this.value)"></td>
+      onchange="onFieldChange('${r.id}','destination',this.value)"></td>
     <td class="w80">
       <select class="ci" onchange="onFieldChange('${r.id}','destinationRegion',this.value)">
         ${regionOptions(r.destinationRegion)}
@@ -1686,11 +1686,11 @@ function buildRow(r, idx) {
       </select>
     </td>
     <td class="w80"><input class="ci" type="text" value="${r.relay}" placeholder="연계지"
-      oninput="onFieldChange('${r.id}','relay',this.value)"></td>
+      onchange="onFieldChange('${r.id}','relay',this.value)"></td>
     <td class="w70"><input class="ci" type="text" value="${r.manager}" placeholder="담당자"
-      oninput="onFieldChange('${r.id}','manager',this.value)"></td>
+      onchange="onFieldChange('${r.id}','manager',this.value)"></td>
     <td class="w70"><input class="ci" type="text" value="${r.handover}" placeholder="인계자"
-      oninput="onFieldChange('${r.id}','handover',this.value)"></td>
+      onchange="onFieldChange('${r.id}','handover',this.value)"></td>
     <td class="w80">
       <select class="ci" onchange="onFieldChange('${r.id}','vehicle',this.value)">
         ${['오토바이','다마스','라보','1톤','2.5톤','3.5톤','5톤','11톤'].map(v=>`<option value="${v}"${v===r.vehicle?' selected':''}>${v}</option>`).join('')}
@@ -1702,7 +1702,7 @@ function buildRow(r, idx) {
       </select>
     </td>
     <td class="w88"><input class="ci left" type="text" value="${r.remarks1}" placeholder="비고"
-      oninput="onFieldChange('${r.id}','remarks1',this.value)"></td>
+      onchange="onFieldChange('${r.id}','remarks1',this.value)"></td>
 
     <!-- 캐논 청구 -->
     <td class="w88 col-client"><input class="ci num" type="number" value="${r.clientFare||''}" placeholder="0"
@@ -1738,7 +1738,7 @@ function buildRow(r, idx) {
 
     <!-- 분석 -->
     <td class="w88 col-analysis"><input class="ci left" type="text" value="${r.remarks2}" placeholder="비고"
-      oninput="onFieldChange('${r.id}','remarks2',this.value)"></td>
+      onchange="onFieldChange('${r.id}','remarks2',this.value)"></td>
     <td class="w55 col-analysis"><input class="ci num" type="number" value="${r.distanceKm||''}" placeholder="km"
       title="지역간배송일 때 거리km 입력"
       onchange="onFieldChange('${r.id}','distanceKm',this.value)"></td>
