@@ -850,7 +850,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const dl = document.getElementById('regionListDL');
   if (dl) dl.innerHTML = regionDatalistOptions();
   const now = new Date();
-  currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const todayMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  // 마지막으로 보던 월 복원 (없으면 오늘 기준)
+  currentMonth = localStorage.getItem('canon_billing_last_month') || todayMonth;
   document.getElementById('monthPicker').value = currentMonth;
   setDefaultPeriod(currentMonth);
   // 1차: 로컬 캐시로 즉시 렌더 (빠른 표시)
@@ -1261,6 +1263,7 @@ function ensureMonth(m) {
 ════════════════════════════════════════════════════════════ */
 function onMonthChange() {
   currentMonth = document.getElementById('monthPicker').value;
+  localStorage.setItem('canon_billing_last_month', currentMonth);
   ensureMonth(currentMonth);
   setDefaultPeriod(currentMonth);
   renderAll();
@@ -1270,6 +1273,7 @@ function prevMonth() {
   const d = new Date(y, m-2, 1);
   currentMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   document.getElementById('monthPicker').value = currentMonth;
+  localStorage.setItem('canon_billing_last_month', currentMonth);
   ensureMonth(currentMonth);
   setDefaultPeriod(currentMonth);
   renderAll();
@@ -1279,6 +1283,7 @@ function nextMonth() {
   const d = new Date(y, m, 1);
   currentMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   document.getElementById('monthPicker').value = currentMonth;
+  localStorage.setItem('canon_billing_last_month', currentMonth);
   ensureMonth(currentMonth);
   setDefaultPeriod(currentMonth);
   renderAll();
