@@ -271,6 +271,12 @@
                   <td id="totalMeal"></td>
                   <td></td>
                 </tr>
+                <tr class="total-row" id="mealDeductRow" style="display:none;">
+                  <td colspan="4" style="text-align:right;padding-right:12px;"></td>
+                  <td style="text-align:right;color:#dc2626;">식권 공제</td>
+                  <td id="mealDeduct" colspan="2" style="color:#dc2626;font-weight:800;font-size:14px;padding:4px 6px;"></td>
+                  <td></td>
+                </tr>
                 <tr class="total-row" id="amountRow" style="display:none;">
                   <td colspan="4" style="text-align:right;padding-right:12px;"></td>
                   <td style="text-align:right;">OT 총 금액</td>
@@ -485,21 +491,29 @@
         </tr>`;
       }).join('');
 
-      const totalHours = records.reduce((s, r) => s + parseFloat(r.ot_hours || 0), 0);
-      const mealCount  = records.filter(r => r.meal_ticket === 'O').length;
-      const totalAmt   = Math.round(totalHours * otRate);
+      const totalHours  = records.reduce((s, r) => s + parseFloat(r.ot_hours || 0), 0);
+      const mealCount   = records.filter(r => r.meal_ticket === 'O').length;
+      const mealDeduct  = mealCount * 8000;
+      const totalAmt    = Math.round(totalHours * otRate) - mealDeduct;
 
       document.getElementById('totalHours').textContent = Math.round(totalHours * 10) / 10 + ' h';
       document.getElementById('totalMeal').innerHTML = `<span class="meal-o">${mealCount}건</span>`;
+      if (mealCount > 0) {
+        document.getElementById('mealDeduct').textContent = `- ${mealDeduct.toLocaleString('ko-KR')} 원 (${mealCount}건 × 8,000원)`;
+        document.getElementById('mealDeductRow').style.display = '';
+      } else {
+        document.getElementById('mealDeductRow').style.display = 'none';
+      }
       document.getElementById('totalAmount').textContent = totalAmt.toLocaleString('ko-KR') + ' 원';
       document.getElementById('totalRow').style.display = '';
       document.getElementById('amountRow').style.display = '';
     }
 
     function updateStats() {
-      const totalHours = records.reduce((s, r) => s + parseFloat(r.ot_hours || 0), 0);
-      const mealCount  = records.filter(r => r.meal_ticket === 'O').length;
-      const totalAmt   = Math.round(totalHours * otRate);
+      const totalHours  = records.reduce((s, r) => s + parseFloat(r.ot_hours || 0), 0);
+      const mealCount   = records.filter(r => r.meal_ticket === 'O').length;
+      const mealDeduct  = mealCount * 8000;
+      const totalAmt    = Math.round(totalHours * otRate) - mealDeduct;
 
       document.getElementById('statCount').innerHTML  = `${records.length}<span class="stat-unit">회</span>`;
       document.getElementById('statHours').innerHTML  = `${Math.round(totalHours*10)/10}<span class="stat-unit">h</span>`;
@@ -508,6 +522,12 @@
 
       // tfoot도 업데이트
       if (records.length) {
+        if (mealCount > 0) {
+          document.getElementById('mealDeduct').textContent = `- ${mealDeduct.toLocaleString('ko-KR')} 원 (${mealCount}건 × 8,000원)`;
+          document.getElementById('mealDeductRow').style.display = '';
+        } else {
+          document.getElementById('mealDeductRow').style.display = 'none';
+        }
         document.getElementById('totalAmount').textContent = totalAmt.toLocaleString('ko-KR') + ' 원';
       }
     }
@@ -605,9 +625,10 @@
       const ym = `${curYear}-${String(curMonth).padStart(2,'0')}`;
       const now = new Date();
       const exportDate = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
-      const totalHours = records.reduce((s,r) => s + parseFloat(r.ot_hours||0), 0);
-      const mealCount  = records.filter(r => r.meal_ticket === 'O').length;
-      const totalAmt   = Math.round(totalHours * otRate);
+      const totalHours  = records.reduce((s,r) => s + parseFloat(r.ot_hours||0), 0);
+      const mealCount   = records.filter(r => r.meal_ticket === 'O').length;
+      const mealDeduct  = mealCount * 8000;
+      const totalAmt    = Math.round(totalHours * otRate) - mealDeduct;
 
       /* ── 스타일 헬퍼 ── */
       const BM={top:{style:'medium',color:{rgb:'1E293B'}},bottom:{style:'medium',color:{rgb:'1E293B'}},left:{style:'medium',color:{rgb:'1E293B'}},right:{style:'medium',color:{rgb:'1E293B'}}};
@@ -637,6 +658,7 @@
         ...dataRows,
         Array(NC).fill(''),
         ['','','','','총 OT 근무시간', Math.round(totalHours*10)/10,'식권 사용', mealCount+'건'],
+        ...(mealCount > 0 ? [['','','','','식권 공제 (원)', -mealDeduct, mealCount+'건 × 8,000원', '']] : []),
         ['','','','','OT 총 금액 (원)',totalAmt,'',''],
       ];
 
