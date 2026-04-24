@@ -1377,15 +1377,13 @@ function updateSelBar() {
         const palH = pal.offsetHeight || 42;
         const palW = pal.offsetWidth  || 480;
 
-        // 기본: 행 아래
+        // 행 아래 + 오른쪽 끝 고정 (다른 행 선택 방해 안 하도록)
         let top  = rect.bottom + 6;
-        let left = rect.left;
+        let left = window.innerWidth - palW - 12;
+        if (left < 10) left = 10;
 
         // 화면 아래를 넘으면 행 위로
         if (top + palH > window.innerHeight - 10) top = rect.top - palH - 6;
-        // 화면 오른쪽을 넘으면 왼쪽으로 당기기
-        if (left + palW > window.innerWidth - 10) left = window.innerWidth - palW - 10;
-        if (left < 10) left = 10;
 
         pal.style.top       = top  + 'px';
         pal.style.left      = left + 'px';
