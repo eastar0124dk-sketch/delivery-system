@@ -129,13 +129,13 @@
     /* Sticky headers */
     thead tr.gr-row th {
       position: sticky; z-index: 12;
-      padding: 6px 6px; text-align: center; font-size: 11px; font-weight: 800;
+      padding: 6px 6px; text-align: center; font-size: 13px; font-weight: 800;
       border: 1px solid rgba(255,255,255,.3);
     }
     thead tr.gr-row { top: 0; }
     thead tr.col-row th {
       position: sticky; top: 28px; z-index: 11;
-      padding: 5px 3px; text-align: center; font-size: 10px; font-weight: 700;
+      padding: 5px 3px; text-align: center; font-size: 12px; font-weight: 700;
       border: 1px solid #ddd; background: #f8fafc; color: #475569; cursor: default;
     }
     /* 컬럼 헤더 필터 버튼 */
@@ -214,7 +214,7 @@
     tbody td.col-analysis:first-of-type{ border-left: 2px solid rgba(74,20,140,.2); }
 
     td.seq {
-      text-align: center; font-weight: 800; color: #94a3b8; font-size: 11px;
+      text-align: center; font-weight: 800; color: #94a3b8; font-size: 13px;
       min-width: 34px; width: 34px; background: #f0f4f8 !important;
       cursor: pointer; user-select: none;
       border-right: 2px solid #cbd5e1 !important;
@@ -270,7 +270,7 @@
 
     /* Cell inputs */
     .ci {
-      width: 100%; border: none; background: transparent; font-size: 11px;
+      width: 100%; border: none; background: transparent; font-size: 13px;
       font-family: inherit; padding: 3px 4px; outline: none; border-radius: 3px;
       color: #1e293b; text-align: center;
     }
@@ -285,15 +285,15 @@
     /* Totals / computed cells */
     .total-cli {
       background: rgba(21,101,192,.14) !important; color: #1565c0;
-      font-weight: 800; font-size: 11px; text-align: right; padding: 3px 5px;
+      font-weight: 800; font-size: 13px; text-align: right; padding: 3px 5px;
     }
     .total-car {
       background: rgba(198,40,40,.14) !important; color: #c62828;
-      font-weight: 800; font-size: 11px; text-align: right; padding: 3px 5px;
+      font-weight: 800; font-size: 13px; text-align: right; padding: 3px 5px;
     }
-    .diff-pos { color: #1b5e20; font-weight: 800; font-size: 11px; text-align: right; padding: 3px 5px; }
-    .diff-neg { color: #b71c1c; font-weight: 800; font-size: 11px; text-align: right; padding: 3px 5px; }
-    .profit-cell { font-weight: 800; font-size: 11px; text-align: center; padding: 3px 4px; }
+    .diff-pos { color: #1b5e20; font-weight: 800; font-size: 13px; text-align: right; padding: 3px 5px; }
+    .diff-neg { color: #b71c1c; font-weight: 800; font-size: 13px; text-align: right; padding: 3px 5px; }
+    .profit-cell { font-weight: 800; font-size: 13px; text-align: center; padding: 3px 4px; }
 
     /* 체크박스 선택 */
     .row-check { width: 14px; height: 14px; cursor: pointer; accent-color: #ef4444; }
@@ -385,9 +385,10 @@
     .empty-state .icon { font-size: 44px; margin-bottom: 10px; }
 
     /* Scrollbar */
-    .table-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
-    .table-wrap::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .table-wrap::-webkit-scrollbar { width: 16px; height: 16px; }
+    .table-wrap::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 8px; border: 3px solid #f1f5f9; }
     .table-wrap::-webkit-scrollbar-track { background: #f1f5f9; }
+    .table-wrap::-webkit-scrollbar-corner { background: #f1f5f9; }
 
     /* ── 드래그 정렬 ── */
     tbody tr.dragging  { opacity: .35; background: #e0f2fe !important; }
@@ -626,6 +627,7 @@
         <th class="w55" data-fkey="distanceKm">거리km<span class="flt-btn" onclick="openFilter(event,'distanceKm',this)">▼</span></th>
         <th class="w88" data-fkey="_diff">차이금액<span class="flt-btn" onclick="openFilter(event,'_diff',this)">▼</span></th>
         <th class="w65" data-fkey="_rate">수익율<span class="flt-btn" onclick="openFilter(event,'_rate',this)">▼</span></th>
+        <th class="w120" data-fkey="actNote" style="color:#0f172a;font-weight:800">ACT 비고<span class="flt-btn" onclick="openFilter(event,'actNote',this)">▼</span></th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
@@ -1351,7 +1353,7 @@ function blankRow() {
     clientStorage:0, clientTaksong:0, clientOther:0,
     carrierFare:0, carrierLift:0, carrierDisposal:0,
     carrierStorage:0, carrierTaksong:0, carrierOther:0,
-    remarks2:'', distanceKm:0
+    remarks2:'', distanceKm:0, actNote:''
   };
 }
 
@@ -2079,6 +2081,8 @@ function buildRow(r, idx) {
       onchange="onFieldChange('${r.id}','distanceKm',this.value)"></td>
     <td class="w88 ${diffClass}" id="diff-${r.id}">${won(diff)||'—'}</td>
     <td class="w65 profit-cell" id="prf-${r.id}" style="color:${pColor}">${pRate}</td>
+    <td class="w120 col-analysis"><input class="ci left" type="text" value="${r.actNote||''}" placeholder="ACT 비고"
+      onchange="onFieldChange('${r.id}','actNote',this.value)"></td>
   </tr>`;
 }
 
@@ -2164,18 +2168,18 @@ function exportExcel() {
   const S_TTL_L  = mkS('F4B084','000000',true,10,'center');
   const S_TTL_N  = { ...mkS('F4B084','000000',true,10,'right'), numFmt:'#,##0' };
 
-  const COL_N = 25; // A..Y
+  const COL_N = 26; // A..Z
   const colLetter = (i) => String.fromCharCode(65+i);
   const ws = {};
   ws['!merges'] = [];
 
-  // Row 1: title A1:Y1
+  // Row 1: title A1:Z1
   ws['A1'] = { v:`${y}년 ${parseInt(m)}월 CMSK Delivery List`, s:S_TITLE, t:'s' };
   for (let c=1; c<COL_N; c++) ws[colLetter(c)+'1'] = { v:'', s:S_TITLE, t:'s' };
   ws['!merges'].push({ s:{r:0,c:0}, e:{r:0,c:COL_N-1} });
 
   // Row 2: headers
-  const HDR = ['번호','요청일자','구분','출발지','지역','출발일자','도착지','프로젝트명','지역','도착일자','형태','연계지','담당자','인계자','차종','비고','운임','리프트','폐기','보관료','탁송료','기타','운송비용','비고','거리'];
+  const HDR = ['번호','요청일자','구분','출발지','지역','출발일자','도착지','프로젝트명','지역','도착일자','형태','연계지','담당자','인계자','차종','비고','운임','리프트','폐기','보관료','탁송료','기타','운송비용','비고','거리','ACT 비고'];
   HDR.forEach((h,ci) => { ws[colLetter(ci)+'2'] = { v:h, s:S_HDR, t:'s' }; });
 
   // Row 3+: data
@@ -2230,6 +2234,7 @@ function exportExcel() {
     put(22, cT,                         S_NUM, 'n');
     put(23, r.remarks2||'',             S_TXT_L);
     put(24, r.distanceKm||'',           r.distanceKm ? S_NUM : S_TXT, r.distanceKm ? 'n' : 's');
+    put(25, r.actNote||'',              S_TXT_L);
   });
 
   // Footer: CS / UL / BU / TTL (집계 행)
@@ -2259,19 +2264,20 @@ function exportExcel() {
   for (let c=5; c<22; c++) ws[colLetter(c)+ttlRow] = { v:'', s:S_TTL_L, t:'s' };
   // W 운송비용 합계만 표시
   ws['W'+ttlRow] = { f:`SUM(W${dataStart}:W${dataEnd})`, s:S_TTL_N, t:'n' };
-  // X, Y 빈칸
+  // X, Y, Z 빈칸
   ws['X'+ttlRow] = { v:'', s:S_TTL_L, t:'s' };
   ws['Y'+ttlRow] = { v:'', s:S_TTL_L, t:'s' };
+  ws['Z'+ttlRow] = { v:'', s:S_TTL_L, t:'s' };
 
   // Column widths (원본과 동일)
   ws['!cols'] = [
     {wch:9.5}, {wch:25}, {wch:9.5}, {wch:21.5}, {wch:9.5}, {wch:12.8},
     {wch:29.3}, {wch:18.8}, {wch:9.5}, {wch:12.8}, {wch:10.1}, {wch:16},
     {wch:11.2}, {wch:11}, {wch:9.5}, {wch:12.8}, {wch:11}, {wch:12.5},
-    {wch:11}, {wch:12.5}, {wch:11}, {wch:11}, {wch:14.3}, {wch:17.4}, {wch:9.5}
+    {wch:11}, {wch:12.5}, {wch:11}, {wch:11}, {wch:14.3}, {wch:17.4}, {wch:9.5}, {wch:22}
   ];
   ws['!rows'] = [ {hpt:28}, {hpt:22}, ...rows.map(()=>({hpt:18})), {hpt:20}, {hpt:20}, {hpt:20}, {hpt:22} ];
-  ws['!ref'] = `A1:${colLetter(COL_N-1)}${ttlRow}`;
+  ws['!ref'] = `A1:Z${ttlRow}`;
 
   const wb = { SheetNames:['운송내역'], Sheets:{ '운송내역': ws } };
   const fname = `CMSK_운송내역_${y}${m}.xlsx`;
@@ -2306,7 +2312,7 @@ function importExcel(buffer) {
     '구분','출발지','도착지','출발일자','도착일자','지역','출발지역','도착지역',
     '형태','연계지','담당자','인계자','차종','운송사',
     '비고','운임','리프트','폐기','보관료','탁송료','기타',
-    '청구금액','지불금액','거리km','거리(km)','차이금액','수익율','수익률'
+    '청구금액','지불금액','거리km','거리(km)','차이금액','수익율','수익률','ACT 비고'
   ]);
   let hdrIdx = -1;
   let bestScore = 0;
@@ -2355,6 +2361,7 @@ function importExcel(buffer) {
       case '청구금액': case '지불금액': case '캐논청구금액': case '운송사청구금액': case '운송사 청구금액': return '_total'; // 계산값, 무시
       case '거리km': case '거리(km)': case '거리 km': return 'distanceKm';
       case '차이금액': case '수익율': case '수익률': return '_computed';
+      case 'ACT 비고': return 'actNote';
       default: return null;
     }
   });
