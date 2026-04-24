@@ -73,6 +73,10 @@
     .btn-gray:hover   { background: #e2e8f0; }
     .btn-upload { background: #0f4c81; color: #fff; }
     .btn-upload:hover { background: #1565c0; transform: translateY(-1px); }
+    .btn-save   { background: #0369a1; color: #fff; }
+    .btn-save:hover   { background: #0284c7; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(3,105,161,.4); }
+    .btn-save.saving  { background: #64748b; cursor: default; transform: none; }
+    .btn-save.saved   { background: #059669; cursor: default; transform: none; }
     .btn-clear  { background: #fff; color: #dc2626; border: 1px solid #fca5a5; }
     .btn-clear:hover  { background: #fee2e2; border-color: #ef4444; }
     /* 조회기간 */
@@ -522,6 +526,9 @@
     <button class="pal-cancel" onclick="clearSelection()"><i class="fas fa-times"></i> 취소</button>
   </div>
   <div class="spacer"></div>
+  <button class="btn btn-save" id="btnManualSave" onclick="manualSave()" title="현재 내용을 즉시 서버에 저장">
+    <i class="fas fa-save"></i> 저장
+  </button>
   <span id="autoSaveMsg"></span>
 </div>
 
@@ -1154,6 +1161,40 @@ async function loadStorage() {
   });
   if (migrated) saveStorage(); // 변경 내용 즉시 저장
 }
+/* ── 수동 저장 버튼 ── */
+async function manualSave() {
+  const btn = document.getElementById('btnManualSave');
+  const msg = document.getElementById('autoSaveMsg');
+  if (btn.classList.contains('saving')) return; // 중복 클릭 방지
+
+  // 1. 로컬 즉시 저장
+  localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
+  localStorage.setItem('canon_billing_last_month', currentMonth);
+
+  // 2. 버튼 상태 변경
+  btn.classList.add('saving');
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 저장 중...';
+  clearTimeout(saveStorage._srvT); // 기존 debounce 취소
+
+  try {
+    // 3. 서버 즉시 저장 (debounce 없이)
+    await syncCurrentMonthToServer();
+    btn.classList.remove('saving');
+    btn.classList.add('saved');
+    btn.innerHTML = '<i class="fas fa-check"></i> 저장 완료';
+    msg.textContent = '';
+    setTimeout(() => {
+      btn.classList.remove('saved');
+      btn.innerHTML = '<i class="fas fa-save"></i> 저장';
+    }, 2000);
+  } catch (err) {
+    btn.classList.remove('saving');
+    btn.innerHTML = '<i class="fas fa-save"></i> 저장';
+    msg.textContent = '⚠ 서버 저장 실패 (로컬 저장됨)';
+    setTimeout(() => { msg.textContent = ''; }, 3000);
+  }
+}
+
 function saveStorage() {
   // 로컬 캐시 즉시 저장
   localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
