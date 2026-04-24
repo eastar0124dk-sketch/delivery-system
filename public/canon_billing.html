@@ -2,6 +2,8 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="cache-control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>캐논메디칼 운송청구서</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -293,16 +295,38 @@
     .row-check { width: 14px; height: 14px; cursor: pointer; accent-color: #ef4444; }
     tbody tr.selected-row { background: #fff1f2 !important; outline: 1px solid #fca5a5; }
     .sel-bar {
-      display: none; align-items: center; gap: 8px; padding: 6px 14px;
-      background: #fef2f2; border-bottom: 2px solid #fca5a5;
+      display: none; align-items: center; gap: 8px; padding: 8px 18px;
+      background: #fef2f2; border-top: 2px solid #fca5a5;
       font-size: 12px; font-weight: 700; color: #b91c1c;
+      flex-wrap: wrap;
     }
-    .sel-bar.visible { display: flex; }
+    .sel-bar.visible {
+      display: flex;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 180;
+      box-shadow: 0 -4px 16px rgba(185,28,28,.25);
+    }
     .sel-bar .sel-cnt { color: #dc2626; font-size: 13px; }
     .btn-sel-del { background: #dc2626; color: #fff; padding: 5px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; }
     .btn-sel-del:hover { background: #b91c1c; }
     .btn-sel-cancel { background: #f1f5f9; color: #475569; padding: 5px 10px; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600; }
     .btn-sel-cancel:hover { background: #e2e8f0; }
+    /* 다중 선택 하이라이트 색상 영역 */
+    .sel-hl-wrap {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,.6); border: 1px solid rgba(185,28,28,.2);
+      border-radius: 7px; padding: 3px 9px;
+    }
+    .sel-hl-label { font-size: 11px; color: #92400e; font-weight: 700; white-space: nowrap; }
+    .sel-hl-swatch {
+      width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+      border: 2px solid rgba(255,255,255,.7); transition: transform .1s, border-color .1s;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    .sel-hl-swatch:hover { transform: scale(1.3); border-color: #1e293b; }
+    .sel-hl-swatch.swatch-none { background: #d1d5db; }
+    .sel-bar-divider { width: 1px; height: 22px; background: rgba(185,28,28,.2); flex-shrink: 0; }
 
     /* Gubun badges */
     .badge {
@@ -366,6 +390,64 @@
     tbody tr.drag-over-top { box-shadow: inset 0 3px 0 0 #3b82f6 !important; }
     tbody tr.drag-over-bot { box-shadow: inset 0 -3px 0 0 #3b82f6 !important; }
     .btn-sort-active   { background: #eff6ff !important; color: #2563eb !important; border-color: #93c5fd !important; }
+
+    /* ── 행 선택 색상 팔레트 (화면 하단 중앙 고정) ── */
+    #selPalette {
+      /* 기본: 숨김 */
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      align-items: center; gap: 8px; flex-wrap: nowrap;
+      background: #1e293b;
+      border-radius: 12px; padding: 8px 14px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.45);
+      white-space: nowrap;
+      animation: palPop .18s cubic-bezier(.34,1.56,.64,1);
+    }
+    /* CSS :has() — 체크박스가 하나라도 체크되면 자동 표시 (JS 불필요) */
+    body:has(input.row-check:checked) #selPalette { display: flex !important; }
+    @keyframes palPop { from { opacity:0; transform:translateX(-50%) scale(.85); } to { opacity:1; transform:translateX(-50%) scale(1); } }
+    .pal-info { font-size: 12px; color: #94a3b8; font-weight: 700; }
+    .pal-info strong { color: #f8fafc; }
+    .pal-label { font-size: 11px; color: #64748b; font-weight: 600; }
+    .pal-swatch {
+      width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
+      border: 2px solid rgba(255,255,255,.25);
+      box-shadow: 0 2px 5px rgba(0,0,0,.3);
+      transition: transform .12s, border-color .12s;
+      font-size: 10px; color: rgba(255,255,255,.8); font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .pal-swatch:hover { transform: scale(1.35); border-color: #fff; }
+    .pal-divider { width: 1px; height: 20px; background: rgba(255,255,255,.15); flex-shrink: 0; }
+    .pal-del {
+      background: #dc2626; color: #fff; padding: 5px 11px; border: none;
+      border-radius: 7px; cursor: pointer; font-size: 11px; font-weight: 700;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .pal-del:hover { background: #ef4444; }
+    .pal-cancel {
+      background: rgba(255,255,255,.1); color: #cbd5e1; padding: 5px 9px;
+      border: 1px solid rgba(255,255,255,.15); border-radius: 7px;
+      cursor: pointer; font-size: 11px; font-weight: 600; white-space: nowrap; flex-shrink: 0;
+    }
+    .pal-cancel:hover { background: rgba(255,255,255,.2); }
+
+    /* ── 드래그 선택 ── */
+    /* hl-bar: 행 순서 변경 핸들 — grab 커서 표시 */
+    td.hl-bar { cursor: grab !important; }
+    td.hl-bar:active { cursor: grabbing !important; }
+    /* 드래그 선택 모드 진입 시 전체 커서 + 텍스트 선택 방지 */
+    body.ds-mode { cursor: cell !important; user-select: none !important; -webkit-user-select: none !important; }
+    body.ds-mode input, body.ds-mode select, body.ds-mode button { cursor: default !important; }
+    /* 드래그 선택 도중 행 hover 강조 */
+    body.ds-mode tbody tr:hover td { background: rgba(59,130,246,.06); }
+    /* 이미 선택된 행은 selected-row 유지 */
+    tbody tr.selected-row { background: #fff1f2 !important; outline: 1px solid #fca5a5; }
   </style>
 </head>
 <body>
@@ -415,6 +497,21 @@
   <button class="btn btn-gray" id="btnDateSort" onclick="sortByDate()" title="ORDER일자 기준 오름차순 정렬 (수동 이동 후 재정렬)">
     <i class="fas fa-sort-amount-up-alt"></i> 날짜순
   </button>
+  <!-- 행 선택 팔레트 (화면 하단 중앙 고정 — CSS :has() 자동 표시) -->
+  <div id="selPalette">
+    <span class="pal-info">✅ <strong><span id="palCnt">0</span>건</strong> 선택됨</span>
+    <div class="pal-divider"></div>
+    <span class="pal-label">색상 적용</span>
+    <button class="pal-swatch" style="background:#4b5563" onclick="applyHighlightToSelected('none')" title="색상 제거">✕</button>
+    <button class="pal-swatch" style="background:#eab308" onclick="applyHighlightToSelected('yellow')" title="노랑"></button>
+    <button class="pal-swatch" style="background:#22c55e" onclick="applyHighlightToSelected('green')" title="초록"></button>
+    <button class="pal-swatch" style="background:#ef4444" onclick="applyHighlightToSelected('red')"   title="빨강"></button>
+    <button class="pal-swatch" style="background:#3b82f6" onclick="applyHighlightToSelected('blue')"  title="파랑"></button>
+    <button class="pal-swatch" style="background:#a855f7" onclick="applyHighlightToSelected('purple')" title="보라"></button>
+    <div class="pal-divider"></div>
+    <button class="pal-del" onclick="deleteSelected()"><i class="fas fa-trash-alt"></i> 삭제</button>
+    <button class="pal-cancel" onclick="clearSelection()"><i class="fas fa-times"></i> 취소</button>
+  </div>
   <div class="spacer"></div>
   <span id="autoSaveMsg"></span>
 </div>
@@ -437,6 +534,17 @@
 <div class="sel-bar" id="selBar">
   <i class="fas fa-check-square"></i>
   <span><span class="sel-cnt" id="selCnt">0</span>건 선택됨</span>
+  <!-- 다중 하이라이트 색상 선택 -->
+  <div class="sel-hl-wrap">
+    <span class="sel-hl-label"><i class="fas fa-palette"></i> 색상 일괄 적용</span>
+    <button class="sel-hl-swatch swatch-none" title="색상 제거" onclick="applyHighlightToSelected('none')"></button>
+    <button class="sel-hl-swatch" style="background:#eab308" title="노랑" onclick="applyHighlightToSelected('yellow')"></button>
+    <button class="sel-hl-swatch" style="background:#22c55e" title="초록" onclick="applyHighlightToSelected('green')"></button>
+    <button class="sel-hl-swatch" style="background:#ef4444" title="빨강" onclick="applyHighlightToSelected('red')"></button>
+    <button class="sel-hl-swatch" style="background:#3b82f6" title="파랑" onclick="applyHighlightToSelected('blue')"></button>
+    <button class="sel-hl-swatch" style="background:#a855f7" title="보라" onclick="applyHighlightToSelected('purple')"></button>
+  </div>
+  <div class="sel-bar-divider"></div>
   <button class="btn-sel-del" onclick="deleteSelected()"><i class="fas fa-trash-alt"></i> 선택 삭제</button>
   <button class="btn-sel-cancel" onclick="clearSelection()"><i class="fas fa-times"></i> 선택 취소</button>
 </div>
@@ -684,6 +792,45 @@ let billingData = {};    // { "2026-04": [...rows] }
 let currentMonth = '';
 let manualSortMonths = new Set(); // 수동 순서가 적용된 달
 let dragSrcId = null;
+
+/* ── 드래그 선택 상태 ── */
+let _dsActive = false;   // 드래그 선택 진행 중 여부
+let _dsMode   = 'select'; // 'select' | 'deselect'
+
+function onRowMouseDown(e, rowId) {
+  // 인터랙티브 요소에서 시작하면 드래그 선택 안함
+  if (e.target.closest('input, select, button, a, .hl-tooltip, td.seq')) return;
+  // hl-bar(왼쪽 색상 바)는 행 순서 변경용 — 드래그 선택 안함
+  if (e.target.closest('td.hl-bar')) return;
+
+  _dsActive = true;
+  document.body.classList.add('ds-mode');
+
+  // 첫 번째 행 토글 (현재 상태 반전)
+  const cb = document.querySelector(`.row-check[data-id="${rowId}"]`);
+  if (cb) {
+    _dsMode = cb.checked ? 'deselect' : 'select';
+    cb.checked = (_dsMode === 'select');
+    cb.closest('tr')?.classList.toggle('selected-row', _dsMode === 'select');
+    updateSelBar();
+  }
+}
+
+function onRowMouseEnter(e, rowId) {
+  if (!_dsActive) return;
+  const cb = document.querySelector(`.row-check[data-id="${rowId}"]`);
+  if (cb) {
+    cb.checked = (_dsMode === 'select');
+    cb.closest('tr')?.classList.toggle('selected-row', _dsMode === 'select');
+    updateSelBar();
+  }
+}
+
+// 마우스 버튼 뗐을 때 드래그 선택 종료
+document.addEventListener('mouseup', () => {
+  _dsActive = false;
+  document.body.classList.remove('ds-mode');
+});
 
 /* ════════════════════════════════════════════════════════════
    초기화
@@ -1195,15 +1342,30 @@ function toggleAllCheck(masterCb) {
 
 function updateSelBar() {
   const checked = document.querySelectorAll('.row-check[data-id]:checked');
+  const n = checked.length;
+
+  // ① 기존 하단 sel-bar (삭제/취소 용도 유지)
   const bar = document.getElementById('selBar');
-  document.getElementById('selCnt').textContent = checked.length;
-  bar.classList.toggle('visible', checked.length > 0);
+  if (bar) {
+    const cnt = document.getElementById('selCnt');
+    if (cnt) cnt.textContent = n;
+    bar.classList.toggle('visible', n > 0);
+  }
+
+  // ② 툴바 팔레트 (색상 변경 — 항상 보이는 위치)
+  const pal = document.getElementById('selPalette');
+  const palCnt = document.getElementById('palCnt');
+  if (pal) {
+    pal.classList.toggle('show', n > 0);
+    if (palCnt) palCnt.textContent = n;
+  }
+
   // 전체선택 체크박스 상태 동기화
   const all = document.querySelectorAll('.row-check[data-id]');
   const master = document.getElementById('checkAll');
   if (master) {
-    master.indeterminate = checked.length > 0 && checked.length < all.length;
-    master.checked = all.length > 0 && checked.length === all.length;
+    master.indeterminate = n > 0 && n < all.length;
+    master.checked = all.length > 0 && n === all.length;
   }
 }
 
@@ -1224,7 +1386,11 @@ function clearSelection() {
   });
   const master = document.getElementById('checkAll');
   if (master) { master.checked = false; master.indeterminate = false; }
-  document.getElementById('selBar').classList.remove('visible');
+  // 하단 sel-bar + 툴바 팔레트 모두 숨기기
+  const bar = document.getElementById('selBar');
+  if (bar) bar.classList.remove('visible');
+  const pal = document.getElementById('selPalette');
+  if (pal) pal.classList.remove('show');
 }
 
 /* ── 하이라이트 ── */
@@ -1259,6 +1425,28 @@ function setHighlight(id, color) {
   // 메뉴 닫기
   const menu = document.getElementById('hlmenu-'+id);
   if (menu) menu.classList.remove('show');
+}
+
+/* ── 다중 선택 하이라이트 일괄 적용 ── */
+function applyHighlightToSelected(color) {
+  const checked = [...document.querySelectorAll('.row-check[data-id]:checked')];
+  if (checked.length === 0) return;
+  const rows = billingData[currentMonth] || [];
+  checked.forEach(cb => {
+    const id = cb.dataset.id;
+    const row = rows.find(r => r.id === id);
+    if (!row) return;
+    row.highlight = color === 'none' ? '' : color;
+    // DOM 직접 업데이트 (re-render 없이)
+    const tr = document.getElementById(`row-${id}`);
+    if (tr) {
+      HL_COLORS.forEach(c => tr.classList.remove('hl-'+c));
+      if (row.highlight) tr.classList.add('hl-'+row.highlight);
+    }
+    const dot = document.getElementById(`hldot-${id}`);
+    if (dot) dot.className = `hl-dot hl-dot-${row.highlight||'none'}`;
+  });
+  saveStorage();
 }
 
 // 바깥 클릭 시 하이라이트 메뉴 닫기
@@ -1358,6 +1546,10 @@ function updateSortBtn() {
 
 /* ── 드래그 & 드롭 행 이동 ── */
 function onDragStart(e, id) {
+  // 드래그 선택 모드 중이면 행 순서 변경 드래그 취소
+  if (_dsActive) { e.preventDefault(); return; }
+  // hl-bar(왼쪽 색상 핸들)에서 시작한 드래그가 아니면 취소
+  if (!e.target.closest('td.hl-bar')) { e.preventDefault(); return; }
   dragSrcId = id;
   e.dataTransfer.effectAllowed = 'move';
   setTimeout(() => {
@@ -1699,11 +1891,13 @@ function buildRow(r, idx) {
   const dotClass = `hl-dot hl-dot-${hl||'none'}`;
 
   return `<tr id="row-${r.id}" class="${hlClass}" draggable="true"
+    onmousedown="onRowMouseDown(event,'${r.id}')"
+    onmouseenter="onRowMouseEnter(event,'${r.id}')"
     ondragstart="onDragStart(event,'${r.id}')"
     ondragover="onDragOver(event,'${r.id}')"
     ondrop="onDrop(event,'${r.id}')"
     ondragend="onDragEnd()">
-    <td class="hl-bar" id="hlbar-${r.id}"></td>
+    <td class="hl-bar" id="hlbar-${r.id}" title="여기서 드래그 → 행 순서 변경"></td>
     <td class="w34" style="text-align:center;background:#fff5f5;border-right:2px solid #fca5a5;">
       <button class="del-btn" onclick="deleteRow('${r.id}')" title="행 삭제">
         <i class="fas fa-trash-alt" style="font-size:11px;"></i>
