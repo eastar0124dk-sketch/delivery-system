@@ -1377,10 +1377,9 @@ function updateSelBar() {
         const palH = pal.offsetHeight || 42;
         const palW = pal.offsetWidth  || 480;
 
-        // 행 아래 + 오른쪽 끝 고정 (다른 행 선택 방해 안 하도록)
+        // 행 아래 + ORDER일자 컬럼 위치(약 110px)에 고정
         let top  = rect.bottom + 6;
-        let left = window.innerWidth - palW - 12;
-        if (left < 10) left = 10;
+        let left = 110;
 
         // 화면 아래를 넘으면 행 위로
         if (top + palH > window.innerHeight - 10) top = rect.top - palH - 6;
