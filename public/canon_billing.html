@@ -393,23 +393,21 @@
 
     /* ── 행 선택 색상 팔레트 (화면 하단 중앙 고정) ── */
     #selPalette {
-      /* 기본: 숨김 */
       display: none;
       position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
+      /* top / left 은 JS가 동적으로 설정 */
       z-index: 9999;
       align-items: center; gap: 8px; flex-wrap: nowrap;
       background: #1e293b;
-      border-radius: 12px; padding: 8px 14px;
-      box-shadow: 0 8px 28px rgba(0,0,0,.45);
+      border-radius: 10px; padding: 7px 13px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.5);
       white-space: nowrap;
-      animation: palPop .18s cubic-bezier(.34,1.56,.64,1);
+      animation: palPop .15s cubic-bezier(.34,1.56,.64,1);
     }
-    /* CSS :has() — 체크박스가 하나라도 체크되면 자동 표시 (JS 불필요) */
+    #selPalette.show { display: flex; }
+    /* CSS :has() 폴백 — JS updateSelBar 호출 전에도 표시 */
     body:has(input.row-check:checked) #selPalette { display: flex !important; }
-    @keyframes palPop { from { opacity:0; transform:translateX(-50%) scale(.85); } to { opacity:1; transform:translateX(-50%) scale(1); } }
+    @keyframes palPop { from { opacity:0; transform:scale(.85); } to { opacity:1; transform:scale(1); } }
     .pal-info { font-size: 12px; color: #94a3b8; font-weight: 700; }
     .pal-info strong { color: #f8fafc; }
     .pal-label { font-size: 11px; color: #64748b; font-weight: 600; }
@@ -1352,12 +1350,38 @@ function updateSelBar() {
     bar.classList.toggle('visible', n > 0);
   }
 
-  // ② 툴바 팔레트 (색상 변경 — 항상 보이는 위치)
+  // ② 팔레트: 마지막 선택 행 바로 아래에 위치
   const pal = document.getElementById('selPalette');
   const palCnt = document.getElementById('palCnt');
   if (pal) {
     pal.classList.toggle('show', n > 0);
     if (palCnt) palCnt.textContent = n;
+
+    if (n > 0) {
+      // 마지막 체크된 행의 화면 위치 계산
+      const lastCb = checked[n - 1];
+      const lastTr = lastCb?.closest('tr');
+      if (lastTr) {
+        const rect = lastTr.getBoundingClientRect();
+        const palH = pal.offsetHeight || 42;
+        const palW = pal.offsetWidth  || 480;
+
+        // 기본: 행 아래
+        let top  = rect.bottom + 6;
+        let left = rect.left;
+
+        // 화면 아래를 넘으면 행 위로
+        if (top + palH > window.innerHeight - 10) top = rect.top - palH - 6;
+        // 화면 오른쪽을 넘으면 왼쪽으로 당기기
+        if (left + palW > window.innerWidth - 10) left = window.innerWidth - palW - 10;
+        if (left < 10) left = 10;
+
+        pal.style.top       = top  + 'px';
+        pal.style.left      = left + 'px';
+        pal.style.transform = 'none';
+        pal.style.bottom    = 'auto';
+      }
+    }
   }
 
   // 전체선택 체크박스 상태 동기화
