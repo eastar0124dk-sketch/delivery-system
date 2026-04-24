@@ -446,6 +446,17 @@
     body.ds-mode tbody tr:hover td { background: rgba(59,130,246,.06); }
     /* 이미 선택된 행은 selected-row 유지 */
     tbody tr.selected-row { background: #fff1f2 !important; outline: 1px solid #fca5a5; }
+    /* hl-* 색상이 selected-row보다 뒤에 정의되어야 함 (CSS 순서상 우선순위) */
+    tbody tr.hl-yellow  { background: rgba(253,224,71,.30) !important; }
+    tbody tr.hl-yellow:nth-child(even) { background: rgba(253,224,71,.40) !important; }
+    tbody tr.hl-green   { background: rgba(74,222,128,.25) !important; }
+    tbody tr.hl-green:nth-child(even)  { background: rgba(74,222,128,.35) !important; }
+    tbody tr.hl-red     { background: rgba(252,165,165,.30) !important; }
+    tbody tr.hl-red:nth-child(even)    { background: rgba(252,165,165,.40) !important; }
+    tbody tr.hl-blue    { background: rgba(147,197,253,.30) !important; }
+    tbody tr.hl-blue:nth-child(even)   { background: rgba(147,197,253,.40) !important; }
+    tbody tr.hl-purple  { background: rgba(216,180,254,.30) !important; }
+    tbody tr.hl-purple:nth-child(even) { background: rgba(216,180,254,.40) !important; }
   </style>
 </head>
 <body>
@@ -1471,6 +1482,8 @@ function applyHighlightToSelected(color) {
     if (dot) dot.className = `hl-dot hl-dot-${row.highlight||'none'}`;
   });
   saveStorage();
+  // 색상 적용 후 선택 해제 → 하이라이트 색상이 깔끔하게 보임
+  clearSelection();
 }
 
 // 바깥 클릭 시 하이라이트 메뉴 닫기
