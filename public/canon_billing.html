@@ -928,10 +928,25 @@ function openFilter(e, fkey, btn) {
   }
   _fddKey = fkey;
 
-  // 현재 월 전체 데이터에서 유니크 값 수집
+  // 날짜범위 + 다른 컬럼 필터는 적용하되, 현재 열 필터만 제외한 기준으로 집계
   const allRows = billingData[currentMonth] || [];
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
   const valMap  = new Map(); // value → count
   allRows.forEach(r => {
+    // 날짜범위 필터 적용
+    const d = r.orderDate || r.departureDate || '';
+    if (d) {
+      if (from && d < from) return;
+      if (to   && d > to)   return;
+    }
+    // 다른 컬럼 필터 적용 (현재 열 제외)
+    for (const [k, sel] of Object.entries(colFilters)) {
+      if (k === fkey) continue;
+      const cv = getFieldVal(r, k);
+      const cs = (cv == null || cv === '' || cv === 0) ? '__BLANK__' : String(cv);
+      if (!sel.has(cs)) return;
+    }
     const v = getFieldVal(r, fkey);
     const s = (v == null || v === '' || v === 0) ? '__BLANK__' : String(v);
     valMap.set(s, (valMap.get(s) || 0) + 1);
