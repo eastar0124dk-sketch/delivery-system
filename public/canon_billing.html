@@ -1068,8 +1068,14 @@ function getFilteredRows() {
   updatePeriodStyle();
   const hasCol = Object.keys(colFilters).length > 0;
   if (!from && !to && !hasCol) return rows;
+  // orderDate는 datetime("2026-04-24T10:00") 형식일 수 있으므로 앞 10자리(날짜)만 비교
+  const toDate = s => s ? String(s).slice(0, 10) : '';
   return rows.filter(r => {
-    const d = r.orderDate || r.departureDate || '';
+    // ORDER일자 기준 우선 판단: ORDER일자가 기간 안에 있으면 출발일자 무관하게 표시
+    const od = toDate(r.orderDate);
+    const dd = toDate(r.departureDate);
+    // 비교에 쓸 날짜: ORDER일자 있으면 ORDER일자, 없으면 출발일자
+    const d = od || dd;
     if (d) {
       if (from && d < from) return false;
       if (to   && d > to)   return false;
