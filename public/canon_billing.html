@@ -411,7 +411,7 @@
     }
     #selPalette.show { display: flex; }
     /* CSS :has() 폴백 — JS updateSelBar 호출 전에도 표시 */
-    body:has(input.row-check:checked) #selPalette { display: flex !important; }
+    body:has(input.row-check:checked) #selPalette:not(.force-hide) { display: flex !important; }
     @keyframes palPop { from { opacity:0; transform:scale(.85); } to { opacity:1; transform:scale(1); } }
     .pal-info { font-size: 12px; color: #94a3b8; font-weight: 700; }
     .pal-info strong { color: #f8fafc; }
@@ -821,6 +821,7 @@ function onRowMouseDown(e, rowId) {
   // hl-bar(왼쪽 색상 바)는 행 순서 변경용 — 드래그 선택 안함
   if (e.target.closest('td.hl-bar')) return;
 
+  _startSelection();
   _dsActive = true;
   document.body.classList.add('ds-mode');
 
@@ -1406,12 +1407,14 @@ function deleteRow(id) {
 
 /* ── 체크박스 선택 삭제 ── */
 function onRowCheck(cb) {
+  _startSelection();
   const tr = cb.closest('tr');
   tr.classList.toggle('selected-row', cb.checked);
   updateSelBar();
 }
 
 function toggleAllCheck(masterCb) {
+  _startSelection();
   document.querySelectorAll('.row-check[data-id]').forEach(cb => {
     cb.checked = masterCb.checked;
     cb.closest('tr').classList.toggle('selected-row', masterCb.checked);
@@ -1478,6 +1481,7 @@ function deleteSelected() {
   const ids = new Set(checked.map(cb => cb.dataset.id));
   billingData[currentMonth] = (billingData[currentMonth] || []).filter(r => !ids.has(r.id));
   saveStorage();
+  clearSelection();
   renderAll();
 }
 
@@ -1492,7 +1496,13 @@ function clearSelection() {
   const bar = document.getElementById('selBar');
   if (bar) bar.classList.remove('visible');
   const pal = document.getElementById('selPalette');
-  if (pal) pal.classList.remove('show');
+  if (pal) { pal.classList.remove('show'); pal.classList.add('force-hide'); }
+}
+
+function _startSelection() {
+  // 새로운 선택 시작 시 force-hide 해제
+  const pal = document.getElementById('selPalette');
+  if (pal) pal.classList.remove('force-hide');
 }
 
 /* ── 하이라이트 ── */
