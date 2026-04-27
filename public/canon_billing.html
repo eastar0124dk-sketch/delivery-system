@@ -498,7 +498,10 @@
     <i class="fas fa-plus"></i> 행 추가
   </button>
   <button class="btn btn-green" onclick="exportExcel()">
-    <i class="fas fa-file-excel"></i> 엑셀 출력
+    <i class="fas fa-file-excel"></i> CMSK 청구양식출력
+  </button>
+  <button class="btn btn-green" style="background:#2e7d32" onclick="exportBoYoung()">
+    <i class="fas fa-file-excel"></i> 보영이 운송확인
   </button>
   <button class="btn btn-gray" onclick="copyPrevMonth()" title="이전 달 양식 복사">
     <i class="fas fa-copy"></i> 이전달 복사
@@ -2314,6 +2317,160 @@ function exportExcel() {
   const wb = { SheetNames:['운송내역'], Sheets:{ '운송내역': ws } };
   const fname = `CMSK_운송내역_${y}${m}.xlsx`;
   XLSX.writeFile(wb, fname);
+}
+
+/* ════════════════════════════════════════════════════════════
+   보영이 운송확인 — 현재 화면 그대로 출력
+════════════════════════════════════════════════════════════ */
+function exportBoYoung() {
+  const rows = getFilteredRows();
+  if (rows.length === 0) { alert('출력할 데이터가 없습니다.'); return; }
+  const [y, m] = currentMonth.split('-');
+
+  const b = (bold, sz, fg, bg, align='center') => ({
+    font: { bold, sz, color:{ rgb: fg }, name:'맑은 고딕' },
+    fill: bg ? { patternType:'solid', fgColor:{ rgb: bg } } : undefined,
+    alignment: { horizontal: align, vertical:'center', wrapText: false },
+    border: {
+      top:   { style:'thin', color:{ rgb:'BBBBBB' } },
+      bottom:{ style:'thin', color:{ rgb:'BBBBBB' } },
+      left:  { style:'thin', color:{ rgb:'BBBBBB' } },
+      right: { style:'thin', color:{ rgb:'BBBBBB' } }
+    }
+  });
+  const S_TITLE = b(true,13,'FFFFFF','1F4E78');
+  const S_GRP_B = b(true,10,'FFFFFF','1565C0');   // 캐논청구
+  const S_GRP_R = b(true,10,'FFFFFF','C62828');   // 운송사지불
+  const S_GRP_P = b(true,10,'FFFFFF','4A148C');   // 분석
+  const S_GRP_G = b(true,10,'FFFFFF','263238');   // 기본정보
+  const S_HDR   = b(true,9,'000000','BDD7EE');
+  const S_TXT   = b(false,9,'000000',null,'center');
+  const S_TXL   = b(false,9,'000000',null,'left');
+  const S_NUM   = { ...b(false,9,'000000',null,'right'), numFmt:'#,##0' };
+  const S_TOT_B = { ...b(true,9,'FFFFFF','1565C0','right'), numFmt:'#,##0' };
+  const S_TOT_R = { ...b(true,9,'FFFFFF','C62828','right'), numFmt:'#,##0' };
+  const S_DIF_P = b(true,9,'1B5E20',null,'right');
+  const S_DIF_N = b(true,9,'B71C1C',null,'right');
+  const S_RATE  = b(true,9,'4A148C',null,'center');
+  const S_FOOT  = { ...b(true,10,'000000','FFF2CC','right'), numFmt:'#,##0' };
+
+  // 컬럼 정의: [헤더, 너비(wch)]
+  const COLS = [
+    ['No',5],['ORDER일자',22],['구분',8],['출발지',18],['지역',8],['출발일자',11],
+    ['도착지',20],['지역',8],['도착일자',11],['형태',8],['연계지',10],
+    ['담당자',8],['인계자',8],['차종',8],['운송사',8],['비고',14],
+    ['운임',10],['리프트',8],['폐기',8],['보관료',9],['탁송료',8],['기타',8],['청구금액',12],
+    ['운임',10],['리프트',8],['폐기',8],['보관료',9],['탁송료',8],['기타',8],['지불금액',12],
+    ['비고',14],['거리km',8],['차이금액',11],['수익율',8],['ACT 비고',18]
+  ];
+  const NC = COLS.length; // 35
+  const CL = i => i < 26 ? String.fromCharCode(65+i) : 'A'+String.fromCharCode(65+i-26);
+
+  const ws = {}; ws['!merges'] = [];
+
+  // Row 1: 제목
+  ws[CL(0)+'1'] = { v:`${y}년 ${parseInt(m)}월 CMSK 운송 확인`, s:S_TITLE, t:'s' };
+  for (let c=1; c<NC; c++) ws[CL(c)+'1'] = { v:'', s:S_TITLE, t:'s' };
+  ws['!merges'].push({ s:{r:0,c:0}, e:{r:0,c:NC-1} });
+
+  // Row 2: 그룹 헤더
+  const grpCells = [
+    [0,15,S_GRP_G,'기 본 정 보'],
+    [16,22,S_GRP_B,'캐 논 청 구 운 임'],
+    [23,29,S_GRP_R,'운 송 사 지 불 운 임'],
+    [30,34,S_GRP_P,'분  석']
+  ];
+  grpCells.forEach(([cs,ce,s,lbl]) => {
+    ws[CL(cs)+'2'] = { v:lbl, s, t:'s' };
+    for (let c=cs+1; c<=ce; c++) ws[CL(c)+'2'] = { v:'', s, t:'s' };
+    ws['!merges'].push({ s:{r:1,c:cs}, e:{r:1,c:ce} });
+  });
+
+  // Row 3: 컬럼 헤더
+  COLS.forEach(([h],ci) => { ws[CL(ci)+'3'] = { v:h, s:S_HDR, t:'s' }; });
+
+  // orderDate 포맷
+  const fmtOD = s => {
+    if (!s) return '';
+    const mm = String(s).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+    if (!mm) return s;
+    const [,yy,mo,d,hh,mi] = mm;
+    const dow = ['일','월','화','수','목','금','토'][new Date(+yy,+mo-1,+d).getDay()];
+    if (!hh) return `${yy}-${mo}-${d}(${dow})`;
+    let h=parseInt(hh); const ap=h<12?'오전':'오후';
+    if(h===0)h=12; else if(h>12)h-=12;
+    return `${yy}-${mo}-${d}(${dow}) ${ap}${h}:${mi}`;
+  };
+
+  // Row 4+: 데이터
+  rows.forEach((r, i) => {
+    const row = i + 4;
+    const cT = clientTotal(r);
+    const crT = carrierTotal(r);
+    const diff = cT - crT;
+    const rate = cT ? ((diff/cT)*100).toFixed(1)+'%' : '0.0%';
+    const put = (ci, v, s, t) => {
+      const ref = CL(ci)+row;
+      if (v===''||v==null) ws[ref]={ v:'', s, t:'s' };
+      else if (t==='n')    ws[ref]={ v:Number(v)||0, s, t:'n' };
+      else                 ws[ref]={ v:String(v), s, t:'s' };
+    };
+    put(0,  i+1,                   S_TXT,  'n');
+    put(1,  fmtOD(r.orderDate),    S_TXT);
+    put(2,  r.gubun||'',           S_TXT);
+    put(3,  r.departure||'',       S_TXL);
+    put(4,  r.departureRegion||'', S_TXT);
+    put(5,  r.departureDate||'',   S_TXT);
+    put(6,  r.destination||'',     S_TXL);
+    put(7,  r.destinationRegion||'',S_TXT);
+    put(8,  r.arrivalDate||'',     S_TXT);
+    put(9,  r.deliveryType||'',    S_TXT);
+    put(10, r.relay||'',           S_TXT);
+    put(11, r.manager||'',         S_TXT);
+    put(12, r.handover||'',        S_TXT);
+    put(13, r.vehicle||'',         S_TXT);
+    put(14, r.carrier||'',         S_TXT);
+    put(15, r.remarks1||'',        S_TXL);
+    put(16, r.clientFare||0,       S_NUM,  'n');
+    put(17, r.clientLift||0,       S_NUM,  'n');
+    put(18, r.clientDisposal||0,   S_NUM,  'n');
+    put(19, r.clientStorage||0,    S_NUM,  'n');
+    put(20, r.clientTaksong||0,    S_NUM,  'n');
+    put(21, r.clientOther||0,      S_NUM,  'n');
+    put(22, cT,                    S_TOT_B,'n');
+    put(23, r.carrierFare||0,      S_NUM,  'n');
+    put(24, r.carrierLift||0,      S_NUM,  'n');
+    put(25, r.carrierDisposal||0,  S_NUM,  'n');
+    put(26, r.carrierStorage||0,   S_NUM,  'n');
+    put(27, r.carrierTaksong||0,   S_NUM,  'n');
+    put(28, r.carrierOther||0,     S_NUM,  'n');
+    put(29, crT,                   S_TOT_R,'n');
+    put(30, r.remarks2||'',        S_TXL);
+    put(31, r.distanceKm||'',      r.distanceKm?S_NUM:S_TXT, r.distanceKm?'n':'s');
+    ws[CL(32)+row] = { v: diff===0?'—':diff, s: diff>=0?S_DIF_P:S_DIF_N, t: diff===0?'s':'n' };
+    ws[CL(33)+row] = { v: rate, s:S_RATE, t:'s' };
+    put(34, r.actNote||'',         S_TXL);
+  });
+
+  // 합계 행
+  const dS=4, dE=rows.length+3, ftRow=rows.length+4;
+  const totC  = rows.reduce((s,r)=>s+clientTotal(r),0);
+  const totCr = rows.reduce((s,r)=>s+carrierTotal(r),0);
+  const totDiff = totC - totCr;
+  const totRate = totC ? ((totDiff/totC)*100).toFixed(1)+'%' : '0.0%';
+  for (let c=0; c<NC; c++) ws[CL(c)+ftRow]={ v:'', s:S_FOOT, t:'s' };
+  ws[CL(0)+ftRow] = { v:'합계', s:S_FOOT, t:'s' };
+  ws[CL(22)+ftRow]= { v:totC,   s:{...S_FOOT,...{font:{bold:true,sz:10,color:{rgb:'FFFFFF'},name:'맑은 고딕'},fill:{patternType:'solid',fgColor:{rgb:'1565C0'}}}}, t:'n' };
+  ws[CL(29)+ftRow]= { v:totCr,  s:{...S_FOOT,...{font:{bold:true,sz:10,color:{rgb:'FFFFFF'},name:'맑은 고딕'},fill:{patternType:'solid',fgColor:{rgb:'C62828'}}}}, t:'n' };
+  ws[CL(32)+ftRow]= { v:totDiff,s:S_FOOT, t:'n' };
+  ws[CL(33)+ftRow]= { v:totRate,s:S_FOOT, t:'s' };
+
+  ws['!cols'] = COLS.map(([,w])=>({wch:w}));
+  ws['!rows'] = [{hpt:26},{hpt:20},{hpt:22},...rows.map(()=>({hpt:17})),{hpt:20}];
+  ws['!ref']  = `A1:${CL(NC-1)}${ftRow}`;
+
+  const wb = { SheetNames:['운송확인'], Sheets:{ '운송확인': ws } };
+  XLSX.writeFile(wb, `CMSK_보영이운송확인_${y}${m}.xlsx`);
 }
 
 /* ════════════════════════════════════════════════════════════
