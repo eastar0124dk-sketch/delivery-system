@@ -935,12 +935,13 @@ function openFilter(e, fkey, btn) {
   const valMap  = new Map(); // value → count
   const toDate2 = s => s ? String(s).slice(0, 10) : '';
   allRows.forEach(r => {
-    // 날짜범위 필터 적용 (orderDate는 datetime 형식이므로 앞 10자리만 비교)
-    const d = toDate2(r.orderDate) || toDate2(r.departureDate);
-    if (d) {
-      if (from && d < from) return;
-      if (to   && d > to)   return;
+    // 조회기간은 ORDER일자만 기준 (datetime 형식이므로 앞 10자리만 비교)
+    const od = toDate2(r.orderDate);
+    if (od) {
+      if (from && od < from) return;
+      if (to   && od > to)   return;
     }
+    // ORDER일자 없는 행은 기간 필터 미적용
     // 다른 컬럼 필터 적용 (현재 열 제외)
     for (const [k, sel] of Object.entries(colFilters)) {
       if (k === fkey) continue;
@@ -1069,18 +1070,17 @@ function getFilteredRows() {
   updatePeriodStyle();
   const hasCol = Object.keys(colFilters).length > 0;
   if (!from && !to && !hasCol) return rows;
-  // orderDate는 datetime("2026-04-24T10:00") 형식일 수 있으므로 앞 10자리(날짜)만 비교
+  // 조회기간은 ORDER일자만 기준으로 판단
+  // orderDate는 datetime("2026-04-24T10:00") 형식이므로 앞 10자리(날짜)만 비교
   const toDate = s => s ? String(s).slice(0, 10) : '';
   return rows.filter(r => {
-    // ORDER일자 기준 우선 판단: ORDER일자가 기간 안에 있으면 출발일자 무관하게 표시
     const od = toDate(r.orderDate);
-    const dd = toDate(r.departureDate);
-    // 비교에 쓸 날짜: ORDER일자 있으면 ORDER일자, 없으면 출발일자
-    const d = od || dd;
-    if (d) {
-      if (from && d < from) return false;
-      if (to   && d > to)   return false;
+    if (od) {
+      // ORDER일자가 있으면 ORDER일자만으로 판단 (출발일자 무시)
+      if (from && od < from) return false;
+      if (to   && od > to)   return false;
     }
+    // ORDER일자가 비어있는 행은 기간 필터 미적용 (항상 표시)
     if (hasCol && !rowMatchesFilters(r)) return false;
     return true;
   });
