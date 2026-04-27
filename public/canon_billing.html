@@ -933,9 +933,10 @@ function openFilter(e, fkey, btn) {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   const valMap  = new Map(); // value → count
+  const toDate2 = s => s ? String(s).slice(0, 10) : '';
   allRows.forEach(r => {
-    // 날짜범위 필터 적용
-    const d = r.orderDate || r.departureDate || '';
+    // 날짜범위 필터 적용 (orderDate는 datetime 형식이므로 앞 10자리만 비교)
+    const d = toDate2(r.orderDate) || toDate2(r.departureDate);
     if (d) {
       if (from && d < from) return;
       if (to   && d > to)   return;
