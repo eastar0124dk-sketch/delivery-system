@@ -277,10 +277,7 @@
       document.getElementById('modeCamBtn').style.color        = mode==='camera' ? '#fff' : '#718096';
       document.getElementById('modePhotoBtn').style.background = mode==='photo'  ? grad : off;
       document.getElementById('modePhotoBtn').style.color      = mode==='photo'  ? '#fff' : '#718096';
-      // 카메라 모드로 전환 시 바로 카메라 실행
-      if (mode === 'camera') {
-        document.getElementById('photoCaptureInput').click();
-      }
+      // 탭은 화면 전환만 — 카메라는 "카메라 열기" 버튼으로만 실행 (iOS 호환)
     }
 
     // 바로 촬영 완료
