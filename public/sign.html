@@ -153,7 +153,8 @@
         <!-- 서명/사진 모드 토글 -->
         <div style="display:flex;gap:0;margin-bottom:14px;border:2px solid #e2e8f0;border-radius:10px;overflow:hidden;">
           <button id="modeSignBtn" onclick="setReceiverMode('sign')" style="flex:1;padding:9px;border:none;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">✍️ 서명</button>
-          <button id="modePhotoBtn" onclick="setReceiverMode('photo')" style="flex:1;padding:9px;border:none;background:#f7fafc;color:#718096;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">📷 사진 업로드 (부재)</button>
+          <button id="modeCamBtn" onclick="setReceiverMode('camera')" style="flex:1;padding:9px;border:none;background:#f7fafc;color:#718096;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">📸 바로 촬영</button>
+          <button id="modePhotoBtn" onclick="setReceiverMode('photo')" style="flex:1;padding:9px;border:none;background:#f7fafc;color:#718096;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">📁 사진 업로드 (부재)</button>
         </div>
 
         <!-- 서명 영역 -->
@@ -165,6 +166,34 @@
           </div>
           <div class="sig-controls">
             <button class="btn btn-secondary" onclick="clearSig('receiver')" style="flex:1;"><i class="fas fa-redo"></i>지우기</button>
+          </div>
+        </div>
+
+        <!-- 바로 촬영 영역 -->
+        <div id="receiverCameraArea" style="display:none;">
+          <p style="font-size:12px;color:#2b6cb0;font-weight:600;margin-bottom:12px;">📸 카메라로 현장 사진을 촬영하세요</p>
+          <!-- 직접 카메라 실행 버튼 -->
+          <label for="photoCaptureInput" id="shootBtn" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:14px;cursor:pointer;font-size:16px;font-weight:700;color:#fff;box-shadow:0 4px 15px rgba(102,126,234,.4);margin-bottom:14px;transition:all .2s;">
+            <i class="fas fa-camera" style="font-size:22px;"></i> 카메라 열기 (바로 촬영)
+          </label>
+          <!-- capture="environment" → 후면 카메라 바로 실행 -->
+          <input type="file" id="photoCaptureInput" accept="image/*" capture="environment" style="display:none;" onchange="onCaptureSelected(this)">
+          <!-- 미리보기 -->
+          <div id="capturePreview" style="display:none;text-align:center;">
+            <img id="captureImg" style="max-width:100%;border-radius:12px;border:2px solid #667eea;box-shadow:0 2px 12px rgba(0,0,0,.12);" alt="촬영 사진">
+            <div style="margin-top:10px;display:flex;gap:8px;">
+              <label for="photoCaptureInput" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;background:#ebf4ff;border:1.5px solid #667eea;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;color:#667eea;">
+                <i class="fas fa-redo"></i> 다시 촬영
+              </label>
+              <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;background:#f0fff4;border:1.5px solid #48bb78;border-radius:10px;font-size:13px;font-weight:700;color:#276749;">
+                <i class="fas fa-check"></i> 사진 등록됨
+              </div>
+            </div>
+          </div>
+          <!-- 촬영 전 안내 -->
+          <div id="captureGuide" style="border:2.5px dashed #c3dafe;border-radius:12px;padding:20px;text-align:center;background:#ebf4ff;">
+            <i class="fas fa-camera" style="font-size:32px;color:#667eea;display:block;margin-bottom:8px;"></i>
+            <span style="font-size:13px;color:#4a5568;">위 버튼을 누르면 카메라가 바로 실행됩니다<br><small style="color:#a0aec0;">수령인, 현관문, 보관장소 등을 촬영하세요</small></span>
           </div>
         </div>
 
@@ -232,19 +261,40 @@
     let currentRecord = null;
     let driverSigned = false;
     let receiverSigned = false;
-    let receiverMode = 'sign';   // 'sign' | 'photo'
+    let receiverMode = 'sign';   // 'sign' | 'camera' | 'photo'
     let photoData = null;        // base64 사진
 
     function setReceiverMode(mode) {
       receiverMode = mode;
-      document.getElementById('receiverSigArea').style.display   = mode==='sign'  ? 'block' : 'none';
-      document.getElementById('receiverPhotoArea').style.display = mode==='photo' ? 'block' : 'none';
-      document.getElementById('modeSignBtn').style.background    = mode==='sign'
-        ? 'linear-gradient(135deg,#f093fb,#f5576c)' : '#f7fafc';
-      document.getElementById('modeSignBtn').style.color         = mode==='sign'  ? '#fff' : '#718096';
-      document.getElementById('modePhotoBtn').style.background   = mode==='photo'
-        ? 'linear-gradient(135deg,#f093fb,#f5576c)' : '#f7fafc';
-      document.getElementById('modePhotoBtn').style.color        = mode==='photo' ? '#fff' : '#718096';
+      document.getElementById('receiverSigArea').style.display    = mode==='sign'   ? 'block' : 'none';
+      document.getElementById('receiverCameraArea').style.display = mode==='camera' ? 'block' : 'none';
+      document.getElementById('receiverPhotoArea').style.display  = mode==='photo'  ? 'block' : 'none';
+      const grad = 'linear-gradient(135deg,#f093fb,#f5576c)';
+      const off  = '#f7fafc';
+      document.getElementById('modeSignBtn').style.background  = mode==='sign'   ? grad : off;
+      document.getElementById('modeSignBtn').style.color       = mode==='sign'   ? '#fff' : '#718096';
+      document.getElementById('modeCamBtn').style.background   = mode==='camera' ? grad : off;
+      document.getElementById('modeCamBtn').style.color        = mode==='camera' ? '#fff' : '#718096';
+      document.getElementById('modePhotoBtn').style.background = mode==='photo'  ? grad : off;
+      document.getElementById('modePhotoBtn').style.color      = mode==='photo'  ? '#fff' : '#718096';
+      // 카메라 모드로 전환 시 바로 카메라 실행
+      if (mode === 'camera') {
+        document.getElementById('photoCaptureInput').click();
+      }
+    }
+
+    // 바로 촬영 완료
+    function onCaptureSelected(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        photoData = e.target.result;
+        document.getElementById('captureImg').src = photoData;
+        document.getElementById('capturePreview').style.display = 'block';
+        document.getElementById('captureGuide').style.display   = 'none';
+      };
+      reader.readAsDataURL(file);
     }
 
     // 공통 사진 로드 함수
@@ -467,7 +517,7 @@
       const receiverName=document.getElementById('inp_receiver_name_confirm').value.trim();
       if(!receiverName){ showAlert('수령자 성함을 입력해주세요. (부재 시 "부재" 입력)','error'); return; }
       if(receiverMode==='sign' && !receiverSigned){ showAlert('수령자 서명을 해주세요.','error'); return; }
-      if(receiverMode==='photo' && !photoData){ showAlert('배송 사진을 업로드해주세요.','error'); return; }
+      if((receiverMode==='photo'||receiverMode==='camera') && !photoData){ showAlert('사진을 촬영하거나 업로드해주세요.','error'); return; }
       const receiverSigData = receiverMode==='sign' ? getSigData('receiver') : photoData;
 
       const btn=document.getElementById('submitBtn');
