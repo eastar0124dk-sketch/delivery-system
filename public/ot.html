@@ -348,17 +348,21 @@
       document.getElementById('tabRange').style.color      = mode === 'range' ? '#fff' : '#718096';
 
       if (mode === 'range') {
-        // 기본: 이번달 1일 ~ 오늘
+        // 오늘이 속한 급여 주기 자동 계산 (21일~20일 주기)
+        // 오늘 >= 21일 → 이번달 21일 ~ 다음달 20일
+        // 오늘 <= 20일 → 전달 21일 ~ 이번달 20일
         const today = new Date();
-        const from  = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`;
-        const to    = today.toISOString().slice(0,10);
-        document.getElementById('rangeFrom').value = from;
-        document.getElementById('rangeTo').value   = to;
-        // 급여 주기 기본값 (21일~20일): 이전달 21일 ~ 이번달 20일
-        const prev = new Date(today.getFullYear(), today.getMonth() - 1, 21);
-        const curr = new Date(today.getFullYear(), today.getMonth(), 20);
-        document.getElementById('rangeFrom').value = prev.toISOString().slice(0,10);
-        document.getElementById('rangeTo').value   = curr.toISOString().slice(0,10);
+        const day   = today.getDate();
+        let fromDate, toDate;
+        if (day >= 21) {
+          fromDate = new Date(today.getFullYear(), today.getMonth(), 21);
+          toDate   = new Date(today.getFullYear(), today.getMonth() + 1, 20);
+        } else {
+          fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 21);
+          toDate   = new Date(today.getFullYear(), today.getMonth(), 20);
+        }
+        document.getElementById('rangeFrom').value = fromDate.toISOString().slice(0,10);
+        document.getElementById('rangeTo').value   = toDate.toISOString().slice(0,10);
         applyRange();
       } else {
         loadOT();
