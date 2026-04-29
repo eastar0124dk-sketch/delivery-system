@@ -934,10 +934,10 @@ function renderCharts() {
           align: 'top', anchor: 'end', offset: 4,
           color: ctx => ctx.datasetIndex === 0 ? '#1e40af' : '#b45309',
           font: { size: labelFontSize, weight: 'bold' },
-          formatter: v => v ? fmtK(v) : ''
+          formatter: v => v ? fmt(v) : ''
         }
       },
-      scales:{ y:{ ticks:{ callback:v=>fmtK(v), font:{size:10} } },
+      scales:{ y:{ ticks:{ callback:v=>fmt(v), font:{size:10} } },
                x:{ ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } } } },
     plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : []
   });
@@ -963,11 +963,11 @@ function renderCharts() {
         datalabels: {
           display: showLabels,
           color: '#fff', font: { size: labelFontSize, weight: 'bold' },
-          formatter: v => v ? fmtK(v) : ''
+          formatter: v => v ? fmt(v) : ''
         }
       },
       scales:{ x:{ stacked:true, ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } },
-               y:{ stacked:true, ticks:{ callback:v=>fmtK(v), font:{size:10} } } } },
+               y:{ stacked:true, ticks:{ callback:v=>fmt(v), font:{size:10} } } } },
     plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : []
   });
 }
