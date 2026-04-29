@@ -17,6 +17,8 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Noto Sans KR','Malgun Gothic',sans-serif; background:#f0f4f8; color:#1a202c; font-size:13px; }
+
+    /* ── 상단바 ── */
     .topbar {
       background: linear-gradient(135deg,#0f766e 0%,#14b8a6 60%,#5eead4 100%);
       color:#fff; padding:14px 22px; display:flex; align-items:center; gap:12px;
@@ -24,49 +26,132 @@
     }
     .topbar a.back { color:#fff; opacity:.85; text-decoration:none; }
     .topbar h1 { font-size:18px; font-weight:800; letter-spacing:-.3px; }
-    .topbar .sub { font-size:11px; opacity:.8; margin-left:auto; }
+    .topbar .actions { margin-left:auto; display:flex; gap:8px; }
+    .topbar button {
+      background:rgba(255,255,255,.22); border:none; color:#fff;
+      padding:7px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:700;
+      display:flex; align-items:center; gap:5px; font-family:inherit;
+    }
+    .topbar button:hover { background:rgba(255,255,255,.35); }
+    .topbar button.btn-print { background:#fff; color:#0f766e; }
 
     .wrap { max-width:1400px; margin:0 auto; padding:18px; }
 
-    /* 카드 */
+    /* ── 보고서 헤더 (인쇄 시 표시) ── */
+    .report-header {
+      background:#fff; border-radius:14px; padding:22px 26px; margin-bottom:16px;
+      box-shadow:0 2px 10px rgba(0,0,0,.06); border-left:6px solid #0f766e;
+      display:flex; align-items:center; gap:16px;
+    }
+    .report-header .title { flex:1; }
+    .report-header h2 { font-size:22px; font-weight:900; color:#0f172a; margin-bottom:5px; letter-spacing:-.4px; }
+    .report-header .meta { font-size:12px; color:#64748b; display:flex; gap:14px; }
+    .report-header .meta strong { color:#0f766e; font-weight:700; }
+    .report-header .company { text-align:right; font-size:12px; color:#475569; }
+    .report-header .company .logo { font-size:18px; font-weight:900; color:#0f766e; letter-spacing:-.3px; margin-bottom:2px; }
+
+    /* ── KPI ── */
+    .kpi-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:16px; }
+    @media(max-width:1024px){ .kpi-grid{grid-template-columns:repeat(3,1fr);} }
+    @media(max-width:600px){ .kpi-grid{grid-template-columns:repeat(2,1fr);} }
+    .kpi {
+      background:#fff; border-radius:12px; padding:14px 16px; box-shadow:0 2px 8px rgba(0,0,0,.06);
+      border-top:4px solid var(--c,#14b8a6); position:relative; overflow:hidden;
+    }
+    .kpi::before {
+      content:''; position:absolute; right:-30px; top:-30px; width:90px; height:90px;
+      background:var(--c,#14b8a6); opacity:.08; border-radius:50%;
+    }
+    .kpi .lbl { font-size:11px; color:#64748b; font-weight:600; margin-bottom:6px; position:relative; }
+    .kpi .val { font-size:18px; font-weight:900; color:#0f172a; position:relative; line-height:1.2; }
+    .kpi .sub { font-size:10px; color:#94a3b8; margin-top:4px; position:relative; }
+    .kpi .sub.pos { color:#10b981; font-weight:700; }
+    .kpi .sub.neg { color:#ef4444; font-weight:700; }
+    .kpi.total      { --c:#10b981; }
+    .kpi.yoy        { --c:#8b5cf6; }
+    .kpi.transport  { --c:#3b82f6; }
+    .kpi.warehouse  { --c:#f59e0b; }
+    .kpi.high       { --c:#ec4899; }
+    .kpi.low        { --c:#6b7280; }
+
+    /* ── 카드 ── */
     .card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); padding:18px; margin-bottom:16px; }
     .card-title { font-size:14px; font-weight:800; color:#1f2937; margin-bottom:14px; display:flex; align-items:center; gap:8px; padding-bottom:10px; border-bottom:2px solid #f0f4f8; }
     .card-title i { color:#14b8a6; }
 
-    /* KPI 그리드 */
-    .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px; }
-    @media(max-width:768px){ .kpi-grid{grid-template-columns:repeat(2,1fr);} }
-    .kpi { background:#fff; border-radius:12px; padding:14px 16px; box-shadow:0 2px 8px rgba(0,0,0,.06); border-left:4px solid var(--c,#14b8a6); }
-    .kpi .lbl { font-size:11px; color:#64748b; font-weight:600; margin-bottom:6px; }
-    .kpi .val { font-size:20px; font-weight:800; color:#0f172a; }
-    .kpi .sub { font-size:10px; color:#94a3b8; margin-top:3px; }
-    .kpi.transport { --c:#3b82f6; }
-    .kpi.warehouse { --c:#f59e0b; }
-    .kpi.total     { --c:#10b981; }
-    .kpi.month     { --c:#8b5cf6; }
+    /* ── 피벗 테이블 ── */
+    .pivot-wrap { overflow-x:auto; }
+    .pivot-table { width:100%; border-collapse:collapse; font-size:11px; min-width:1100px; }
+    .pivot-table th, .pivot-table td { padding:6px 5px; text-align:center; border:1px solid #e2e8f0; }
+    .pivot-table thead th {
+      background:linear-gradient(135deg,#0f766e,#14b8a6); color:#fff;
+      font-size:11px; font-weight:800; padding:9px 5px; position:sticky; top:0;
+    }
+    .pivot-table thead th.col-year { background:#0f172a; min-width:60px; }
+    .pivot-table thead th.col-type { background:#1e293b; min-width:60px; }
+    .pivot-table thead th.col-total{ background:#059669; min-width:90px; }
+    .pivot-table thead th.col-avg  { background:#7c3aed; min-width:80px; }
+    .pivot-table thead th.col-month{ min-width:65px; }
+
+    .pivot-table tbody td.year-cell {
+      background:#f1f5f9; font-weight:900; font-size:13px; color:#0f172a;
+      vertical-align:middle; border-right:2px solid #cbd5e1;
+    }
+    .pivot-table tbody td.type-cell {
+      font-weight:700; font-size:11px; padding:5px 8px;
+      border-right:2px solid #cbd5e1;
+    }
+    .pivot-table tbody td.type-tr { background:#dbeafe; color:#1e40af; }
+    .pivot-table tbody td.type-wh { background:#fef3c7; color:#b45309; }
+    .pivot-table tbody td.type-sum{ background:#d1fae5; color:#065f46; font-weight:900; }
+
+    .pivot-table tbody td.num { font-family:'Roboto Mono',monospace; font-weight:600; color:#1f2937; }
+    .pivot-table tbody td.empty { color:#cbd5e1; }
+    .pivot-table tbody td.year-total { background:#ecfdf5; color:#065f46; font-weight:900; font-family:'Roboto Mono',monospace; border-left:2px solid #6ee7b7; }
+    .pivot-table tbody td.year-avg   { background:#f3e8ff; color:#581c87; font-weight:800; font-family:'Roboto Mono',monospace; }
+
+    .pivot-table tbody tr.row-sum td { background:#d1fae5 !important; font-weight:800 !important; }
+    .pivot-table tbody tr.row-sum td.num { color:#065f46; }
+
+    /* 누적 합계 행 */
+    .pivot-table tbody tr.cum-row td {
+      background:#0f172a !important; color:#fff !important;
+      font-weight:900 !important; font-size:11.5px !important;
+      border-top:3px solid #f59e0b !important;
+    }
+    .pivot-table tbody tr.cum-row td.year-cell { background:#000 !important; color:#fde68a !important; }
+
+    /* 전년대비 증감률 */
+    .yoy-pos { color:#10b981; font-size:9px; font-weight:700; display:block; }
+    .yoy-neg { color:#ef4444; font-size:9px; font-weight:700; display:block; }
+
+    /* 차트 그리드 */
+    .chart-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:14px; margin-bottom:16px; }
+    @media(max-width:900px){ .chart-grid{grid-template-columns:1fr;} }
+    .chart-canvas-wrap { position:relative; height:280px; }
+    .chart-canvas-wrap.tall { height:340px; }
 
     /* 모드 토글 */
     .mode-toggle { display:flex; gap:0; margin-bottom:14px; border:2px solid #e2e8f0; border-radius:10px; overflow:hidden; }
     .mode-toggle button {
-      flex:1; padding:11px; border:none; background:#f7fafc; color:#718096;
+      flex:1; padding:10px; border:none; background:#f7fafc; color:#718096;
       font-size:13px; font-weight:700; font-family:inherit; cursor:pointer;
     }
     .mode-toggle button.active { background:linear-gradient(135deg,#0f766e,#14b8a6); color:#fff; }
 
     /* 업로드 영역 */
     .uploader {
-      border:2.5px dashed #cbd5e1; border-radius:12px; padding:28px;
+      border:2.5px dashed #cbd5e1; border-radius:12px; padding:24px;
       text-align:center; background:#fafafa; cursor:pointer; transition:all .15s;
     }
     .uploader:hover, .uploader.drag { border-color:#14b8a6; background:#f0fdfa; }
-    .uploader i { font-size:36px; color:#94a3b8; display:block; margin-bottom:8px; }
+    .uploader i { font-size:32px; color:#94a3b8; display:block; margin-bottom:8px; }
     .uploader.drag i { color:#14b8a6; }
     .uploader p { font-size:13px; color:#64748b; }
     .uploader p strong { color:#0f766e; }
     .uploader .hint { font-size:11px; color:#94a3b8; margin-top:6px; }
 
-    /* 수동 입력 폼 */
-    .manual-form { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:14px; }
+    .manual-form { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:14px; }
     @media(max-width:600px){ .manual-form{grid-template-columns:1fr;} }
     .manual-form label { font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px; }
     .manual-form input, .manual-form select {
@@ -77,57 +162,68 @@
       outline:none; border-color:#14b8a6; background:#fff;
     }
     .manual-form .full { grid-column:1/-1; }
-    .preview-img { max-width:100%; max-height:300px; border-radius:10px; border:1.5px solid #e2e8f0; margin-top:10px; }
+    .preview-img { max-width:100%; max-height:260px; border-radius:10px; border:1.5px solid #e2e8f0; margin-top:10px; }
 
     .btn { padding:9px 16px; border:none; border-radius:8px; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .12s; }
     .btn-teal { background:linear-gradient(135deg,#0f766e,#14b8a6); color:#fff; }
     .btn-teal:hover { transform:translateY(-1px); box-shadow:0 3px 10px rgba(15,118,110,.4); }
     .btn-gray { background:#e2e8f0; color:#475569; }
     .btn-gray:hover { background:#cbd5e1; }
-    .btn-red { background:#fee2e2; color:#b91c1c; border:1.5px solid #fca5a5; }
-    .btn-red:hover { background:#fecaca; }
 
-    /* 데이터 테이블 */
+    /* 데이터 테이블 (등록된 청구내역) */
     .data-table { width:100%; border-collapse:collapse; font-size:12px; }
-    .data-table th { background:#f1f5f9; color:#475569; padding:10px 8px; text-align:center; font-weight:700; border-bottom:2px solid #cbd5e1; }
-    .data-table td { padding:9px 8px; text-align:center; border-bottom:1px solid #e2e8f0; }
+    .data-table th { background:#f1f5f9; color:#475569; padding:9px 8px; text-align:center; font-weight:700; border-bottom:2px solid #cbd5e1; }
+    .data-table td { padding:8px 8px; text-align:center; border-bottom:1px solid #e2e8f0; }
     .data-table tr:hover td { background:#f8fafc; }
     .data-table .num { text-align:right; font-family:monospace; font-weight:700; }
-    .data-table .type-tr { color:#1e40af; font-weight:700; }
-    .data-table .type-wh { color:#b45309; font-weight:700; }
-    .data-table .actions { white-space:nowrap; }
+    .data-table .type-tr { color:#1e40af; font-weight:700; background:#dbeafe; padding:2px 8px; border-radius:4px; font-size:11px; }
+    .data-table .type-wh { color:#b45309; font-weight:700; background:#fef3c7; padding:2px 8px; border-radius:4px; font-size:11px; }
     .data-table .actions button { padding:4px 8px; font-size:11px; border:none; border-radius:5px; cursor:pointer; margin:0 2px; }
     .btn-edit { background:#dbeafe; color:#1e40af; }
     .btn-del  { background:#fee2e2; color:#b91c1c; }
 
-    /* 차트 그리드 */
-    .chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
-    @media(max-width:900px){ .chart-grid{grid-template-columns:1fr;} }
-    .chart-box { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); padding:18px; }
-    .chart-box h3 { font-size:13px; font-weight:800; color:#1f2937; margin-bottom:12px; }
-    .chart-canvas-wrap { position:relative; height:280px; }
+    .extracted { background:#f0fdfa; border:1.5px solid #5eead4; border-radius:10px; padding:14px; margin-top:14px; }
+    .extracted h4 { font-size:12px; color:#0f766e; margin-bottom:8px; font-weight:800; }
+    .extracted .row { display:flex; justify-content:space-between; padding:3px 0; font-size:12px; }
+    .extracted .row .lbl { color:#475569; font-weight:600; }
+    .extracted .row .val { color:#0f172a; font-weight:800; font-family:monospace; }
 
     .empty { text-align:center; padding:30px; color:#94a3b8; font-size:13px; }
     .empty i { font-size:32px; display:block; margin-bottom:8px; opacity:.5; }
 
-    /* 추출 결과 미리보기 */
-    .extracted {
-      background:#f0fdfa; border:1.5px solid #5eead4; border-radius:10px;
-      padding:14px; margin-top:14px;
-    }
-    .extracted h4 { font-size:12px; color:#0f766e; margin-bottom:8px; font-weight:800; }
-    .extracted .row { display:flex; justify-content:space-between; padding:4px 0; font-size:12px; }
-    .extracted .row .lbl { color:#475569; font-weight:600; }
-    .extracted .row .val { color:#0f172a; font-weight:800; font-family:monospace; }
-
     .toast {
       position:fixed; top:80px; right:20px; padding:12px 18px; border-radius:10px;
       box-shadow:0 4px 16px rgba(0,0,0,.15); font-size:13px; font-weight:700;
-      z-index:9999; animation:slideIn .3s; display:none;
+      z-index:9999; display:none;
     }
     .toast.success { background:#10b981; color:#fff; }
     .toast.error   { background:#ef4444; color:#fff; }
-    @keyframes slideIn { from{transform:translateX(100%);opacity:0;} to{transform:translateX(0);opacity:1;} }
+
+    /* ════════════ 인쇄 전용 스타일 ════════════ */
+    @media print {
+      @page { size: A4 landscape; margin: 8mm; }
+      body { background:#fff; font-size:9.5px; }
+      .topbar, .no-print { display:none !important; }
+      .wrap { max-width:none; padding:0; margin:0; }
+      .card { box-shadow:none; border:1px solid #cbd5e1; padding:10px; margin-bottom:8px; page-break-inside:avoid; }
+      .report-header { box-shadow:none; padding:12px 16px; margin-bottom:8px; }
+      .report-header h2 { font-size:16px; }
+      .report-header .meta { font-size:10px; }
+      .kpi-grid { grid-template-columns:repeat(6,1fr) !important; gap:6px; margin-bottom:8px; }
+      .kpi { padding:8px 10px; box-shadow:none; border:1px solid #e2e8f0; }
+      .kpi .lbl { font-size:9px; }
+      .kpi .val { font-size:13px; }
+      .kpi .sub { font-size:8px; }
+      .pivot-table { font-size:9px; min-width:auto; }
+      .pivot-table thead th { font-size:9px; padding:5px 3px; }
+      .pivot-table tbody td { padding:4px 3px; }
+      .chart-grid { grid-template-columns:1.5fr 1fr !important; gap:8px; }
+      .chart-canvas-wrap { height:180px !important; }
+      .chart-canvas-wrap.tall { height:200px !important; }
+      .card-title { font-size:11px; padding-bottom:5px; margin-bottom:6px; }
+      /* 페이지 내부 끊김 방지 */
+      table, .chart-box { page-break-inside:avoid; }
+    }
   </style>
 </head>
 <body>
@@ -135,34 +231,75 @@
 <div class="topbar">
   <a href="hub.html" class="back"><i class="fas fa-arrow-left"></i></a>
   <h1>📊 메틀러토레도 청구 보고서</h1>
-  <span class="sub">매출 추이 분석</span>
+  <div class="actions">
+    <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> A4 인쇄</button>
+    <button onclick="exportData()"><i class="fas fa-file-export"></i> 데이터 내보내기</button>
+    <button onclick="document.getElementById('importJson').click()"><i class="fas fa-file-import"></i> 가져오기</button>
+    <input type="file" id="importJson" accept=".json" style="display:none" onchange="importData(this)">
+  </div>
 </div>
 
 <div class="wrap">
 
-  <!-- KPI 카드 -->
+  <!-- 보고서 헤더 -->
+  <div class="report-header">
+    <div class="title">
+      <h2>📊 메틀러토레도코리아㈜ 청구 보고서</h2>
+      <div class="meta">
+        <span>출력일: <strong id="hdrDate"></strong></span>
+        <span>데이터 기간: <strong id="hdrPeriod"></strong></span>
+        <span>데이터 건수: <strong id="hdrCount"></strong></span>
+      </div>
+    </div>
+    <div class="company">
+      <div class="logo">㈜에이씨티로지스틱스</div>
+      <div>ACTLOGISTICS Co., Ltd.</div>
+      <div style="font-size:10px;color:#94a3b8;">TEL 02-2664-8401</div>
+    </div>
+  </div>
+
+  <!-- KPI 카드 (6개) -->
   <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- 연도×월 피벗 테이블 -->
+  <div class="card">
+    <div class="card-title">
+      <i class="fas fa-table"></i> 연도별 × 월별 청구 내역
+      <span style="margin-left:8px;font-size:10px;font-weight:600;color:#94a3b8;">(단위: 천원, VAT 포함) — 색상 진하기 = 매출 크기</span>
+    </div>
+    <div class="pivot-wrap">
+      <table class="pivot-table" id="pivotTable">
+        <thead>
+          <tr>
+            <th class="col-year">연도</th>
+            <th class="col-type">분류</th>
+            <th class="col-month">1월</th><th class="col-month">2월</th><th class="col-month">3월</th>
+            <th class="col-month">4월</th><th class="col-month">5월</th><th class="col-month">6월</th>
+            <th class="col-month">7월</th><th class="col-month">8월</th><th class="col-month">9월</th>
+            <th class="col-month">10월</th><th class="col-month">11월</th><th class="col-month">12월</th>
+            <th class="col-total">연 합계</th>
+            <th class="col-avg">월평균</th>
+          </tr>
+        </thead>
+        <tbody id="pivotBody"></tbody>
+      </table>
+    </div>
+  </div>
 
   <!-- 차트 -->
   <div class="chart-grid">
-    <div class="chart-box">
-      <h3>📈 월별 매출 추이 (VAT 포함)</h3>
-      <div class="chart-canvas-wrap"><canvas id="trendChart"></canvas></div>
+    <div class="card">
+      <div class="card-title"><i class="fas fa-chart-line"></i> 월별 매출 추이 (전체 기간)</div>
+      <div class="chart-canvas-wrap tall"><canvas id="trendChart"></canvas></div>
     </div>
-    <div class="chart-box">
-      <h3>🔵 운송료 vs 🟡 창고료 비교</h3>
-      <div class="chart-canvas-wrap"><canvas id="compareChart"></canvas></div>
+    <div class="card">
+      <div class="card-title"><i class="fas fa-chart-bar"></i> 연도별 비교</div>
+      <div class="chart-canvas-wrap tall"><canvas id="yearChart"></canvas></div>
     </div>
-  </div>
-
-  <!-- 누적 차트 -->
-  <div class="chart-box" style="margin-bottom:16px;">
-    <h3>📊 누적 매출 추이</h3>
-    <div class="chart-canvas-wrap" style="height:240px;"><canvas id="cumChart"></canvas></div>
   </div>
 
   <!-- 업로드 / 입력 -->
-  <div class="card">
+  <div class="card no-print">
     <div class="card-title"><i class="fas fa-upload"></i> 청구 내역 등록</div>
 
     <div class="mode-toggle">
@@ -170,7 +307,6 @@
       <button id="mTabImage" onclick="setMode('image')">📸 화면 캡쳐 (이미지)</button>
     </div>
 
-    <!-- PDF 모드 -->
     <div id="modePdf">
       <div class="uploader" id="pdfDrop"
         ondragover="event.preventDefault();this.classList.add('drag');"
@@ -179,13 +315,12 @@
         onclick="document.getElementById('pdfFile').click()">
         <i class="fas fa-file-pdf"></i>
         <p>여기에 <strong>PDF 파일을 드래그</strong>하거나 클릭하여 선택</p>
-        <p class="hint">청구내역서 PDF에서 자동으로 금액 추출</p>
+        <p class="hint">청구내역서 PDF에서 자동으로 금액 추출 (여러 파일 동시 가능)</p>
       </div>
       <input type="file" id="pdfFile" accept="application/pdf,.pdf" style="display:none" multiple onchange="onPdfFiles(this.files)">
       <div id="pdfResult"></div>
     </div>
 
-    <!-- 이미지 모드 -->
     <div id="modeImage" style="display:none;">
       <div class="uploader" id="imgDrop"
         ondragover="event.preventDefault();this.classList.add('drag');"
@@ -201,37 +336,15 @@
       <div id="imgManual" style="display:none;">
         <img id="imgPreview" class="preview-img" alt="미리보기">
         <div class="manual-form">
-          <div>
-            <label>청구 연월 *</label>
-            <input type="month" id="mYM" required>
+          <div><label>청구 연월 *</label><input type="month" id="mYM" required></div>
+          <div><label>청구 종류 *</label>
+            <select id="mType"><option value="운송료">운송료</option><option value="창고료">창고료</option></select>
           </div>
-          <div>
-            <label>청구 종류 *</label>
-            <select id="mType">
-              <option value="운송료">운송료</option>
-              <option value="창고료">창고료</option>
-            </select>
-          </div>
-          <div>
-            <label>청구 시작일</label>
-            <input type="date" id="mFrom">
-          </div>
-          <div>
-            <label>청구 종료일</label>
-            <input type="date" id="mTo">
-          </div>
-          <div>
-            <label>공급가액 *</label>
-            <input type="number" id="mSupply" placeholder="0" oninput="autoCalcTax()">
-          </div>
-          <div>
-            <label>세액 (10%)</label>
-            <input type="number" id="mTax" placeholder="0">
-          </div>
-          <div class="full">
-            <label>합계 금액 (VAT 포함) *</label>
-            <input type="number" id="mTotal" placeholder="0">
-          </div>
+          <div><label>청구 시작일</label><input type="date" id="mFrom"></div>
+          <div><label>청구 종료일</label><input type="date" id="mTo"></div>
+          <div><label>공급가액 *</label><input type="number" id="mSupply" placeholder="0" oninput="autoCalcTax()"></div>
+          <div><label>세액 (10%)</label><input type="number" id="mTax" placeholder="0"></div>
+          <div class="full"><label>합계 금액 (VAT 포함) *</label><input type="number" id="mTotal" placeholder="0"></div>
           <div class="full" style="display:flex;gap:8px;">
             <button class="btn btn-teal" onclick="saveManual()"><i class="fas fa-save"></i> 등록</button>
             <button class="btn btn-gray" onclick="resetManual()"><i class="fas fa-redo"></i> 초기화</button>
@@ -241,30 +354,26 @@
     </div>
   </div>
 
-  <!-- 데이터 테이블 -->
-  <div class="card">
+  <!-- 등록된 청구 내역 (상세) -->
+  <div class="card no-print">
     <div class="card-title">
-      <i class="fas fa-table"></i> 등록된 청구 내역
+      <i class="fas fa-list-alt"></i> 등록된 청구 내역 (상세)
       <span style="margin-left:auto;font-size:11px;font-weight:600;color:#94a3b8;" id="recCount"></span>
     </div>
     <div style="overflow-x:auto;">
       <table class="data-table" id="dataTable">
         <thead>
           <tr>
-            <th>청구월</th>
-            <th>종류</th>
-            <th>청구 기간</th>
-            <th>공급가액</th>
-            <th>세액</th>
-            <th>합계 (VAT 포함)</th>
-            <th>등록일</th>
-            <th>관리</th>
+            <th>청구월</th><th>종류</th><th>청구 기간</th>
+            <th>공급가액</th><th>세액</th><th>합계 (VAT 포함)</th>
+            <th>등록일</th><th>관리</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
   </div>
+
 </div>
 
 <div id="toast" class="toast"></div>
@@ -273,10 +382,10 @@
 const STORE_KEY = 'mettler_billing_history';
 let records = [];
 let mode = 'pdf';
-let trendChart, compareChart, cumChart;
+let trendChart, yearChart;
 let pendingImage = null;
 
-/* ── 초기 데이터: 3월·4월 (PDF에서 추출한 데이터) ── */
+/* ── 초기 시드 데이터 ── */
 const SEED_DATA = [
   { id:'seed-2026-03-운송료', yearMonth:'2026-03', type:'운송료',
     periodFrom:'2026-02-27', periodTo:'2026-03-15',
@@ -299,17 +408,11 @@ const SEED_DATA = [
 function loadData() {
   try {
     const j = localStorage.getItem(STORE_KEY);
-    if (j) {
-      records = JSON.parse(j);
-    } else {
-      records = [...SEED_DATA];
-      saveData();
-    }
+    if (j) records = JSON.parse(j);
+    else { records = [...SEED_DATA]; saveData(); }
   } catch { records = [...SEED_DATA]; }
 }
-function saveData() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(records));
-}
+function saveData() { localStorage.setItem(STORE_KEY, JSON.stringify(records)); }
 
 function setMode(m) {
   mode = m;
@@ -321,19 +424,29 @@ function setMode(m) {
 
 function toast(msg, type='success') {
   const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast ' + type;
+  el.textContent = msg; el.className = 'toast ' + type;
   el.style.display = 'block';
   setTimeout(() => el.style.display = 'none', 2800);
 }
 
-const fmt = n => (n||0).toLocaleString('ko-KR');
+const fmt  = n => (n||0).toLocaleString('ko-KR');
+const fmtK = n => { // 천원 단위
+  if (!n) return '-';
+  if (Math.abs(n) >= 1e8) return (n/1e8).toFixed(1)+'억';
+  if (Math.abs(n) >= 1e4) return (n/1e3).toFixed(0)+'';
+  return String(n);
+};
+const fmtKM = n => { // 큰 금액
+  if (!n) return '0원';
+  if (Math.abs(n) >= 1e8) return (n/1e8).toFixed(2)+'억원';
+  if (Math.abs(n) >= 1e4) return (n/1e4).toFixed(0)+'만원';
+  return n.toLocaleString('ko-KR')+'원';
+};
 const parseInt2 = s => parseInt(String(s||'').replace(/[^\d-]/g,'')) || 0;
 
 /* ════════════ PDF 업로드 ════════════ */
 function onPdfDrop(e) {
-  e.preventDefault();
-  e.currentTarget.classList.remove('drag');
+  e.preventDefault(); e.currentTarget.classList.remove('drag');
   if (e.dataTransfer.files.length) onPdfFiles(e.dataTransfer.files);
 }
 async function onPdfFiles(files) {
@@ -344,21 +457,14 @@ async function onPdfFiles(files) {
     try {
       const data = await extractPdf(f);
       if (data) {
-        const rec = {
-          id: 'pdf-' + Date.now() + Math.random().toString(36).slice(2,6),
-          ...data,
-          sourceFile: f.name,
-          uploadDate: new Date().toISOString().slice(0,10)
-        };
-        // 중복 체크 (같은 연월+종류는 덮어쓰기)
+        const rec = { id: 'pdf-' + Date.now() + Math.random().toString(36).slice(2,6),
+          ...data, sourceFile: f.name, uploadDate: new Date().toISOString().slice(0,10) };
         const dupIdx = records.findIndex(r => r.yearMonth === rec.yearMonth && r.type === rec.type);
         if (dupIdx >= 0) {
           if (confirm(`${rec.yearMonth} ${rec.type} 데이터가 이미 있습니다. 덮어쓸까요?`)) {
             records[dupIdx] = { ...records[dupIdx], ...rec };
           } else continue;
-        } else {
-          records.push(rec);
-        }
+        } else records.push(rec);
         result.innerHTML += `
           <div class="extracted">
             <h4>✅ ${f.name} 추출 완료</h4>
@@ -373,12 +479,10 @@ async function onPdfFiles(files) {
         result.innerHTML += `<div class="extracted" style="background:#fef2f2;border-color:#fca5a5;"><h4 style="color:#b91c1c;">⚠️ ${f.name} - 데이터 추출 실패</h4><p style="font-size:11px;color:#475569;">PDF 형식이 다릅니다. 화면 캡쳐 모드로 직접 입력해주세요.</p></div>`;
       }
     } catch(err) {
-      console.error(err);
       result.innerHTML += `<div class="extracted" style="background:#fef2f2;border-color:#fca5a5;"><h4 style="color:#b91c1c;">⚠️ ${f.name} - ${err.message}</h4></div>`;
     }
   }
-  saveData();
-  refresh();
+  saveData(); refresh();
   toast('PDF 처리 완료');
 }
 
@@ -395,13 +499,10 @@ async function extractPdf(file) {
 }
 
 function parseBilling(text) {
-  // 종류 추출: "X월 운송료" or "X월 창고료"
   const typeMatch = text.match(/(\d+월)\s*(운송료|창고료)/);
   if (!typeMatch) return null;
   const monthNum = parseInt(typeMatch[1]);
   const type = typeMatch[2];
-
-  // 청구 기간 추출: "YYYY년 M월 D일 ~ YYYY년 M월 D일"
   const periodMatch = text.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*~\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
   let periodFrom='', periodTo='', year=new Date().getFullYear();
   if (periodMatch) {
@@ -409,36 +510,26 @@ function parseBilling(text) {
     periodTo   = `${periodMatch[4]}-${String(periodMatch[5]).padStart(2,'0')}-${String(periodMatch[6]).padStart(2,'0')}`;
     year = parseInt(periodMatch[4]);
   }
-
-  // 금액 추출: 합계 행에서 "공급가액 세액 합계" 패턴
-  // 예: "합 계 5,009,400 500,940 5,510,340"
   const totalMatch = text.match(/합\s*계\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)/);
   let supply=0, tax=0, total=0;
   if (totalMatch) {
-    supply = parseInt2(totalMatch[1]);
-    tax    = parseInt2(totalMatch[2]);
-    total  = parseInt2(totalMatch[3]);
+    supply = parseInt2(totalMatch[1]); tax = parseInt2(totalMatch[2]); total = parseInt2(totalMatch[3]);
   }
   if (!supply || !total) {
-    // 백업: "X,XXX,XXX원(VAT포함)" 패턴으로 합계 추출
     const vat = text.match(/([\d,]+)\s*원\s*\(VAT\s*포함\)/);
     if (vat) total = parseInt2(vat[1]);
     if (!supply && total) supply = Math.round(total/1.1);
     if (!tax) tax = total - supply;
   }
   if (!total) return null;
-
-  return {
-    yearMonth: `${year}-${String(monthNum).padStart(2,'0')}`,
-    type, periodFrom, periodTo,
-    supplyAmount: supply, taxAmount: tax, totalAmount: total
-  };
+  return { yearMonth: `${year}-${String(monthNum).padStart(2,'0')}`,
+           type, periodFrom, periodTo,
+           supplyAmount: supply, taxAmount: tax, totalAmount: total };
 }
 
-/* ════════════ 이미지 업로드 (수동 입력) ════════════ */
+/* ════════════ 이미지 업로드 ════════════ */
 function onImgDrop(e) {
-  e.preventDefault();
-  e.currentTarget.classList.remove('drag');
+  e.preventDefault(); e.currentTarget.classList.remove('drag');
   if (e.dataTransfer.files.length) {
     document.getElementById('imgFile').files = e.dataTransfer.files;
     onImgSelected(document.getElementById('imgFile'));
@@ -451,7 +542,6 @@ function onImgSelected(input) {
     pendingImage = e.target.result;
     document.getElementById('imgPreview').src = pendingImage;
     document.getElementById('imgManual').style.display = 'block';
-    // 기본값 채우기
     if (!document.getElementById('mYM').value) {
       const now = new Date();
       document.getElementById('mYM').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -468,34 +558,25 @@ function autoCalcTax() {
   }
 }
 function saveManual() {
-  const ym     = document.getElementById('mYM').value;
-  const type   = document.getElementById('mType').value;
+  const ym = document.getElementById('mYM').value;
+  const type = document.getElementById('mType').value;
   const supply = parseInt2(document.getElementById('mSupply').value);
-  const tax    = parseInt2(document.getElementById('mTax').value);
-  const total  = parseInt2(document.getElementById('mTotal').value);
-  const from   = document.getElementById('mFrom').value;
-  const to     = document.getElementById('mTo').value;
+  const tax = parseInt2(document.getElementById('mTax').value);
+  const total = parseInt2(document.getElementById('mTotal').value);
+  const from = document.getElementById('mFrom').value;
+  const to   = document.getElementById('mTo').value;
   if (!ym || !total) { toast('청구 연월과 합계 금액은 필수입니다','error'); return; }
-  const rec = {
-    id: 'img-' + Date.now() + Math.random().toString(36).slice(2,6),
-    yearMonth: ym, type,
-    periodFrom: from, periodTo: to,
+  const rec = { id:'img-'+Date.now()+Math.random().toString(36).slice(2,6),
+    yearMonth: ym, type, periodFrom: from, periodTo: to,
     supplyAmount: supply, taxAmount: tax, totalAmount: total,
-    sourceFile: '(이미지)',
-    sourceImage: pendingImage,
-    uploadDate: new Date().toISOString().slice(0,10)
-  };
-  // 중복 체크
+    sourceFile:'(이미지)', sourceImage: pendingImage,
+    uploadDate: new Date().toISOString().slice(0,10) };
   const dupIdx = records.findIndex(r => r.yearMonth === ym && r.type === type);
   if (dupIdx >= 0) {
     if (!confirm(`${ym} ${type} 데이터가 이미 있습니다. 덮어쓸까요?`)) return;
     records[dupIdx] = { ...records[dupIdx], ...rec };
-  } else {
-    records.push(rec);
-  }
-  saveData();
-  refresh();
-  resetManual();
+  } else records.push(rec);
+  saveData(); refresh(); resetManual();
   toast('등록 완료');
 }
 function resetManual() {
@@ -505,7 +586,6 @@ function resetManual() {
   ['mSupply','mTax','mTotal','mFrom','mTo'].forEach(id => document.getElementById(id).value='');
 }
 
-/* ════════════ 데이터 관리 ════════════ */
 function deleteRec(id) {
   if (!confirm('이 청구 내역을 삭제할까요?')) return;
   records = records.filter(r => r.id !== id);
@@ -517,47 +597,301 @@ function editRec(id) {
   if (!r) return;
   setMode('image');
   pendingImage = r.sourceImage || null;
-  document.getElementById('mYM').value     = r.yearMonth;
-  document.getElementById('mType').value   = r.type;
-  document.getElementById('mFrom').value   = r.periodFrom||'';
-  document.getElementById('mTo').value     = r.periodTo||'';
+  document.getElementById('mYM').value = r.yearMonth;
+  document.getElementById('mType').value = r.type;
+  document.getElementById('mFrom').value = r.periodFrom||'';
+  document.getElementById('mTo').value = r.periodTo||'';
   document.getElementById('mSupply').value = r.supplyAmount;
-  document.getElementById('mTax').value    = r.taxAmount;
-  document.getElementById('mTotal').value  = r.totalAmount;
+  document.getElementById('mTax').value = r.taxAmount;
+  document.getElementById('mTotal').value = r.totalAmount;
   document.getElementById('imgManual').style.display = 'block';
   if (r.sourceImage) document.getElementById('imgPreview').src = r.sourceImage;
-  else document.getElementById('imgPreview').style.display = 'none';
   window.scrollTo({ top: 0, behavior:'smooth' });
 }
 
-/* ════════════ KPI / 차트 / 테이블 ════════════ */
-function refresh() {
-  // 정렬 (연월 → 종류)
-  records.sort((a,b) => {
-    if (a.yearMonth !== b.yearMonth) return a.yearMonth.localeCompare(b.yearMonth);
-    return a.type.localeCompare(b.type);
-  });
+/* ════════════ 데이터 내보내기/가져오기 ════════════ */
+function exportData() {
+  const data = JSON.stringify(records, null, 2);
+  const blob = new Blob([data], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `mettler_billing_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  toast('데이터 내보내기 완료');
+}
+function importData(input) {
+  const f = input.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const arr = JSON.parse(e.target.result);
+      if (!Array.isArray(arr)) throw new Error('잘못된 형식');
+      if (confirm(`${arr.length}건의 데이터를 가져옵니다. 기존 데이터에 병합할까요?\n(취소하면 기존 데이터 대체)`)) {
+        arr.forEach(rec => {
+          const idx = records.findIndex(r => r.yearMonth===rec.yearMonth && r.type===rec.type);
+          if (idx >= 0) records[idx] = rec; else records.push(rec);
+        });
+      } else { records = arr; }
+      saveData(); refresh();
+      toast(`${arr.length}건 가져오기 완료`);
+    } catch(err) { toast('가져오기 실패: '+err.message, 'error'); }
+  };
+  r.readAsText(f);
+  input.value = '';
+}
 
-  // KPI
-  const totalSum   = records.reduce((s,r) => s + r.totalAmount, 0);
-  const trSum      = records.filter(r=>r.type==='운송료').reduce((s,r)=>s+r.totalAmount,0);
-  const whSum      = records.filter(r=>r.type==='창고료').reduce((s,r)=>s+r.totalAmount,0);
-  const months     = [...new Set(records.map(r=>r.yearMonth))].length;
-  const avgMonth   = months ? Math.round(totalSum/months) : 0;
+/* ════════════ 분석 헬퍼 ════════════ */
+function aggregateByYearMonth() {
+  // { year: { month: { 운송료, 창고료, 합계 } } }
+  const data = {};
+  records.forEach(r => {
+    const [y, m] = r.yearMonth.split('-').map(Number);
+    if (!data[y]) data[y] = {};
+    if (!data[y][m]) data[y][m] = { 운송료:0, 창고료:0, 합계:0 };
+    data[y][m][r.type] += r.totalAmount;
+    data[y][m].합계 += r.totalAmount;
+  });
+  return data;
+}
+
+function getYearTotal(yearData) {
+  let tr=0, wh=0;
+  for (let m=1; m<=12; m++) {
+    if (yearData[m]) { tr += yearData[m].운송료; wh += yearData[m].창고료; }
+  }
+  return { 운송료:tr, 창고료:wh, 합계:tr+wh };
+}
+
+/* ════════════ 헤더/KPI ════════════ */
+function renderHeader() {
+  const today = new Date();
+  document.getElementById('hdrDate').textContent = today.toISOString().slice(0,10);
+  if (records.length === 0) {
+    document.getElementById('hdrPeriod').textContent = '데이터 없음';
+    document.getElementById('hdrCount').textContent = '0건';
+    return;
+  }
+  const yms = records.map(r => r.yearMonth).sort();
+  document.getElementById('hdrPeriod').textContent = `${yms[0]} ~ ${yms[yms.length-1]}`;
+  const months = [...new Set(yms)].length;
+  document.getElementById('hdrCount').textContent = `${records.length}건 (${months}개월)`;
+}
+
+function renderKPI() {
+  const totalSum = records.reduce((s,r)=>s+r.totalAmount,0);
+  const trSum    = records.filter(r=>r.type==='운송료').reduce((s,r)=>s+r.totalAmount,0);
+  const whSum    = records.filter(r=>r.type==='창고료').reduce((s,r)=>s+r.totalAmount,0);
+  const months   = [...new Set(records.map(r=>r.yearMonth))].length;
+
+  // 전년대비 (최근 12개월 vs 직전 12개월)
+  const sorted = [...records].sort((a,b)=>a.yearMonth.localeCompare(b.yearMonth));
+  const lastYM = sorted.length ? sorted[sorted.length-1].yearMonth : null;
+  let yoy = 0, yoyText = '데이터 부족';
+  if (lastYM) {
+    const lastDate = new Date(lastYM+'-01');
+    const oneYearAgo = new Date(lastDate); oneYearAgo.setFullYear(oneYearAgo.getFullYear()-1);
+    const twoYearAgo = new Date(lastDate); twoYearAgo.setFullYear(twoYearAgo.getFullYear()-2);
+    const recent = records.filter(r => new Date(r.yearMonth+'-01') > oneYearAgo).reduce((s,r)=>s+r.totalAmount,0);
+    const prev   = records.filter(r => {
+      const d = new Date(r.yearMonth+'-01');
+      return d > twoYearAgo && d <= oneYearAgo;
+    }).reduce((s,r)=>s+r.totalAmount,0);
+    if (prev > 0) {
+      yoy = ((recent - prev) / prev) * 100;
+      yoyText = (yoy>=0?'+':'') + yoy.toFixed(1) + '%';
+    } else if (recent > 0) {
+      yoyText = '신규';
+    }
+  }
+
+  // 최고/최저 매출월
+  const ymSums = {};
+  records.forEach(r => { ymSums[r.yearMonth] = (ymSums[r.yearMonth]||0) + r.totalAmount; });
+  const ymEntries = Object.entries(ymSums).sort((a,b)=>b[1]-a[1]);
+  const high = ymEntries[0] || ['-',0];
+  const low  = ymEntries[ymEntries.length-1] || ['-',0];
 
   document.getElementById('kpiGrid').innerHTML = `
-    <div class="kpi total"><div class="lbl">📊 누적 매출 합계</div><div class="val">${fmt(totalSum)}원</div><div class="sub">VAT 포함, ${records.length}건</div></div>
-    <div class="kpi transport"><div class="lbl">🚚 운송료 누적</div><div class="val">${fmt(trSum)}원</div><div class="sub">${totalSum?((trSum/totalSum)*100).toFixed(1):0}%</div></div>
-    <div class="kpi warehouse"><div class="lbl">📦 창고료 누적</div><div class="val">${fmt(whSum)}원</div><div class="sub">${totalSum?((whSum/totalSum)*100).toFixed(1):0}%</div></div>
-    <div class="kpi month"><div class="lbl">📅 월평균 매출</div><div class="val">${fmt(avgMonth)}원</div><div class="sub">${months}개월 데이터</div></div>
+    <div class="kpi total"><div class="lbl">📊 누적 매출</div><div class="val">${fmtKM(totalSum)}</div><div class="sub">VAT포함, ${records.length}건</div></div>
+    <div class="kpi yoy"><div class="lbl">📈 전년 대비</div><div class="val">${yoyText}</div><div class="sub ${yoy>=0?'pos':'neg'}">${yoy>=0?'▲ 증가':'▼ 감소'}</div></div>
+    <div class="kpi transport"><div class="lbl">🚚 운송료 누적</div><div class="val">${fmtKM(trSum)}</div><div class="sub">${totalSum?((trSum/totalSum)*100).toFixed(1):0}%</div></div>
+    <div class="kpi warehouse"><div class="lbl">📦 창고료 누적</div><div class="val">${fmtKM(whSum)}</div><div class="sub">${totalSum?((whSum/totalSum)*100).toFixed(1):0}%</div></div>
+    <div class="kpi high"><div class="lbl">🏆 최고 매출월</div><div class="val">${high[0]}</div><div class="sub">${fmtKM(high[1])}</div></div>
+    <div class="kpi low"><div class="lbl">📉 최저 매출월</div><div class="val">${low[0]}</div><div class="sub">${fmtKM(low[1])}</div></div>
   `;
+}
 
-  // 테이블
+/* ════════════ 피벗 테이블 ════════════ */
+function renderPivot() {
+  const data = aggregateByYearMonth();
+  const years = Object.keys(data).map(Number).sort();
+  const tbody = document.getElementById('pivotBody');
+
+  if (years.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="16" class="empty"><i class="fas fa-inbox"></i>등록된 데이터가 없습니다</td></tr>`;
+    return;
+  }
+
+  // 히트맵을 위한 max 값 (운송료/창고료 각각)
+  let maxTr = 0, maxWh = 0;
+  years.forEach(y => {
+    for (let m=1; m<=12; m++) {
+      if (data[y][m]) {
+        if (data[y][m].운송료 > maxTr) maxTr = data[y][m].운송료;
+        if (data[y][m].창고료 > maxWh) maxWh = data[y][m].창고료;
+      }
+    }
+  });
+
+  const heatColor = (v, max, base) => {
+    if (!v) return '';
+    const ratio = max ? v/max : 0;
+    return `background-color: rgba(${base}, ${0.1 + ratio * 0.6});`;
+  };
+
+  let html = '';
+  years.forEach((y, yIdx) => {
+    const yearData = data[y];
+    const yearTotal = getYearTotal(yearData);
+    const filledMonths = Object.keys(yearData).length;
+    const avg = filledMonths ? yearTotal.합계 / filledMonths : 0;
+
+    // 전년 대비
+    const prevY = years[yIdx-1];
+    let prevYearTotal = null;
+    if (prevY && data[prevY]) prevYearTotal = getYearTotal(data[prevY]);
+
+    const yoyHtml = (cur, prev) => {
+      if (!prev) return '';
+      const r = ((cur - prev) / prev) * 100;
+      const cls = r >= 0 ? 'yoy-pos' : 'yoy-neg';
+      const arrow = r >= 0 ? '▲' : '▼';
+      return `<span class="${cls}">${arrow}${Math.abs(r).toFixed(1)}%</span>`;
+    };
+
+    // 운송료 행
+    html += `<tr>
+      <td class="year-cell" rowspan="3">${y}년</td>
+      <td class="type-cell type-tr">🚚 운송료</td>`;
+    for (let m=1; m<=12; m++) {
+      const v = yearData[m]?.운송료 || 0;
+      const style = v ? `style="${heatColor(v, maxTr, '59,130,246')}"` : '';
+      html += `<td class="num ${v?'':'empty'}" ${style}>${v?fmtK(v):'-'}</td>`;
+    }
+    html += `<td class="year-total">${fmtK(yearTotal.운송료)}${yoyHtml(yearTotal.운송료, prevYearTotal?.운송료)}</td>
+             <td class="year-avg">${fmtK(filledMonths?yearTotal.운송료/filledMonths:0)}</td>
+    </tr>`;
+
+    // 창고료 행
+    html += `<tr><td class="type-cell type-wh">📦 창고료</td>`;
+    for (let m=1; m<=12; m++) {
+      const v = yearData[m]?.창고료 || 0;
+      const style = v ? `style="${heatColor(v, maxWh, '245,158,11')}"` : '';
+      html += `<td class="num ${v?'':'empty'}" ${style}>${v?fmtK(v):'-'}</td>`;
+    }
+    html += `<td class="year-total">${fmtK(yearTotal.창고료)}${yoyHtml(yearTotal.창고료, prevYearTotal?.창고료)}</td>
+             <td class="year-avg">${fmtK(filledMonths?yearTotal.창고료/filledMonths:0)}</td>
+    </tr>`;
+
+    // 합계 행
+    html += `<tr class="row-sum"><td class="type-cell type-sum">💰 합계</td>`;
+    for (let m=1; m<=12; m++) {
+      const v = yearData[m]?.합계 || 0;
+      html += `<td class="num ${v?'':'empty'}">${v?fmtK(v):'-'}</td>`;
+    }
+    html += `<td class="year-total">${fmtK(yearTotal.합계)}${yoyHtml(yearTotal.합계, prevYearTotal?.합계)}</td>
+             <td class="year-avg">${fmtK(avg)}</td>
+    </tr>`;
+  });
+
+  // 누적 합계 행 (모든 연도 합산 — 같은 월끼리)
+  const cumByMonth = Array(13).fill(0).map(()=>({ 운송료:0, 창고료:0, 합계:0 }));
+  years.forEach(y => {
+    for (let m=1; m<=12; m++) {
+      if (data[y][m]) {
+        cumByMonth[m].운송료 += data[y][m].운송료;
+        cumByMonth[m].창고료 += data[y][m].창고료;
+        cumByMonth[m].합계   += data[y][m].합계;
+      }
+    }
+  });
+  let cumTotalTr=0, cumTotalWh=0, cumTotalSum=0;
+  for (let m=1; m<=12; m++) {
+    cumTotalTr += cumByMonth[m].운송료;
+    cumTotalWh += cumByMonth[m].창고료;
+    cumTotalSum += cumByMonth[m].합계;
+  }
+
+  html += `<tr class="cum-row"><td class="year-cell" rowspan="3">📊 누적</td>
+    <td class="type-cell" style="background:#1e293b;color:#60a5fa;">운송료</td>`;
+  for (let m=1; m<=12; m++) html += `<td class="num">${cumByMonth[m].운송료?fmtK(cumByMonth[m].운송료):'-'}</td>`;
+  html += `<td class="year-total" style="background:#000;color:#fde68a;">${fmtK(cumTotalTr)}</td><td>-</td></tr>`;
+
+  html += `<tr class="cum-row"><td class="type-cell" style="background:#1e293b;color:#fbbf24;">창고료</td>`;
+  for (let m=1; m<=12; m++) html += `<td class="num">${cumByMonth[m].창고료?fmtK(cumByMonth[m].창고료):'-'}</td>`;
+  html += `<td class="year-total" style="background:#000;color:#fde68a;">${fmtK(cumTotalWh)}</td><td>-</td></tr>`;
+
+  html += `<tr class="cum-row"><td class="type-cell" style="background:#1e293b;color:#34d399;">합계</td>`;
+  for (let m=1; m<=12; m++) html += `<td class="num">${cumByMonth[m].합계?fmtK(cumByMonth[m].합계):'-'}</td>`;
+  html += `<td class="year-total" style="background:#000;color:#fde68a;">${fmtK(cumTotalSum)}</td><td>-</td></tr>`;
+
+  tbody.innerHTML = html;
+}
+
+/* ════════════ 차트 ════════════ */
+function renderCharts() {
+  const months = [...new Set(records.map(r=>r.yearMonth))].sort();
+  const trData = months.map(m => records.filter(r=>r.yearMonth===m && r.type==='운송료').reduce((s,r)=>s+r.totalAmount,0));
+  const whData = months.map(m => records.filter(r=>r.yearMonth===m && r.type==='창고료').reduce((s,r)=>s+r.totalAmount,0));
+  const totalData = months.map((_,i)=>trData[i]+whData[i]);
+
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(document.getElementById('trendChart'), {
+    type:'line',
+    data:{ labels: months,
+      datasets:[
+        { label:'합계', data:totalData, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,.12)', tension:.3, borderWidth:3, fill:true, order:1 },
+        { label:'운송료', data:trData, borderColor:'#3b82f6', backgroundColor:'transparent', tension:.3, borderWidth:2.5, order:2 },
+        { label:'창고료', data:whData, borderColor:'#f59e0b', backgroundColor:'transparent', tension:.3, borderWidth:2.5, order:3 }
+      ] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:10 } },
+                tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}원` } } },
+      scales:{ y:{ ticks:{ callback:v=>fmtK(v), font:{size:10} } }, x:{ ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } } } }
+  });
+
+  // 연도별 비교 (도넛/막대)
+  const data = aggregateByYearMonth();
+  const years = Object.keys(data).map(Number).sort();
+  const yrTr = years.map(y => getYearTotal(data[y]).운송료);
+  const yrWh = years.map(y => getYearTotal(data[y]).창고료);
+
+  if (yearChart) yearChart.destroy();
+  yearChart = new Chart(document.getElementById('yearChart'), {
+    type:'bar',
+    data:{ labels: years.map(y=>y+'년'),
+      datasets:[
+        { label:'운송료', data:yrTr, backgroundColor:'#3b82f6', borderRadius:6, stack:'a' },
+        { label:'창고료', data:yrWh, backgroundColor:'#f59e0b', borderRadius:6, stack:'a' }
+      ] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:10 } },
+                tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}원` } } },
+      scales:{ x:{ stacked:true, ticks:{ font:{size:11} } }, y:{ stacked:true, ticks:{ callback:v=>fmtK(v), font:{size:10} } } } }
+  });
+}
+
+/* ════════════ 상세 테이블 ════════════ */
+function renderDetailTable() {
+  const sorted = [...records].sort((a,b) => {
+    if (a.yearMonth !== b.yearMonth) return b.yearMonth.localeCompare(a.yearMonth);
+    return a.type.localeCompare(b.type);
+  });
   const tbody = document.getElementById('tbody');
-  if (records.length === 0) {
+  if (sorted.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" class="empty"><i class="fas fa-inbox"></i>등록된 청구 내역이 없습니다</td></tr>`;
   } else {
-    tbody.innerHTML = records.map(r => `
+    tbody.innerHTML = sorted.map(r => `
       <tr>
         <td><strong>${r.yearMonth}</strong></td>
         <td><span class="${r.type==='운송료'?'type-tr':'type-wh'}">${r.type}</span></td>
@@ -570,80 +904,17 @@ function refresh() {
           <button class="btn-edit" onclick="editRec('${r.id}')"><i class="fas fa-edit"></i></button>
           <button class="btn-del" onclick="deleteRec('${r.id}')"><i class="fas fa-trash"></i></button>
         </td>
-      </tr>
-    `).join('');
+      </tr>`).join('');
   }
   document.getElementById('recCount').textContent = `${records.length}건`;
-
-  drawCharts();
 }
 
-function drawCharts() {
-  const months = [...new Set(records.map(r=>r.yearMonth))].sort();
-  const trData = months.map(m => records.filter(r=>r.yearMonth===m && r.type==='운송료').reduce((s,r)=>s+r.totalAmount,0));
-  const whData = months.map(m => records.filter(r=>r.yearMonth===m && r.type==='창고료').reduce((s,r)=>s+r.totalAmount,0));
-  const totalData = months.map((_,i) => trData[i] + whData[i]);
-
-  // 누적
-  const cumData = [];
-  let acc = 0;
-  totalData.forEach(v => { acc += v; cumData.push(acc); });
-
-  // 추이 차트 (라인)
-  if (trendChart) trendChart.destroy();
-  trendChart = new Chart(document.getElementById('trendChart'), {
-    type:'line',
-    data:{
-      labels: months,
-      datasets:[
-        { label:'운송료', data:trData, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.1)', tension:.3, fill:true, borderWidth:2.5 },
-        { label:'창고료', data:whData, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.1)', tension:.3, fill:true, borderWidth:2.5 },
-        { label:'합계',  data:totalData, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,.05)', tension:.3, borderWidth:3, borderDash:[5,5] }
-      ]
-    },
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:10 } },
-                tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}원` } } },
-      scales:{ y:{ ticks:{ callback:v=>fmt(v), font:{size:10} } }, x:{ ticks:{ font:{size:11} } } } }
-  });
-
-  // 비교 차트 (바)
-  if (compareChart) compareChart.destroy();
-  compareChart = new Chart(document.getElementById('compareChart'), {
-    type:'bar',
-    data:{
-      labels: months,
-      datasets:[
-        { label:'운송료', data:trData, backgroundColor:'#3b82f6', borderRadius:6 },
-        { label:'창고료', data:whData, backgroundColor:'#f59e0b', borderRadius:6 }
-      ]
-    },
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:10 } },
-                tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}원` } } },
-      scales:{ y:{ ticks:{ callback:v=>fmt(v), font:{size:10} } }, x:{ ticks:{ font:{size:11} } } } }
-  });
-
-  // 누적 차트 (영역)
-  if (cumChart) cumChart.destroy();
-  cumChart = new Chart(document.getElementById('cumChart'), {
-    type:'line',
-    data:{
-      labels: months,
-      datasets:[{
-        label:'누적 매출',
-        data: cumData,
-        borderColor:'#0f766e',
-        backgroundColor:'rgba(20,184,166,.2)',
-        tension:.35, fill:true, borderWidth:3,
-        pointRadius:5, pointBackgroundColor:'#0f766e'
-      }]
-    },
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ display:false },
-                tooltip:{ callbacks:{ label:c=>`누적: ${fmt(c.parsed.y)}원` } } },
-      scales:{ y:{ ticks:{ callback:v=>fmt(v), font:{size:10} } } } }
-  });
+function refresh() {
+  renderHeader();
+  renderKPI();
+  renderPivot();
+  renderCharts();
+  renderDetailTable();
 }
 
 loadData();
