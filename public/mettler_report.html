@@ -8,7 +8,7 @@
   <title>메틀러토레도 청구 보고서</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
     if (window.pdfjsLib) {
@@ -939,7 +939,7 @@ function renderCharts() {
       },
       scales:{ y:{ ticks:{ callback:v=>fmtK(v), font:{size:10} } },
                x:{ ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } } } },
-    plugins: [ChartDataLabels]
+    plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : []
   });
 
   // 연도·월별 비교 (스택 막대)
@@ -968,7 +968,7 @@ function renderCharts() {
       },
       scales:{ x:{ stacked:true, ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } },
                y:{ stacked:true, ticks:{ callback:v=>fmtK(v), font:{size:10} } } } },
-    plugins: [ChartDataLabels]
+    plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : []
   });
 }
 
@@ -1014,11 +1014,17 @@ function renderDetailTable() {
 }
 
 function refresh() {
-  renderHeader();
-  renderKPI();
-  renderPivot();
-  renderCharts();
-  renderDetailTable();
+  // records가 비어있으면 자동으로 시드 복원
+  if (!Array.isArray(records) || records.length === 0) {
+    records = [...SEED_DATA];
+    saveData();
+    console.log('[자동 복원] 데이터가 비어있어 샘플 데이터를 자동 로드했습니다.');
+  }
+  try { renderHeader(); } catch(e) { console.error('헤더 렌더 오류:', e); }
+  try { renderKPI(); } catch(e) { console.error('KPI 렌더 오류:', e); }
+  try { renderPivot(); } catch(e) { console.error('피벗 렌더 오류:', e); }
+  try { renderCharts(); } catch(e) { console.error('차트 렌더 오류:', e); }
+  try { renderDetailTable(); } catch(e) { console.error('상세 테이블 렌더 오류:', e); }
 }
 
 loadData();
