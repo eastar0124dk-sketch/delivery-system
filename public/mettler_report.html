@@ -115,11 +115,18 @@
 
     /* 누적 합계 행 */
     .pivot-table tbody tr.cum-row td {
-      background:#0f172a !important; color:#fff !important;
-      font-weight:900 !important; font-size:11.5px !important;
-      border-top:3px solid #f59e0b !important;
+      background:#eef2ff !important; color:#3730a3 !important;
+      font-weight:800 !important; font-size:11.5px !important;
+      border-top:3px solid #6366f1 !important;
     }
-    .pivot-table tbody tr.cum-row td.year-cell { background:#000 !important; color:#fde68a !important; }
+    .pivot-table tbody tr.cum-row td.year-cell {
+      background:#4f46e5 !important; color:#fff !important;
+      font-weight:900 !important; font-size:13px !important;
+    }
+    .pivot-table tbody tr.cum-row td.year-total {
+      background:#c7d2fe !important; color:#312e81 !important; font-weight:900 !important;
+    }
+    .pivot-table tbody tr.cum-row td.num { color:#1e293b !important; }
 
     /* 전년대비 증감률 */
     .yoy-pos { color:#10b981; font-size:9px; font-weight:700; display:block; }
@@ -199,30 +206,46 @@
     .toast.success { background:#10b981; color:#fff; }
     .toast.error   { background:#ef4444; color:#fff; }
 
+    /* 화면/인쇄 전환용 숫자 표기 (full = 화면용, short = 인쇄용 천원단위) */
+    .num-short { display:none; }
+    .num-full  { display:inline; }
+
     /* ════════════ 인쇄 전용 스타일 ════════════ */
     @media print {
-      @page { size: A4 landscape; margin: 8mm; }
-      body { background:#fff; font-size:9.5px; }
+      @page { size: A4 landscape; margin: 6mm; }
+      body { background:#fff; font-size:12px; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
       .topbar, .no-print { display:none !important; }
       .wrap { max-width:none; padding:0; margin:0; }
       .card { box-shadow:none; border:1px solid #cbd5e1; padding:10px; margin-bottom:8px; page-break-inside:avoid; }
-      .report-header { box-shadow:none; padding:12px 16px; margin-bottom:8px; }
-      .report-header h2 { font-size:16px; }
-      .report-header .meta { font-size:10px; }
-      .kpi-grid { grid-template-columns:repeat(6,1fr) !important; gap:6px; margin-bottom:8px; }
-      .kpi { padding:8px 10px; box-shadow:none; border:1px solid #e2e8f0; }
-      .kpi .lbl { font-size:9px; }
-      .kpi .val { font-size:13px; }
-      .kpi .sub { font-size:8px; }
-      .pivot-table { font-size:9px; min-width:auto; }
-      .pivot-table thead th { font-size:9px; padding:5px 3px; }
-      .pivot-table tbody td { padding:4px 3px; }
+      .report-header { box-shadow:none; padding:14px 18px; margin-bottom:10px; }
+      .report-header h2 { font-size:18px; }
+      .report-header .meta { font-size:11px; }
+      .report-header .company .logo { font-size:14px; }
+      .kpi-grid { grid-template-columns:repeat(6,1fr) !important; gap:8px; margin-bottom:10px; }
+      .kpi { padding:10px 12px; box-shadow:none; border:1px solid #cbd5e1; }
+      .kpi .lbl { font-size:10px; }
+      .kpi .val { font-size:15px; }
+      .kpi .sub { font-size:10px; }
+      /* 인쇄 시 천원 단위 사용 → 폰트 크게 */
+      .num-full  { display:none !important; }
+      .num-short { display:inline !important; }
+      .pivot-table { font-size:12px; min-width:auto; width:100%; }
+      .pivot-table thead th { font-size:12px; padding:8px 4px; font-weight:800; }
+      .pivot-table tbody td { padding:7px 4px; font-size:12px; font-weight:600; }
+      .pivot-table tbody td.year-cell { font-size:14px; }
+      .pivot-table tbody td.year-total { font-size:12.5px; font-weight:900; }
+      .yoy-pos, .yoy-neg { font-size:9px !important; }
       .chart-grid { grid-template-columns:1.5fr 1fr !important; gap:8px; }
-      .chart-canvas-wrap { height:180px !important; }
-      .chart-canvas-wrap.tall { height:200px !important; }
-      .card-title { font-size:11px; padding-bottom:5px; margin-bottom:6px; }
+      .chart-canvas-wrap { height:200px !important; }
+      .chart-canvas-wrap.tall { height:230px !important; }
+      .card-title { font-size:13px; padding-bottom:6px; margin-bottom:8px; }
       /* 페이지 내부 끊김 방지 */
-      table, .chart-box { page-break-inside:avoid; }
+      table, .chart-box, .kpi-grid, .report-header { page-break-inside:avoid; }
+      /* 컬러 강제 적용 */
+      .pivot-table thead th, .pivot-table tbody td.year-cell,
+      .pivot-table tbody td.type-cell, .kpi {
+        -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;
+      }
     }
   </style>
 </head>
@@ -265,7 +288,10 @@
   <div class="card">
     <div class="card-title">
       <i class="fas fa-table"></i> 연도별 × 월별 청구 내역
-      <span style="margin-left:8px;font-size:10px;font-weight:600;color:#94a3b8;">(단위: 천원, VAT 포함) — 색상 진하기 = 매출 크기</span>
+      <span style="margin-left:8px;font-size:10px;font-weight:600;color:#94a3b8;">
+        <span class="num-full">(단위: 원, VAT 포함)</span><span class="num-short">(단위: 천원, VAT 포함)</span>
+        — 색상 진하기 = 매출 크기
+      </span>
     </div>
     <div class="pivot-wrap">
       <table class="pivot-table" id="pivotTable">
@@ -769,38 +795,43 @@ function renderPivot() {
       return `<span class="${cls}">${arrow}${Math.abs(r).toFixed(1)}%</span>`;
     };
 
+    // 화면용/인쇄용 듀얼 포맷 헬퍼
+    const dual = v => v
+      ? `<span class="num-full">${fmt(v)}</span><span class="num-short">${fmt(Math.round(v/1000))}</span>`
+      : '-';
+
     // 운송료 행
     html += `<tr>
       <td class="year-cell" rowspan="3">${y}년</td>
-      <td class="type-cell type-tr">🚚 운송료</td>`;
+      <td class="type-cell type-tr">운송료</td>`;
     for (let m=1; m<=12; m++) {
       const v = yearData[m]?.운송료 || 0;
       const style = v ? `style="${heatColor(v, maxTr, '59,130,246')}"` : '';
-      html += `<td class="num ${v?'':'empty'}" ${style}>${v?fmtK(v):'-'}</td>`;
+      html += `<td class="num ${v?'':'empty'}" ${style}>${dual(v)}</td>`;
     }
-    html += `<td class="year-total">${fmtK(yearTotal.운송료)}${yoyHtml(yearTotal.운송료, prevYearTotal?.운송료)}</td>
-             <td class="year-avg">${fmtK(filledMonths?yearTotal.운송료/filledMonths:0)}</td>
+    html += `<td class="year-total">${dual(yearTotal.운송료)}${yoyHtml(yearTotal.운송료, prevYearTotal?.운송료)}</td>
+             <td class="year-avg">${dual(filledMonths?Math.round(yearTotal.운송료/filledMonths):0)}</td>
     </tr>`;
 
     // 창고료 행
-    html += `<tr><td class="type-cell type-wh">📦 창고료</td>`;
+    html += `<tr><td class="type-cell type-wh">창고료</td>`;
     for (let m=1; m<=12; m++) {
       const v = yearData[m]?.창고료 || 0;
       const style = v ? `style="${heatColor(v, maxWh, '245,158,11')}"` : '';
-      html += `<td class="num ${v?'':'empty'}" ${style}>${v?fmtK(v):'-'}</td>`;
+      html += `<td class="num ${v?'':'empty'}" ${style}>${dual(v)}</td>`;
     }
-    html += `<td class="year-total">${fmtK(yearTotal.창고료)}${yoyHtml(yearTotal.창고료, prevYearTotal?.창고료)}</td>
-             <td class="year-avg">${fmtK(filledMonths?yearTotal.창고료/filledMonths:0)}</td>
+    html += `<td class="year-total">${dual(yearTotal.창고료)}${yoyHtml(yearTotal.창고료, prevYearTotal?.창고료)}</td>
+             <td class="year-avg">${dual(filledMonths?Math.round(yearTotal.창고료/filledMonths):0)}</td>
     </tr>`;
 
     // 합계 행
-    html += `<tr class="row-sum"><td class="type-cell type-sum">💰 합계</td>`;
+    html += `<tr class="row-sum"><td class="type-cell type-sum">합계</td>`;
     for (let m=1; m<=12; m++) {
       const v = yearData[m]?.합계 || 0;
-      html += `<td class="num ${v?'':'empty'}">${v?fmtK(v):'-'}</td>`;
+      html += `<td class="num ${v?'':'empty'}">${dual(v)}</td>`;
     }
-    html += `<td class="year-total">${fmtK(yearTotal.합계)}${yoyHtml(yearTotal.합계, prevYearTotal?.합계)}</td>
-             <td class="year-avg">${fmtK(avg)}</td>
+    html += `<td class="year-total">${dual(yearTotal.합계)}${yoyHtml(yearTotal.합계, prevYearTotal?.합계)}</td>
+             <td class="year-avg">${dual(Math.round(avg))}</td>
     </tr>`;
   });
 
@@ -822,18 +853,22 @@ function renderPivot() {
     cumTotalSum += cumByMonth[m].합계;
   }
 
-  html += `<tr class="cum-row"><td class="year-cell" rowspan="3">📊 누적</td>
-    <td class="type-cell" style="background:#1e293b;color:#60a5fa;">운송료</td>`;
-  for (let m=1; m<=12; m++) html += `<td class="num">${cumByMonth[m].운송료?fmtK(cumByMonth[m].운송료):'-'}</td>`;
-  html += `<td class="year-total" style="background:#000;color:#fde68a;">${fmtK(cumTotalTr)}</td><td>-</td></tr>`;
+  const dualCum = v => v
+    ? `<span class="num-full">${fmt(v)}</span><span class="num-short">${fmt(Math.round(v/1000))}</span>`
+    : '-';
 
-  html += `<tr class="cum-row"><td class="type-cell" style="background:#1e293b;color:#fbbf24;">창고료</td>`;
-  for (let m=1; m<=12; m++) html += `<td class="num">${cumByMonth[m].창고료?fmtK(cumByMonth[m].창고료):'-'}</td>`;
-  html += `<td class="year-total" style="background:#000;color:#fde68a;">${fmtK(cumTotalWh)}</td><td>-</td></tr>`;
+  html += `<tr class="cum-row"><td class="year-cell" rowspan="3">누적</td>
+    <td class="type-cell type-tr">운송료</td>`;
+  for (let m=1; m<=12; m++) html += `<td class="num">${dualCum(cumByMonth[m].운송료)}</td>`;
+  html += `<td class="year-total">${dualCum(cumTotalTr)}</td><td>-</td></tr>`;
 
-  html += `<tr class="cum-row"><td class="type-cell" style="background:#1e293b;color:#34d399;">합계</td>`;
-  for (let m=1; m<=12; m++) html += `<td class="num">${cumByMonth[m].합계?fmtK(cumByMonth[m].합계):'-'}</td>`;
-  html += `<td class="year-total" style="background:#000;color:#fde68a;">${fmtK(cumTotalSum)}</td><td>-</td></tr>`;
+  html += `<tr class="cum-row"><td class="type-cell type-wh">창고료</td>`;
+  for (let m=1; m<=12; m++) html += `<td class="num">${dualCum(cumByMonth[m].창고료)}</td>`;
+  html += `<td class="year-total">${dualCum(cumTotalWh)}</td><td>-</td></tr>`;
+
+  html += `<tr class="cum-row"><td class="type-cell type-sum">합계</td>`;
+  for (let m=1; m<=12; m++) html += `<td class="num">${dualCum(cumByMonth[m].합계)}</td>`;
+  html += `<td class="year-total">${dualCum(cumTotalSum)}</td><td>-</td></tr>`;
 
   tbody.innerHTML = html;
 }
