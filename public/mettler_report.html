@@ -8,6 +8,7 @@
   <title>메틀러토레도 청구 보고서</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
     if (window.pdfjsLib) {
@@ -135,6 +136,21 @@
     @media(max-width:900px){ .chart-grid{grid-template-columns:1fr;} }
     .chart-canvas-wrap { position:relative; height:280px; }
     .chart-canvas-wrap.tall { height:340px; }
+
+    /* 기간 필터 */
+    .range-filter { margin-left:auto; display:flex; gap:4px; }
+    .range-filter .rf-btn {
+      padding:4px 10px; font-size:11px; font-weight:700; font-family:inherit;
+      background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0;
+      border-radius:6px; cursor:pointer;
+    }
+    .range-filter .rf-btn:hover { background:#e2e8f0; }
+    .range-filter .rf-btn.active { background:#0f766e; color:#fff; border-color:#0f766e; }
+
+    /* 차트 범례 — 선 모양 */
+    .chart-legend { display:flex; justify-content:center; gap:18px; padding:8px 0; }
+    .chart-legend .lg-item { display:flex; align-items:center; gap:6px; font-size:11px; color:#475569; font-weight:600; }
+    .chart-legend .lg-line { width:24px; height:3px; border-radius:2px; }
 
     /* 모드 토글 */
     .mode-toggle { display:flex; gap:0; margin-bottom:14px; border:2px solid #e2e8f0; border-radius:10px; overflow:hidden; }
@@ -306,12 +322,27 @@
   <!-- 차트 -->
   <div class="chart-grid">
     <div class="card">
-      <div class="card-title"><i class="fas fa-chart-line"></i> 월별 매출 추이 (전체 기간)</div>
+      <div class="card-title">
+        <i class="fas fa-chart-line"></i> 월별 매출 추이
+        <div id="rangeFilter" class="range-filter no-print">
+          <button class="rf-btn" data-range="12">최근 12개월</button>
+          <button class="rf-btn" data-range="24">최근 24개월</button>
+          <button class="rf-btn active" data-range="all">전체</button>
+        </div>
+      </div>
       <div class="chart-canvas-wrap tall"><canvas id="trendChart"></canvas></div>
+      <div class="chart-legend">
+        <div class="lg-item"><div class="lg-line" style="background:#3b82f6"></div>운송료</div>
+        <div class="lg-item"><div class="lg-line" style="background:#f59e0b"></div>창고료</div>
+      </div>
     </div>
     <div class="card">
       <div class="card-title"><i class="fas fa-chart-bar"></i> 연도·월별 비교</div>
       <div class="chart-canvas-wrap tall"><canvas id="yearChart"></canvas></div>
+      <div class="chart-legend">
+        <div class="lg-item"><div class="lg-line" style="background:#3b82f6"></div>운송료</div>
+        <div class="lg-item"><div class="lg-line" style="background:#f59e0b"></div>창고료</div>
+      </div>
     </div>
   </div>
 
@@ -818,27 +849,55 @@ function renderPivot() {
 }
 
 /* ════════════ 차트 ════════════ */
+let chartRange = 'all'; // 'all' | '12' | '24'
+
 function renderCharts() {
-  const months = [...new Set(records.map(r=>r.yearMonth))].sort();
+  const allMonths = [...new Set(records.map(r=>r.yearMonth))].sort();
+  // 기간 필터 적용
+  let months = allMonths;
+  if (chartRange !== 'all') {
+    const n = parseInt(chartRange);
+    months = allMonths.slice(-n);
+  }
   const trData = months.map(m => records.filter(r=>r.yearMonth===m && r.type==='운송료').reduce((s,r)=>s+r.totalAmount,0));
   const whData = months.map(m => records.filter(r=>r.yearMonth===m && r.type==='창고료').reduce((s,r)=>s+r.totalAmount,0));
-  const totalData = months.map((_,i)=>trData[i]+whData[i]);
+
+  // 데이터 개수에 따라 레이블 표시 여부 결정
+  const showLabels = months.length <= 12;
+  const showLineLabels = months.length <= 8;
+  // 폰트 크기: 데이터 많을수록 작게
+  const labelFontSize = months.length <= 6 ? 11 : (months.length <= 12 ? 9 : 8);
 
   if (trendChart) trendChart.destroy();
   trendChart = new Chart(document.getElementById('trendChart'), {
     type:'line',
     data:{ labels: months,
       datasets:[
-        { label:'운송료', data:trData, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.12)', tension:.3, borderWidth:2.5, fill:true, order:2, pointStyle:'line' },
-        { label:'창고료', data:whData, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.12)', tension:.3, borderWidth:2.5, fill:true, order:1, pointStyle:'line' }
+        { label:'운송료', data:trData, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.12)',
+          tension:.3, borderWidth:2.5, fill:true, order:2,
+          pointBackgroundColor:'#3b82f6', pointRadius:months.length>24?2:4 },
+        { label:'창고료', data:whData, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.12)',
+          tension:.3, borderWidth:2.5, fill:true, order:1,
+          pointBackgroundColor:'#f59e0b', pointRadius:months.length>24?2:4 }
       ] },
     options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:14, usePointStyle:true, pointStyle:'line', boxWidth:30, boxHeight:2 } },
-                tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}원` } } },
-      scales:{ y:{ ticks:{ callback:v=>fmtK(v), font:{size:10} } }, x:{ ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } } } }
+      plugins:{
+        legend:{ display:false }, // HTML 커스텀 범례 사용
+        tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}원` } },
+        datalabels: {
+          display: showLineLabels,
+          align: 'top', anchor: 'end', offset: 4,
+          color: ctx => ctx.datasetIndex === 0 ? '#1e40af' : '#b45309',
+          font: { size: labelFontSize, weight: 'bold' },
+          formatter: v => v ? fmtK(v) : ''
+        }
+      },
+      scales:{ y:{ ticks:{ callback:v=>fmtK(v), font:{size:10} } },
+               x:{ ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } } } },
+    plugins: [ChartDataLabels]
   });
 
-  // 연도·월별 비교 (스택 막대) — X축: 연도-월, 운송료/창고료 누적
+  // 연도·월별 비교 (스택 막대)
   const ymLabels = months.map(m => {
     const [y, mo] = m.split('-');
     return `${y.slice(2)}년 ${parseInt(mo)}월`;
@@ -853,11 +912,32 @@ function renderCharts() {
         { label:'창고료', data:whData, backgroundColor:'#f59e0b', borderRadius:6, stack:'a' }
       ] },
     options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:10 } },
-                tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}원` } } },
+      plugins:{
+        legend:{ display:false }, // HTML 커스텀 범례 사용
+        tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}원` } },
+        datalabels: {
+          display: showLabels,
+          color: '#fff', font: { size: labelFontSize, weight: 'bold' },
+          formatter: v => v ? fmtK(v) : ''
+        }
+      },
       scales:{ x:{ stacked:true, ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } },
-               y:{ stacked:true, ticks:{ callback:v=>fmtK(v), font:{size:10} } } } }
+               y:{ stacked:true, ticks:{ callback:v=>fmtK(v), font:{size:10} } } } },
+    plugins: [ChartDataLabels]
   });
+}
+
+// 기간 필터 버튼 핸들러
+function bindRangeFilter() {
+  document.querySelectorAll('#rangeFilter .rf-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      chartRange = btn.dataset.range;
+      document.querySelectorAll('#rangeFilter .rf-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderCharts();
+    });
+  });
+}
 }
 
 /* ════════════ 상세 테이블 ════════════ */
@@ -898,6 +978,7 @@ function refresh() {
 
 loadData();
 refresh();
+bindRangeFilter();
 </script>
 </body>
 </html>
