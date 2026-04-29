@@ -50,7 +50,7 @@
     .report-header .company .logo { font-size:20px; font-weight:900; color:#0f766e; letter-spacing:-.3px; }
 
     /* ── KPI ── */
-    .kpi-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:16px; }
+    .kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:16px; }
     @media(max-width:1024px){ .kpi-grid{grid-template-columns:repeat(3,1fr);} }
     @media(max-width:600px){ .kpi-grid{grid-template-columns:repeat(2,1fr);} }
     .kpi {
@@ -235,7 +235,7 @@
       .report-header h2 { font-size:18px; }
       .report-header .meta { font-size:11px; }
       .report-header .company .logo { font-size:14px; }
-      .kpi-grid { grid-template-columns:repeat(6,1fr) !important; gap:8px; margin-bottom:10px; }
+      .kpi-grid { grid-template-columns:repeat(5,1fr) !important; gap:8px; margin-bottom:10px; }
       .kpi { padding:12px 14px; box-shadow:none; border:1px solid #cbd5e1; }
       .kpi .lbl { font-size:12px; font-weight:700; }
       .kpi .val { font-size:18px; font-weight:900; }
@@ -715,9 +715,6 @@ function renderHeader() { /* 헤더 메타 정보 제거됨 */ }
 
 function renderKPI() {
   const totalSum = records.reduce((s,r)=>s+r.totalAmount,0);
-  const trSum    = records.filter(r=>r.type==='운송료').reduce((s,r)=>s+r.totalAmount,0);
-  const whSum    = records.filter(r=>r.type==='창고료').reduce((s,r)=>s+r.totalAmount,0);
-  const months   = [...new Set(records.map(r=>r.yearMonth))].length;
 
   // 전년대비 (최근 12개월 vs 직전 12개월)
   const sorted = [...records].sort((a,b)=>a.yearMonth.localeCompare(b.yearMonth));
@@ -740,6 +737,34 @@ function renderKPI() {
     }
   }
 
+  // 전월 대비 (운송료/창고료 각각)
+  const allYMs = [...new Set(records.map(r=>r.yearMonth))].sort();
+  const lastM = allYMs[allYMs.length-1];
+  const prevM = allYMs[allYMs.length-2];
+  const sumByMonth = (ym, type) => records
+    .filter(r => r.yearMonth === ym && r.type === type)
+    .reduce((s,r)=>s+r.totalAmount, 0);
+
+  const trCur = lastM ? sumByMonth(lastM, '운송료') : 0;
+  const trPrev= prevM ? sumByMonth(prevM, '운송료') : 0;
+  const whCur = lastM ? sumByMonth(lastM, '창고료') : 0;
+  const whPrev= prevM ? sumByMonth(prevM, '창고료') : 0;
+
+  const calcDelta = (cur, prev) => {
+    if (!prev && !cur) return { pct:0, text:'데이터 없음', dir:0, diffText:'' };
+    if (!prev) return { pct:0, text:'신규', dir:1, diffText:'(첫 달)' };
+    const diff = cur - prev;
+    const pct = (diff / prev) * 100;
+    const dir = diff >= 0 ? 1 : -1;
+    return {
+      pct, dir,
+      text: (pct>=0?'+':'') + pct.toFixed(1) + '%',
+      diffText: `${dir>0?'▲ 증가':'▼ 감소'} ${fmtKM(Math.abs(diff))}`
+    };
+  };
+  const trDelta = calcDelta(trCur, trPrev);
+  const whDelta = calcDelta(whCur, whPrev);
+
   // 최고/최저 매출월
   const ymSums = {};
   records.forEach(r => { ymSums[r.yearMonth] = (ymSums[r.yearMonth]||0) + r.totalAmount; });
@@ -747,11 +772,12 @@ function renderKPI() {
   const high = ymEntries[0] || ['-',0];
   const low  = ymEntries[ymEntries.length-1] || ['-',0];
 
+  const cls = d => d.dir>=0 ? 'pos' : 'neg';
+
   document.getElementById('kpiGrid').innerHTML = `
-    <div class="kpi total"><div class="lbl">누적 매출</div><div class="val">${fmtKM(totalSum)}</div></div>
     <div class="kpi yoy"><div class="lbl">전년 대비</div><div class="val">${yoyText}</div><div class="sub ${yoy>=0?'pos':'neg'}">${yoy>=0?'전년 대비 증가':'전년 대비 감소'}</div></div>
-    <div class="kpi transport"><div class="lbl">운송료 누적</div><div class="val">${fmtKM(trSum)}</div><div class="sub">전체 매출 중 ${totalSum?((trSum/totalSum)*100).toFixed(1):0}%</div></div>
-    <div class="kpi warehouse"><div class="lbl">창고료 누적</div><div class="val">${fmtKM(whSum)}</div><div class="sub">전체 매출 중 ${totalSum?((whSum/totalSum)*100).toFixed(1):0}%</div></div>
+    <div class="kpi transport"><div class="lbl">운송료 (${lastM||'-'})</div><div class="val">${fmtKM(trCur)}</div><div class="sub ${cls(trDelta)}">${trDelta.text} ${trDelta.diffText}</div></div>
+    <div class="kpi warehouse"><div class="lbl">창고료 (${lastM||'-'})</div><div class="val">${fmtKM(whCur)}</div><div class="sub ${cls(whDelta)}">${whDelta.text} ${whDelta.diffText}</div></div>
     <div class="kpi high"><div class="lbl">최고 매출월</div><div class="val">${high[0]}</div><div class="sub">${fmtKM(high[1])}</div></div>
     <div class="kpi low"><div class="lbl">최저 매출월</div><div class="val">${low[0]}</div><div class="sub">${fmtKM(low[1])}</div></div>
   `;
