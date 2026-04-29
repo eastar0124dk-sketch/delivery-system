@@ -814,41 +814,6 @@ function renderPivot() {
     </tr>`;
   });
 
-  // 누적 합계 행 (모든 연도 합산 — 같은 월끼리)
-  const cumByMonth = Array(13).fill(0).map(()=>({ 운송료:0, 창고료:0, 합계:0 }));
-  years.forEach(y => {
-    for (let m=1; m<=12; m++) {
-      if (data[y][m]) {
-        cumByMonth[m].운송료 += data[y][m].운송료;
-        cumByMonth[m].창고료 += data[y][m].창고료;
-        cumByMonth[m].합계   += data[y][m].합계;
-      }
-    }
-  });
-  let cumTotalTr=0, cumTotalWh=0, cumTotalSum=0;
-  for (let m=1; m<=12; m++) {
-    cumTotalTr += cumByMonth[m].운송료;
-    cumTotalWh += cumByMonth[m].창고료;
-    cumTotalSum += cumByMonth[m].합계;
-  }
-
-  const dualCum = v => v
-    ? `<span class="num-full">${fmt(v)}</span><span class="num-short">${fmt(Math.round(v/1000))}</span>`
-    : '-';
-
-  html += `<tr class="cum-row"><td class="year-cell" rowspan="3">누적</td>
-    <td class="type-cell type-tr">운송료</td>`;
-  for (let m=1; m<=12; m++) html += `<td class="num">${dualCum(cumByMonth[m].운송료)}</td>`;
-  html += `<td class="year-total">${dualCum(cumTotalTr)}</td><td>-</td></tr>`;
-
-  html += `<tr class="cum-row"><td class="type-cell type-wh">창고료</td>`;
-  for (let m=1; m<=12; m++) html += `<td class="num">${dualCum(cumByMonth[m].창고료)}</td>`;
-  html += `<td class="year-total">${dualCum(cumTotalWh)}</td><td>-</td></tr>`;
-
-  html += `<tr class="cum-row"><td class="type-cell type-sum">합계</td>`;
-  for (let m=1; m<=12; m++) html += `<td class="num">${dualCum(cumByMonth[m].합계)}</td>`;
-  html += `<td class="year-total">${dualCum(cumTotalSum)}</td><td>-</td></tr>`;
-
   tbody.innerHTML = html;
 }
 
