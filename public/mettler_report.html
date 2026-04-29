@@ -310,7 +310,7 @@
       <div class="chart-canvas-wrap tall"><canvas id="trendChart"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-title"><i class="fas fa-chart-bar"></i> 연도별 비교</div>
+      <div class="card-title"><i class="fas fa-chart-bar"></i> 연도·월별 비교</div>
       <div class="chart-canvas-wrap tall"><canvas id="yearChart"></canvas></div>
     </div>
   </div>
@@ -838,24 +838,25 @@ function renderCharts() {
       scales:{ y:{ ticks:{ callback:v=>fmtK(v), font:{size:10} } }, x:{ ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } } } }
   });
 
-  // 연도별 비교 (도넛/막대)
-  const data = aggregateByYearMonth();
-  const years = Object.keys(data).map(Number).sort();
-  const yrTr = years.map(y => getYearTotal(data[y]).운송료);
-  const yrWh = years.map(y => getYearTotal(data[y]).창고료);
+  // 연도·월별 비교 (스택 막대) — X축: 연도-월, 운송료/창고료 누적
+  const ymLabels = months.map(m => {
+    const [y, mo] = m.split('-');
+    return `${y.slice(2)}년 ${parseInt(mo)}월`;
+  });
 
   if (yearChart) yearChart.destroy();
   yearChart = new Chart(document.getElementById('yearChart'), {
     type:'bar',
-    data:{ labels: years.map(y=>y+'년'),
+    data:{ labels: ymLabels,
       datasets:[
-        { label:'운송료', data:yrTr, backgroundColor:'#3b82f6', borderRadius:6, stack:'a' },
-        { label:'창고료', data:yrWh, backgroundColor:'#f59e0b', borderRadius:6, stack:'a' }
+        { label:'운송료', data:trData, backgroundColor:'#3b82f6', borderRadius:6, stack:'a' },
+        { label:'창고료', data:whData, backgroundColor:'#f59e0b', borderRadius:6, stack:'a' }
       ] },
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:10 } },
                 tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}원` } } },
-      scales:{ x:{ stacked:true, ticks:{ font:{size:11} } }, y:{ stacked:true, ticks:{ callback:v=>fmtK(v), font:{size:10} } } } }
+      scales:{ x:{ stacked:true, ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } },
+               y:{ stacked:true, ticks:{ callback:v=>fmtK(v), font:{size:10} } } } }
   });
 }
 
