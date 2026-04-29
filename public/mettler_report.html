@@ -270,6 +270,7 @@
   <h1>📊 메틀러토레도 청구 보고서</h1>
   <div class="actions">
     <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> A4 인쇄</button>
+    <button onclick="restoreSeed()"><i class="fas fa-database"></i> 샘플 복원</button>
     <button onclick="exportData()"><i class="fas fa-file-export"></i> 데이터 내보내기</button>
     <button onclick="document.getElementById('importJson').click()"><i class="fas fa-file-import"></i> 가져오기</button>
     <input type="file" id="importJson" accept=".json" style="display:none" onchange="importData(this)">
@@ -456,11 +457,29 @@ const SEED_DATA = [
 function loadData() {
   try {
     const j = localStorage.getItem(STORE_KEY);
-    if (j) records = JSON.parse(j);
-    else { records = [...SEED_DATA]; saveData(); }
+    if (j) {
+      records = JSON.parse(j);
+      // 데이터가 비어있으면 시드 자동 복원
+      if (!Array.isArray(records) || records.length === 0) {
+        records = [...SEED_DATA]; saveData();
+      }
+    } else { records = [...SEED_DATA]; saveData(); }
   } catch { records = [...SEED_DATA]; }
 }
 function saveData() { localStorage.setItem(STORE_KEY, JSON.stringify(records)); }
+
+function restoreSeed() {
+  if (records.length > 0) {
+    if (!confirm(`현재 ${records.length}건의 데이터가 있습니다.\n샘플 데이터(3월·4월)를 추가하시겠습니까?\n(중복은 자동 덮어쓰기)`)) return;
+  }
+  SEED_DATA.forEach(s => {
+    const idx = records.findIndex(r => r.yearMonth===s.yearMonth && r.type===s.type);
+    if (idx >= 0) records[idx] = { ...s };
+    else records.push({ ...s });
+  });
+  saveData(); refresh();
+  toast('샘플 데이터(3월·4월) 복원 완료');
+}
 
 function setMode(m) {
   mode = m;
