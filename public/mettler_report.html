@@ -39,34 +39,32 @@
 
     /* ── 보고서 헤더 (인쇄 시 표시) ── */
     .report-header {
-      background:#fff; border-radius:14px; padding:22px 26px; margin-bottom:16px;
+      background:#fff; border-radius:14px; padding:22px 28px; margin-bottom:16px;
       box-shadow:0 2px 10px rgba(0,0,0,.06); border-left:6px solid #0f766e;
       display:flex; align-items:center; gap:16px;
     }
     .report-header .title { flex:1; }
-    .report-header h2 { font-size:22px; font-weight:900; color:#0f172a; margin-bottom:5px; letter-spacing:-.4px; }
-    .report-header .meta { font-size:12px; color:#64748b; display:flex; gap:14px; }
-    .report-header .meta strong { color:#0f766e; font-weight:700; }
-    .report-header .company { text-align:right; font-size:12px; color:#475569; }
-    .report-header .company .logo { font-size:18px; font-weight:900; color:#0f766e; letter-spacing:-.3px; margin-bottom:2px; }
+    .report-header h2 { font-size:24px; font-weight:900; color:#0f172a; letter-spacing:-.4px; }
+    .report-header .company { text-align:right; }
+    .report-header .company .logo { font-size:20px; font-weight:900; color:#0f766e; letter-spacing:-.3px; }
 
     /* ── KPI ── */
     .kpi-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:16px; }
     @media(max-width:1024px){ .kpi-grid{grid-template-columns:repeat(3,1fr);} }
     @media(max-width:600px){ .kpi-grid{grid-template-columns:repeat(2,1fr);} }
     .kpi {
-      background:#fff; border-radius:12px; padding:14px 16px; box-shadow:0 2px 8px rgba(0,0,0,.06);
+      background:#fff; border-radius:12px; padding:18px 18px; box-shadow:0 2px 8px rgba(0,0,0,.06);
       border-top:4px solid var(--c,#14b8a6); position:relative; overflow:hidden;
     }
     .kpi::before {
       content:''; position:absolute; right:-30px; top:-30px; width:90px; height:90px;
       background:var(--c,#14b8a6); opacity:.08; border-radius:50%;
     }
-    .kpi .lbl { font-size:11px; color:#64748b; font-weight:600; margin-bottom:6px; position:relative; }
-    .kpi .val { font-size:18px; font-weight:900; color:#0f172a; position:relative; line-height:1.2; }
-    .kpi .sub { font-size:10px; color:#94a3b8; margin-top:4px; position:relative; }
-    .kpi .sub.pos { color:#10b981; font-weight:700; }
-    .kpi .sub.neg { color:#ef4444; font-weight:700; }
+    .kpi .lbl { font-size:13px; color:#475569; font-weight:700; margin-bottom:10px; position:relative; }
+    .kpi .val { font-size:24px; font-weight:900; color:#0f172a; position:relative; line-height:1.15; letter-spacing:-.5px; }
+    .kpi .sub { font-size:12px; color:#64748b; margin-top:8px; position:relative; font-weight:600; }
+    .kpi .sub.pos { color:#10b981; font-weight:800; }
+    .kpi .sub.neg { color:#ef4444; font-weight:800; }
     .kpi.total      { --c:#10b981; }
     .kpi.yoy        { --c:#8b5cf6; }
     .kpi.transport  { --c:#3b82f6; }
@@ -222,10 +220,10 @@
       .report-header .meta { font-size:11px; }
       .report-header .company .logo { font-size:14px; }
       .kpi-grid { grid-template-columns:repeat(6,1fr) !important; gap:8px; margin-bottom:10px; }
-      .kpi { padding:10px 12px; box-shadow:none; border:1px solid #cbd5e1; }
-      .kpi .lbl { font-size:10px; }
-      .kpi .val { font-size:15px; }
-      .kpi .sub { font-size:10px; }
+      .kpi { padding:12px 14px; box-shadow:none; border:1px solid #cbd5e1; }
+      .kpi .lbl { font-size:12px; font-weight:700; }
+      .kpi .val { font-size:18px; font-weight:900; }
+      .kpi .sub { font-size:11px; font-weight:600; }
       /* 인쇄 시 천원 단위 사용 → 폰트 크게 */
       .num-full  { display:none !important; }
       .num-short { display:inline !important; }
@@ -267,17 +265,10 @@
   <!-- 보고서 헤더 -->
   <div class="report-header">
     <div class="title">
-      <h2>📊 메틀러토레도코리아㈜ 청구 보고서</h2>
-      <div class="meta">
-        <span>출력일: <strong id="hdrDate"></strong></span>
-        <span>데이터 기간: <strong id="hdrPeriod"></strong></span>
-        <span>데이터 건수: <strong id="hdrCount"></strong></span>
-      </div>
+      <h2>메틀러토레도코리아㈜ 청구 보고서</h2>
     </div>
     <div class="company">
       <div class="logo">㈜에이씨티로지스틱스</div>
-      <div>ACTLOGISTICS Co., Ltd.</div>
-      <div style="font-size:10px;color:#94a3b8;">TEL 02-2664-8401</div>
     </div>
   </div>
 
@@ -689,19 +680,7 @@ function getYearTotal(yearData) {
 }
 
 /* ════════════ 헤더/KPI ════════════ */
-function renderHeader() {
-  const today = new Date();
-  document.getElementById('hdrDate').textContent = today.toISOString().slice(0,10);
-  if (records.length === 0) {
-    document.getElementById('hdrPeriod').textContent = '데이터 없음';
-    document.getElementById('hdrCount').textContent = '0건';
-    return;
-  }
-  const yms = records.map(r => r.yearMonth).sort();
-  document.getElementById('hdrPeriod').textContent = `${yms[0]} ~ ${yms[yms.length-1]}`;
-  const months = [...new Set(yms)].length;
-  document.getElementById('hdrCount').textContent = `${records.length}건 (${months}개월)`;
-}
+function renderHeader() { /* 헤더 메타 정보 제거됨 */ }
 
 function renderKPI() {
   const totalSum = records.reduce((s,r)=>s+r.totalAmount,0);
@@ -738,12 +717,12 @@ function renderKPI() {
   const low  = ymEntries[ymEntries.length-1] || ['-',0];
 
   document.getElementById('kpiGrid').innerHTML = `
-    <div class="kpi total"><div class="lbl">📊 누적 매출</div><div class="val">${fmtKM(totalSum)}</div><div class="sub">VAT포함, ${records.length}건</div></div>
-    <div class="kpi yoy"><div class="lbl">📈 전년 대비</div><div class="val">${yoyText}</div><div class="sub ${yoy>=0?'pos':'neg'}">${yoy>=0?'▲ 증가':'▼ 감소'}</div></div>
-    <div class="kpi transport"><div class="lbl">🚚 운송료 누적</div><div class="val">${fmtKM(trSum)}</div><div class="sub">${totalSum?((trSum/totalSum)*100).toFixed(1):0}%</div></div>
-    <div class="kpi warehouse"><div class="lbl">📦 창고료 누적</div><div class="val">${fmtKM(whSum)}</div><div class="sub">${totalSum?((whSum/totalSum)*100).toFixed(1):0}%</div></div>
-    <div class="kpi high"><div class="lbl">🏆 최고 매출월</div><div class="val">${high[0]}</div><div class="sub">${fmtKM(high[1])}</div></div>
-    <div class="kpi low"><div class="lbl">📉 최저 매출월</div><div class="val">${low[0]}</div><div class="sub">${fmtKM(low[1])}</div></div>
+    <div class="kpi total"><div class="lbl">누적 매출</div><div class="val">${fmtKM(totalSum)}</div></div>
+    <div class="kpi yoy"><div class="lbl">전년 대비</div><div class="val">${yoyText}</div><div class="sub ${yoy>=0?'pos':'neg'}">${yoy>=0?'전년 대비 증가':'전년 대비 감소'}</div></div>
+    <div class="kpi transport"><div class="lbl">운송료 누적</div><div class="val">${fmtKM(trSum)}</div><div class="sub">전체 매출 중 ${totalSum?((trSum/totalSum)*100).toFixed(1):0}%</div></div>
+    <div class="kpi warehouse"><div class="lbl">창고료 누적</div><div class="val">${fmtKM(whSum)}</div><div class="sub">전체 매출 중 ${totalSum?((whSum/totalSum)*100).toFixed(1):0}%</div></div>
+    <div class="kpi high"><div class="lbl">최고 매출월</div><div class="val">${high[0]}</div><div class="sub">${fmtKM(high[1])}</div></div>
+    <div class="kpi low"><div class="lbl">최저 매출월</div><div class="val">${low[0]}</div><div class="sub">${fmtKM(low[1])}</div></div>
   `;
 }
 
