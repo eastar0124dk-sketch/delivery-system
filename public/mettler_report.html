@@ -1020,9 +1020,10 @@ function refresh() {
     saveData();
     console.log('[자동 복원] 데이터가 비어있어 샘플 데이터를 자동 로드했습니다.');
   }
+  console.log(`[현재 데이터] ${records.length}건 — `, records.map(r=>`${r.yearMonth} ${r.type}`).join(', '));
   try { renderHeader(); } catch(e) { console.error('헤더 렌더 오류:', e); }
-  try { renderKPI(); } catch(e) { console.error('KPI 렌더 오류:', e); }
-  try { renderPivot(); } catch(e) { console.error('피벗 렌더 오류:', e); }
+  try { renderKPI(); } catch(e) { console.error('KPI 렌더 오류:', e); alert('KPI 렌더 오류: '+e.message); }
+  try { renderPivot(); } catch(e) { console.error('피벗 렌더 오류:', e); alert('피벗 렌더 오류: '+e.message); }
   try { renderCharts(); } catch(e) { console.error('차트 렌더 오류:', e); }
   try { renderDetailTable(); } catch(e) { console.error('상세 테이블 렌더 오류:', e); }
 }
