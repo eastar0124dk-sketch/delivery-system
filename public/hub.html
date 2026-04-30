@@ -103,6 +103,76 @@
     .sec-title::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
 
     /* ════════════════════════════════════════
+       URL 즐겨찾기 카드
+    ════════════════════════════════════════ */
+    .bookmark-grid {
+      display: grid; grid-template-columns: repeat(8, 1fr); gap: 12px; margin-bottom: 22px;
+    }
+    @media (max-width: 1280px) { .bookmark-grid { grid-template-columns: repeat(6, 1fr); } }
+    @media (max-width: 900px)  { .bookmark-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 600px)  { .bookmark-grid { grid-template-columns: repeat(3, 1fr); } }
+    .bm-card {
+      background: #fff; border-radius: 14px; padding: 14px 8px;
+      text-align: center; cursor: pointer; transition: all .15s;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06); position: relative;
+      border: 2px solid transparent; text-decoration: none;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .bm-card:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(0,0,0,.12); border-color: #c7d2fe; }
+    .bm-icon {
+      width: 44px; height: 44px; border-radius: 12px; display: flex;
+      align-items: center; justify-content: center; font-size: 22px;
+      background: linear-gradient(135deg,#e0e7ff,#c7d2fe);
+    }
+    .bm-name { font-size: 12px; font-weight: 700; color: #1e293b;
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .bm-card .bm-actions {
+      position: absolute; top: 4px; right: 4px; display: none; gap: 2px;
+    }
+    .bm-card:hover .bm-actions { display: flex; }
+    .bm-actions button {
+      width: 22px; height: 22px; border: none; border-radius: 6px;
+      background: rgba(255,255,255,.95); cursor: pointer; font-size: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.1); color: #64748b;
+    }
+    .bm-actions button:hover { background: #f1f5f9; }
+    .bm-actions .bm-del:hover { background: #fee2e2; color: #b91c1c; }
+    .bm-empty {
+      grid-column: 1/-1; padding: 36px; text-align: center;
+      background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 14px;
+      color: #94a3b8; font-size: 13px;
+    }
+
+    /* 모달 */
+    .modal-bg {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,.5); z-index: 9999; align-items: center; justify-content: center;
+    }
+    .modal-bg.show { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 16px; padding: 24px; width: 95%; max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    }
+    .modal-box h3 { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .modal-box label { display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 5px; }
+    .modal-box input {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+      font-size: 13px; font-family: inherit; margin-bottom: 14px; background: #fafafa;
+    }
+    .modal-box input:focus { outline: none; border-color: #667eea; background: #fff; }
+    .modal-box .icon-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .modal-box .icon-pick {
+      width: 36px; height: 36px; border-radius: 8px; border: 2px solid #e2e8f0;
+      background: #fff; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center;
+    }
+    .modal-box .icon-pick:hover { border-color: #c7d2fe; }
+    .modal-box .icon-pick.active { border-color: #667eea; background: #eef2ff; }
+    .modal-box .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .modal-box .btn-cancel { padding: 9px 16px; border: none; border-radius: 8px; background: #f1f5f9; color: #475569; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .modal-box .btn-save { padding: 9px 16px; border: none; border-radius: 8px; background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; font-weight: 700; cursor: pointer; font-family: inherit; }
+
+
+    /* ════════════════════════════════════════
        빠른 메뉴 — 3행 3열 + 색상 카드 (시원한 레이아웃)
     ════════════════════════════════════════ */
     .qmenu-grid {
@@ -288,7 +358,16 @@
       <a href="mettler_report.html"  class="qm"><div class="qm-icon i-teal">📊</div><div class="qm-name">메틀러 청구 보고서</div><div class="qm-desc">매출 추이 · 그래프</div></a>
     </div>
 
-    <!-- ④ 하단 2열 -->
+    <!-- ④ URL 즐겨찾기 -->
+    <div class="sec-title">
+      🔗 자주 쓰는 URL
+      <button onclick="openBookmarkModal()" style="margin-left:auto;padding:5px 12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">
+        <i class="fas fa-plus"></i> 추가
+      </button>
+    </div>
+    <div class="bookmark-grid" id="bookmarkGrid"></div>
+
+    <!-- ⑤ 하단 2열 -->
     <div class="sec-title">📋 상세 현황</div>
     <div class="bottom-row">
 
@@ -354,6 +433,23 @@
     </div>
 
   </div><!-- hub-main -->
+
+  <!-- 즐겨찾기 추가/수정 모달 -->
+  <div class="modal-bg" id="bookmarkModal" onclick="if(event.target===this)closeBookmarkModal()">
+    <div class="modal-box">
+      <h3 id="bmModalTitle"><i class="fas fa-bookmark"></i> URL 추가</h3>
+      <label>이름 *</label>
+      <input type="text" id="bmName" placeholder="예: 메틀러 사이트">
+      <label>URL *</label>
+      <input type="url" id="bmUrl" placeholder="https://example.com">
+      <label>아이콘 선택</label>
+      <div class="icon-row" id="bmIconRow"></div>
+      <div class="actions">
+        <button class="btn-cancel" onclick="closeBookmarkModal()">취소</button>
+        <button class="btn-save" onclick="saveBookmark()">저장</button>
+      </div>
+    </div>
+  </div>
 
   <script src="hub-nav.js"></script>
   <script>
@@ -539,6 +635,99 @@
 
     loadStats();
     setInterval(loadStats, 60000);
+
+    /* ════════════════════════════════════════
+       URL 즐겨찾기
+    ════════════════════════════════════════ */
+    const BM_KEY = 'hub_bookmarks';
+    const BM_ICONS = ['🌐','📊','📦','🚚','💰','📋','📁','📝','🔍','⚙️','🏢','📞','📧','💬','🛒','🎯','⭐','🔗','💼','🖥️','📱','🗂️','📅','🧾','💡'];
+    let bookmarks = [];
+    let editingBmId = null;
+    let selectedIcon = '🌐';
+
+    function loadBookmarks() {
+      try {
+        const j = localStorage.getItem(BM_KEY);
+        bookmarks = j ? JSON.parse(j) : [];
+      } catch { bookmarks = []; }
+      renderBookmarks();
+    }
+    function saveBookmarks() { localStorage.setItem(BM_KEY, JSON.stringify(bookmarks)); }
+
+    function renderBookmarks() {
+      const grid = document.getElementById('bookmarkGrid');
+      if (!bookmarks.length) {
+        grid.innerHTML = `<div class="bm-empty">
+          <i class="fas fa-link" style="font-size:24px;display:block;margin-bottom:8px;opacity:.4;"></i>
+          자주 쓰는 URL이 없습니다. <strong>"+ 추가"</strong> 버튼을 눌러 등록하세요.
+        </div>`;
+        return;
+      }
+      grid.innerHTML = bookmarks.map(b => `
+        <a class="bm-card" href="${b.url}" target="_blank" rel="noopener" title="${b.url}">
+          <div class="bm-actions" onclick="event.preventDefault();event.stopPropagation();">
+            <button onclick="editBookmark('${b.id}')" title="편집"><i class="fas fa-edit"></i></button>
+            <button class="bm-del" onclick="deleteBookmark('${b.id}')" title="삭제"><i class="fas fa-trash"></i></button>
+          </div>
+          <div class="bm-icon">${b.icon || '🌐'}</div>
+          <div class="bm-name">${b.name}</div>
+        </a>
+      `).join('');
+    }
+
+    function openBookmarkModal(bm = null) {
+      editingBmId = bm ? bm.id : null;
+      document.getElementById('bmModalTitle').innerHTML = bm
+        ? '<i class="fas fa-edit"></i> URL 수정'
+        : '<i class="fas fa-bookmark"></i> URL 추가';
+      document.getElementById('bmName').value = bm ? bm.name : '';
+      document.getElementById('bmUrl').value  = bm ? bm.url  : '';
+      selectedIcon = bm ? (bm.icon || '🌐') : '🌐';
+      // 아이콘 그리드 렌더
+      document.getElementById('bmIconRow').innerHTML = BM_ICONS.map(ic =>
+        `<button class="icon-pick ${ic===selectedIcon?'active':''}" data-ic="${ic}" onclick="pickIcon('${ic}')">${ic}</button>`
+      ).join('');
+      document.getElementById('bookmarkModal').classList.add('show');
+      setTimeout(() => document.getElementById('bmName').focus(), 50);
+    }
+    function closeBookmarkModal() {
+      document.getElementById('bookmarkModal').classList.remove('show');
+      editingBmId = null;
+    }
+    function pickIcon(ic) {
+      selectedIcon = ic;
+      document.querySelectorAll('#bmIconRow .icon-pick').forEach(b =>
+        b.classList.toggle('active', b.dataset.ic === ic));
+    }
+    function saveBookmark() {
+      const name = document.getElementById('bmName').value.trim();
+      let url    = document.getElementById('bmUrl').value.trim();
+      if (!name || !url) { alert('이름과 URL을 입력해주세요.'); return; }
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      if (editingBmId) {
+        const idx = bookmarks.findIndex(b => b.id === editingBmId);
+        if (idx >= 0) bookmarks[idx] = { ...bookmarks[idx], name, url, icon: selectedIcon };
+      } else {
+        bookmarks.push({
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+          name, url, icon: selectedIcon
+        });
+      }
+      saveBookmarks(); renderBookmarks(); closeBookmarkModal();
+    }
+    function editBookmark(id) {
+      const bm = bookmarks.find(b => b.id === id);
+      if (bm) openBookmarkModal(bm);
+    }
+    function deleteBookmark(id) {
+      const bm = bookmarks.find(b => b.id === id);
+      if (!bm) return;
+      if (!confirm(`'${bm.name}' 즐겨찾기를 삭제할까요?`)) return;
+      bookmarks = bookmarks.filter(b => b.id !== id);
+      saveBookmarks(); renderBookmarks();
+    }
+
+    loadBookmarks();
   </script>
 </body>
 </html>
