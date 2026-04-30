@@ -361,8 +361,10 @@
           fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 21);
           toDate   = new Date(today.getFullYear(), today.getMonth(), 20);
         }
-        document.getElementById('rangeFrom').value = fromDate.toISOString().slice(0,10);
-        document.getElementById('rangeTo').value   = toDate.toISOString().slice(0,10);
+        // toISOString은 UTC 변환으로 KST와 하루 차이 발생 → 로컬 기준 직접 포맷
+        const fmtLocal = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        document.getElementById('rangeFrom').value = fmtLocal(fromDate);
+        document.getElementById('rangeTo').value   = fmtLocal(toDate);
         applyRange();
       } else {
         loadOT();
