@@ -413,8 +413,10 @@
           const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
           const otRes = await fetch(`/api/ot?from=${fmt(from)}&to=${fmt(to)}`, { headers: authH() });
           if (otRes.ok) {
-            const otList = await otRes.json();
-            document.getElementById('s-ot').textContent = (otList.records || otList || []).length;
+            const otJson = await otRes.json();
+            // OT API 응답: { data: [...] } 형식
+            const otList = otJson.data || otJson.records || (Array.isArray(otJson) ? otJson : []);
+            document.getElementById('s-ot').textContent = otList.length;
             document.getElementById('s-ot-sub').textContent = `${fmt(from).slice(5)} ~ ${fmt(to).slice(5)}`;
           }
         } catch(e) { console.error('OT fetch failed', e); }
