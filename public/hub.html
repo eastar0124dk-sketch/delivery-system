@@ -270,7 +270,7 @@
       <div class="sc sc-cyan">
         <div class="sc-label"><i class="fas fa-calendar-day"></i> 오늘 일정</div>
         <div><span class="sc-val" id="s-events">0</span><span class="sc-unit">건</span></div>
-        <div class="sc-sub">오늘 등록된 캘린더</div>
+        <div class="sc-sub" id="s-events-sub" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">오늘 등록된 캘린더</div>
       </div>
     </div>
 
@@ -425,11 +425,34 @@
         try {
           const t = new Date();
           const todayStr = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
-          const evRes = await fetch(`/api/events?from=${todayStr}&to=${todayStr}`, { headers: authH() });
+          const evRes = await fetch('/api/calendar', { headers: authH() });
           if (evRes.ok) {
-            const evList = await evRes.json();
-            const events = evList.events || evList || [];
-            document.getElementById('s-events').textContent = events.length;
+            const evJson = await evRes.json();
+            const allEvents = evJson.data || evJson || [];
+            // 오늘 날짜 일정만 필터
+            const todayEvents = allEvents.filter(e => {
+              const d = e.event_date || e.date || '';
+              return d === todayStr;
+            });
+            document.getElementById('s-events').textContent = todayEvents.length;
+            // 요약 내용: 시간 + 제목, 최대 2개까지 표시
+            const subEl = document.getElementById('s-events-sub');
+            if (todayEvents.length === 0) {
+              subEl.textContent = '오늘 등록된 캘린더';
+              subEl.title = '';
+            } else {
+              const summary = todayEvents.slice(0, 2).map(e => {
+                const tt = (e.event_time || e.time || '').slice(0,5);
+                return (tt ? tt + ' ' : '') + (e.title || '제목 없음');
+              }).join(' · ');
+              const more = todayEvents.length > 2 ? ` 외 ${todayEvents.length-2}건` : '';
+              subEl.textContent = summary + more;
+              // 전체 일정을 툴팁으로
+              subEl.title = todayEvents.map(e => {
+                const tt = (e.event_time || e.time || '').slice(0,5);
+                return (tt ? '['+tt+'] ' : '') + (e.title || '제목 없음');
+              }).join('\n');
+            }
           }
         } catch(e) { console.error('Events fetch failed', e); }
 
