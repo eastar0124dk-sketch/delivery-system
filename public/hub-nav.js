@@ -103,17 +103,13 @@ function initNav(currentPage) {
   const navItems = [
     { section: '📊 운영 현황' },
     { href: 'hub.html',      icon: '🏠', label: '대시보드' },
-    { href: 'todo.html',     icon: '✅', label: '업무 Todo' },
     { href: 'dispatch.html', icon: '🚚', label: '차량 배차' },
     { href: 'claims.html',   icon: '⚠️', label: '클레임 트래커' },
     { href: 'calendar.html', icon: '📅', label: '캘린더' },
     { href: 'notes.html',    icon: '📝', label: '메모장' },
     { href: 'vendors.html',  icon: '🏢', label: '업체 관리' },
     { section: '📋 일일 업무' },
-    { href: 'journal_mettler.html', icon: '⚖️', label: '메틀러 업무일지' },
-    { href: 'journal_chanel.html',  icon: '💄', label: '샤넬 업무일지' },
-    { href: 'bonded.html',          icon: '🚢', label: '보세 반입/출' },
-    { href: 'ot.html',              icon: '⏰', label: 'OT 내역 관리' },
+    { href: 'ot.html',       icon: '⏰', label: 'OT 내역 관리' },
     { section: '📦 오더 시스템' },
     { href: 'admin.html', icon: '🗂️', label: '오더 관리' },
     { href: 'list.html',  icon: '🔍', label: '조회/출력' },
@@ -121,6 +117,7 @@ function initNav(currentPage) {
     { href: 'billing.html',      icon: '💰', label: '운송 청구서' },
     { href: 'profit-calc.html',  icon: '📊', label: '수익율 계산기' },
     { href: 'ot_fee.html',       icon: '⏱️', label: 'OT Fee (메틀러)' },
+    { href: 'mettler_report.html', icon: '📊', label: '메틀러 청구 보고서' },
   ];
 
   // 추가 CSS: 홈버튼 + WMS + 파일 바로가기
