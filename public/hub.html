@@ -282,11 +282,11 @@
     <div class="sec-title">📋 상세 현황</div>
     <div class="bottom-row">
 
-      <!-- 최근 서명 -->
+      <!-- 오늘 서명 완료 -->
       <div class="card">
         <div class="card-title">
           <span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;">LIVE</span>
-          최근 서명 완료 목록
+          오늘 서명 완료 목록 <span style="font-size:11px;font-weight:600;color:#94a3b8;margin-left:6px;" id="todayLabel"></span>
         </div>
         <table>
           <thead>
@@ -396,14 +396,28 @@
         document.getElementById('sum-rate').textContent      = rate + '%';
         document.getElementById('sumRateBar').style.width    = rate + '%';
 
-        /* 최근 서명 테이블 */
+        /* 오늘 서명 완료 테이블 — 오늘 날짜만 필터링 */
         const tbody = document.getElementById('recentTable');
-        const list  = d.recent_signed || [];
+        const allList = d.recent_signed || [];
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+        // 오늘 라벨 표시
+        const lblEl = document.getElementById('todayLabel');
+        if (lblEl) lblEl.textContent = `(${today.getMonth()+1}월 ${today.getDate()}일 기준)`;
+
+        const list = allList.filter(r => {
+          const completed = r.completed_at || r.signed_at || r.signedAt || r.created_at;
+          if (!completed) return false;
+          const d = new Date(completed);
+          const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          return ds === todayStr;
+        });
+
         if (!list.length) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:28px;">최근 서명 완료 내역이 없습니다.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:28px;">오늘 서명 완료된 내역이 없습니다.</td></tr>';
         } else {
           tbody.innerHTML = list.map((r, i) => {
-            // 다양한 필드명 호환
             const dn       = r.dn_number || r.order_no || r.orderNo || '-';
             const customer = r.customer || r.customer_company || r.customerCompany || r.customer_name || '-';
             const completed= r.completed_at || r.signed_at || r.signedAt || r.created_at || null;
