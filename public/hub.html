@@ -46,7 +46,7 @@
     ════════════════════════════════════════ */
     .stat-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 14px;
       margin-bottom: 22px;
     }
@@ -197,7 +197,7 @@
     .act-ghost   { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 
     @media (max-width: 1300px) {
-      .stat-grid  { grid-template-columns: repeat(4, 1fr); }
+      .stat-grid  { grid-template-columns: repeat(3, 1fr); }
       .qmenu-grid { grid-template-columns: repeat(3, 1fr); }
     }
     @media (max-width: 900px) {
@@ -262,21 +262,6 @@
         <div><span class="sc-val" id="s-claims">0</span><span class="sc-unit">건</span></div>
         <div class="sc-sub">처리 중인 클레임</div>
       </div>
-      <div class="sc sc-violet">
-        <div class="sc-label"><i class="fas fa-tasks"></i> 업무 Todo</div>
-        <div><span class="sc-val" id="s-todos">0</span><span class="sc-unit">건</span></div>
-        <div class="sc-sub">미완료 할일</div>
-      </div>
-      <div class="sc sc-cyan">
-        <div class="sc-label"><i class="fas fa-ship"></i> 보세 반입</div>
-        <div><span class="sc-val" id="s-bonded-in">0</span><span class="sc-unit">건</span></div>
-        <div class="sc-sub">이번 달 반입</div>
-      </div>
-      <div class="sc sc-teal">
-        <div class="sc-label"><i class="fas fa-exchange-alt"></i> 보세 반출</div>
-        <div><span class="sc-val" id="s-bonded-out">0</span><span class="sc-unit">건</span></div>
-        <div class="sc-sub">이번 달 반출</div>
-      </div>
     </div>
 
     <!-- ③ 빠른 메뉴 -->
@@ -332,8 +317,8 @@
           <div class="sum-right" style="color:#b45309;" id="sum-pending">0</div>
         </div>
         <div class="sum-row">
-          <div class="sum-left"><div class="sum-icon" style="background:#cffafe;">🚢</div> 보세 반입/반출</div>
-          <div class="sum-right" style="color:#0e7490;font-size:14px;"><span id="sum-bin">0</span>건 / <span id="sum-bout">0</span>건</div>
+          <div class="sum-left"><div class="sum-icon" style="background:#fee2e2;">⚠️</div> 처리 중 클레임</div>
+          <div class="sum-right" style="color:#b91c1c;" id="sum-claims">0</div>
         </div>
 
         <div style="margin-top:14px;">
@@ -402,16 +387,12 @@
         document.getElementById('rateBar').style.width       = rate + '%';
         document.getElementById('s-rate-sub').textContent    = `${signed} / ${total} 건`;
         document.getElementById('s-claims').textContent      = d.open_claims   ?? 0;
-        document.getElementById('s-todos').textContent       = d.pending_todos ?? 0;
-        document.getElementById('s-bonded-in').textContent   = d.bonded_in     ?? 0;
-        document.getElementById('s-bonded-out').textContent  = d.bonded_out    ?? 0;
 
         /* 요약 */
         document.getElementById('sum-total').textContent     = total;
         document.getElementById('sum-signed').textContent    = signed;
         document.getElementById('sum-pending').textContent   = pend;
-        document.getElementById('sum-bin').textContent       = d.bonded_in  ?? 0;
-        document.getElementById('sum-bout').textContent      = d.bonded_out ?? 0;
+        document.getElementById('sum-claims').textContent    = d.open_claims ?? 0;
         document.getElementById('sum-rate').textContent      = rate + '%';
         document.getElementById('sumRateBar').style.width    = rate + '%';
 
