@@ -402,15 +402,20 @@
         if (!list.length) {
           tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:28px;">최근 서명 완료 내역이 없습니다.</td></tr>';
         } else {
-          tbody.innerHTML = list.map((r, i) => `
+          tbody.innerHTML = list.map((r, i) => {
+            // 다양한 필드명 호환
+            const dn       = r.dn_number || r.order_no || r.orderNo || '-';
+            const customer = r.customer || r.customer_company || r.customerCompany || r.customer_name || '-';
+            const completed= r.completed_at || r.signed_at || r.signedAt || r.created_at || null;
+            return `
             <tr>
               <td style="color:#94a3b8;font-size:12px;">${i+1}</td>
-              <td><strong>${r.dn_number || '-'}</strong></td>
-              <td style="color:#475569;">${r.customer || '-'}</td>
-              <td style="font-size:12px;color:#94a3b8;">${r.completed_at ? new Date(r.completed_at).toLocaleString('ko-KR') : '-'}</td>
+              <td><strong>${dn}</strong></td>
+              <td style="color:#475569;">${customer}</td>
+              <td style="font-size:12px;color:#94a3b8;">${completed ? new Date(completed).toLocaleString('ko-KR') : '-'}</td>
               <td><span class="badge b-green">완료</span></td>
-            </tr>
-          `).join('');
+            </tr>`;
+          }).join('');
         }
       } catch(e) {
         console.error('stats load failed', e);
