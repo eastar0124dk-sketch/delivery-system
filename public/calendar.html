@@ -260,6 +260,8 @@
           <option value="bonded">🚢 보세 반입/출</option>
           <option value="canon">🖨️ 캐논메디칼</option>
           <option value="mettler">⚖️ 메틀러토레도</option>
+          <option value="chanel">💄 샤넬코리아</option>
+          <option value="personal">👤 개인일정</option>
           <option value="dispatch">🚗 배차</option>
           <option value="deadline">⏰ 마감</option>
           <option value="meeting">💬 회의</option>
@@ -683,7 +685,7 @@
     /* ── 엑셀 다운로드 ── */
     function exportExcel() {
       if (!events.length) { alert('데이터가 없습니다.'); return; }
-      const tl = { inbound:'입고',outbound:'출고',transfer:'재고이동',issue:'이슈',bonded:'보세',canon:'캐논',mettler:'메틀러',dispatch:'배차',deadline:'마감',meeting:'회의',general:'일반' };
+      const tl = { inbound:'입고',outbound:'출고',transfer:'재고이동',issue:'이슈',bonded:'보세',canon:'캐논',mettler:'메틀러',chanel:'샤넬',personal:'개인',dispatch:'배차',deadline:'마감',meeting:'회의',general:'일반' };
       const rows = [['날짜','시간','제목','유형','메모']];
       [...events].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e =>
         rows.push([e.date||'',e.time||'',e.title||'',tl[e.type]||e.type||'',e.memo||''])

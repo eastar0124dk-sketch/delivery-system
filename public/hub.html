@@ -46,8 +46,8 @@
     ════════════════════════════════════════ */
     .stat-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 14px;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 12px;
       margin-bottom: 22px;
     }
 
@@ -197,7 +197,7 @@
     .act-ghost   { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 
     @media (max-width: 1300px) {
-      .stat-grid  { grid-template-columns: repeat(3, 1fr); }
+      .stat-grid  { grid-template-columns: repeat(4, 1fr); }
       .qmenu-grid { grid-template-columns: repeat(3, 1fr); }
     }
     @media (max-width: 900px) {
@@ -261,6 +261,16 @@
         <div class="sc-label"><i class="fas fa-exclamation-triangle"></i> 클레임</div>
         <div><span class="sc-val" id="s-claims">0</span><span class="sc-unit">건</span></div>
         <div class="sc-sub">처리 중인 클레임</div>
+      </div>
+      <div class="sc sc-violet">
+        <div class="sc-label"><i class="fas fa-clock"></i> 이번달 OT</div>
+        <div><span class="sc-val" id="s-ot">0</span><span class="sc-unit">건</span></div>
+        <div class="sc-sub" id="s-ot-sub">21일 ~ 20일 주기</div>
+      </div>
+      <div class="sc sc-cyan">
+        <div class="sc-label"><i class="fas fa-calendar-day"></i> 오늘 일정</div>
+        <div><span class="sc-val" id="s-events">0</span><span class="sc-unit">건</span></div>
+        <div class="sc-sub">오늘 등록된 캘린더</div>
       </div>
     </div>
 
@@ -387,6 +397,39 @@
         document.getElementById('rateBar').style.width       = rate + '%';
         document.getElementById('s-rate-sub').textContent    = `${signed} / ${total} 건`;
         document.getElementById('s-claims').textContent      = d.open_claims   ?? 0;
+
+        /* 이번달 OT (21일~20일 주기) */
+        try {
+          const today = new Date();
+          const day = today.getDate();
+          let from, to;
+          if (day >= 21) {
+            from = new Date(today.getFullYear(), today.getMonth(), 21);
+            to   = new Date(today.getFullYear(), today.getMonth()+1, 20);
+          } else {
+            from = new Date(today.getFullYear(), today.getMonth()-1, 21);
+            to   = new Date(today.getFullYear(), today.getMonth(), 20);
+          }
+          const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          const otRes = await fetch(`/api/ot?from=${fmt(from)}&to=${fmt(to)}`, { headers: authH() });
+          if (otRes.ok) {
+            const otList = await otRes.json();
+            document.getElementById('s-ot').textContent = (otList.records || otList || []).length;
+            document.getElementById('s-ot-sub').textContent = `${fmt(from).slice(5)} ~ ${fmt(to).slice(5)}`;
+          }
+        } catch(e) { console.error('OT fetch failed', e); }
+
+        /* 오늘 캘린더 일정 */
+        try {
+          const t = new Date();
+          const todayStr = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+          const evRes = await fetch(`/api/events?from=${todayStr}&to=${todayStr}`, { headers: authH() });
+          if (evRes.ok) {
+            const evList = await evRes.json();
+            const events = evList.events || evList || [];
+            document.getElementById('s-events').textContent = events.length;
+          }
+        } catch(e) { console.error('Events fetch failed', e); }
 
         /* 요약 */
         document.getElementById('sum-total').textContent     = total;
