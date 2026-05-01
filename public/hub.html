@@ -46,8 +46,8 @@
     ════════════════════════════════════════ */
     .stat-grid {
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 12px;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 10px;
       margin-bottom: 22px;
     }
 
@@ -245,34 +245,34 @@
 
 
     /* ════════════════════════════════════════
-       빠른 메뉴 — 3행 3열 + 색상 카드 (시원한 레이아웃)
+       빠른 메뉴 — 컴팩트 (모든 메뉴 한눈에)
     ════════════════════════════════════════ */
     .qmenu-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin-bottom: 24px;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 10px;
+      margin-bottom: 22px;
     }
 
     .qm {
-      background: #fff; border-radius: 18px;
-      box-shadow: 0 2px 10px rgba(0,0,0,.06);
-      padding: 24px 18px; text-align: center; text-decoration: none;
-      display: flex; flex-direction: column; align-items: center; gap: 12px;
-      transition: all .18s; border-bottom: 3px solid transparent;
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 1px 6px rgba(0,0,0,.06);
+      padding: 12px 6px; text-align: center; text-decoration: none;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      transition: all .15s;
       cursor: pointer;
     }
-    .qm:hover { transform: translateY(-6px); box-shadow: 0 14px 36px rgba(0,0,0,.14); }
+    .qm:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,.1); }
 
     .qm-icon {
-      width: 64px; height: 64px; border-radius: 18px;
+      width: 38px; height: 38px; border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 32px; transition: transform .18s;
+      font-size: 20px; transition: transform .15s;
     }
-    .qm:hover .qm-icon { transform: scale(1.12); }
+    .qm:hover .qm-icon { transform: scale(1.1); }
 
-    .qm-name { font-size: 16px; font-weight: 800; color: #1e293b; letter-spacing:-.3px; }
-    .qm-desc { font-size: 12px; color: #94a3b8; }
+    .qm-name { font-size: 12px; font-weight: 700; color: #1e293b; letter-spacing:-.2px; line-height:1.2; }
+    .qm-desc { font-size: 10px; color: #94a3b8; }
 
     /* 퀵메뉴 아이콘 색상 */
     .i-blue   { background: #dbeafe; } .qm:hover .i-blue   { background: #bfdbfe; }
@@ -340,15 +340,15 @@
 
     @media (max-width: 1300px) {
       .stat-grid  { grid-template-columns: repeat(4, 1fr); }
-      .qmenu-grid { grid-template-columns: repeat(3, 1fr); }
+      .qmenu-grid { grid-template-columns: repeat(5, 1fr); }
     }
     @media (max-width: 900px) {
       .stat-grid  { grid-template-columns: repeat(2, 1fr); }
-      .qmenu-grid { grid-template-columns: repeat(2, 1fr); }
+      .qmenu-grid { grid-template-columns: repeat(4, 1fr); }
       .bottom-row { grid-template-columns: 1fr; }
     }
     @media (max-width: 500px) {
-      .qmenu-grid { grid-template-columns: 1fr; }
+      .qmenu-grid { grid-template-columns: repeat(3, 1fr); }
     }
   </style>
 </head>
@@ -413,6 +413,11 @@
         <div class="sc-label"><i class="fas fa-calendar-day"></i> 오늘 일정</div>
         <div><span class="sc-val" id="s-events">0</span><span class="sc-unit">건</span></div>
         <div class="sc-sub" id="s-events-sub" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">오늘 등록된 캘린더</div>
+      </div>
+      <div class="sc sc-pink" style="background:linear-gradient(135deg,#a78bfa 0%,#8b5cf6 100%);cursor:pointer;" onclick="openDday()">
+        <div class="sc-label"><i class="fas fa-flag"></i> D-Day</div>
+        <div><span class="sc-val" id="s-dday">D-?</span></div>
+        <div class="sc-sub" id="s-dday-sub" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">등록된 D-day 없음</div>
       </div>
     </div>
 
@@ -918,6 +923,39 @@
 
     loadBookmarks();
 
+    // D-day 카드 업데이트 (가장 가까운 미래 D-day 표시)
+    function updateDdayCard() {
+      try {
+        const list = JSON.parse(localStorage.getItem('hub_ddays') || '[]');
+        const today = new Date().toISOString().slice(0,10);
+        const fnDiff = (a,b) => Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00'))/86400000);
+        // 가장 가까운 미래 또는 오늘
+        const future = list.filter(d => fnDiff(today, d.date) >= 0)
+                          .sort((a,b) => fnDiff(today,a.date) - fnDiff(today,b.date));
+        const big = document.getElementById('s-dday');
+        const sub = document.getElementById('s-dday-sub');
+        if (!list.length) {
+          big.textContent = 'D-?';
+          sub.textContent = '등록된 D-day 없음';
+        } else if (future.length) {
+          const nearest = future[0];
+          const diff = fnDiff(today, nearest.date);
+          big.textContent = diff === 0 ? 'D-DAY' : `D-${diff}`;
+          sub.textContent = `${nearest.name} (총 ${list.length}건)`;
+          sub.title = list.map(d => `${d.name}: ${d.date}`).join('\n');
+        } else {
+          // 모두 과거
+          const past = [...list].sort((a,b) => fnDiff(today,b.date) - fnDiff(today,a.date))[0];
+          const diff = Math.abs(fnDiff(today, past.date));
+          big.textContent = `D+${diff}`;
+          sub.textContent = `${past.name} (총 ${list.length}건)`;
+        }
+      } catch(e) { console.error(e); }
+    }
+    updateDdayCard();
+    // 모달 닫힐 때마다 카드도 업데이트
+    const _origCloseDday = () => document.getElementById('ddayModal').classList.remove('show');
+
     /* ════════════════════════════════════════
        계산기 (일반 + 공학용)
     ════════════════════════════════════════ */
@@ -1082,6 +1120,7 @@
       });
       ddaySaveStorage();
       ddayRender();
+      updateDdayCard();
       document.getElementById('ddayName').value = '';
       alert('저장되었습니다.');
     }
@@ -1090,6 +1129,7 @@
       ddays = ddays.filter(d => d.id !== id);
       ddaySaveStorage();
       ddayRender();
+      updateDdayCard();
     }
     function ddayRender() {
       const list = document.getElementById('ddayList');
