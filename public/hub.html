@@ -375,21 +375,7 @@
       </div>
     </div>
 
-    <!-- ② 빠른 메뉴 (최상단) -->
-    <div class="sec-title">⚡ 빠른 메뉴</div>
-    <div class="qmenu-grid">
-      <a href="admin.html"           class="qm"><div class="qm-icon i-blue">🗂️</div><div class="qm-name">오더 관리</div><div class="qm-desc">등록 · 조회</div></a>
-      <a href="dispatch.html"        class="qm"><div class="qm-icon i-orange">🚚</div><div class="qm-name">차량 배차</div><div class="qm-desc">배차 · 현황</div></a>
-      <a href="claims.html"          class="qm"><div class="qm-icon i-red">⚠️</div><div class="qm-name">클레임 트래커</div><div class="qm-desc">접수 · 처리</div></a>
-      <a href="calendar.html"        class="qm"><div class="qm-icon i-indigo">📅</div><div class="qm-name">캘린더</div><div class="qm-desc">일정 · 이벤트</div></a>
-      <a href="ot.html"              class="qm"><div class="qm-icon i-violet">⏰</div><div class="qm-name">OT 내역</div><div class="qm-desc">초과근무 관리</div></a>
-      <a href="notes.html"           class="qm"><div class="qm-icon i-yellow">📝</div><div class="qm-name">메모장</div><div class="qm-desc">메모 · 기록</div></a>
-      <a href="vendors.html"         class="qm"><div class="qm-icon i-slate">🏢</div><div class="qm-name">업체 관리</div><div class="qm-desc">거래처 · 명함</div></a>
-      <a href="list.html"            class="qm"><div class="qm-icon i-rose">🔍</div><div class="qm-name">조회/출력</div><div class="qm-desc">검색 · PDF</div></a>
-      <a href="mettler_report.html"  class="qm"><div class="qm-icon i-teal">📊</div><div class="qm-name">메틀러 청구 보고서</div><div class="qm-desc">매출 추이 · 그래프</div></a>
-    </div>
-
-    <!-- ③ 통계 카드 -->
+    <!-- ② 통계 카드 -->
     <div class="sec-title">📊 오늘 현황</div>
     <div class="stat-grid">
       <div class="sc sc-blue">
@@ -435,6 +421,15 @@
       </div>
     </div>
 
+    <!-- ③ URL 즐겨찾기 -->
+    <div class="sec-title">
+      🔗 자주 쓰는 URL
+      <button onclick="openBookmarkModal()" style="margin-left:auto;padding:5px 12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">
+        <i class="fas fa-plus"></i> 추가
+      </button>
+    </div>
+    <div class="bookmark-grid" id="bookmarkGrid"></div>
+
     <!-- ④ 유틸리티 -->
     <div class="sec-title">🛠️ 유틸리티</div>
     <div class="util-grid">
@@ -450,16 +445,21 @@
       </button>
     </div>
 
-    <!-- ⑤ URL 즐겨찾기 -->
-    <div class="sec-title">
-      🔗 자주 쓰는 URL
-      <button onclick="openBookmarkModal()" style="margin-left:auto;padding:5px 12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">
-        <i class="fas fa-plus"></i> 추가
-      </button>
+    <!-- ⑤ 빠른 메뉴 -->
+    <div class="sec-title">⚡ 빠른 메뉴</div>
+    <div class="qmenu-grid">
+      <a href="admin.html"           class="qm"><div class="qm-icon i-blue">🗂️</div><div class="qm-name">오더 관리</div><div class="qm-desc">등록 · 조회</div></a>
+      <a href="dispatch.html"        class="qm"><div class="qm-icon i-orange">🚚</div><div class="qm-name">차량 배차</div><div class="qm-desc">배차 · 현황</div></a>
+      <a href="claims.html"          class="qm"><div class="qm-icon i-red">⚠️</div><div class="qm-name">클레임 트래커</div><div class="qm-desc">접수 · 처리</div></a>
+      <a href="calendar.html"        class="qm"><div class="qm-icon i-indigo">📅</div><div class="qm-name">캘린더</div><div class="qm-desc">일정 · 이벤트</div></a>
+      <a href="ot.html"              class="qm"><div class="qm-icon i-violet">⏰</div><div class="qm-name">OT 내역</div><div class="qm-desc">초과근무 관리</div></a>
+      <a href="notes.html"           class="qm"><div class="qm-icon i-yellow">📝</div><div class="qm-name">메모장</div><div class="qm-desc">메모 · 기록</div></a>
+      <a href="vendors.html"         class="qm"><div class="qm-icon i-slate">🏢</div><div class="qm-name">업체 관리</div><div class="qm-desc">거래처 · 명함</div></a>
+      <a href="list.html"            class="qm"><div class="qm-icon i-rose">🔍</div><div class="qm-name">조회/출력</div><div class="qm-desc">검색 · PDF</div></a>
+      <a href="mettler_report.html"  class="qm"><div class="qm-icon i-teal">📊</div><div class="qm-name">메틀러 청구 보고서</div><div class="qm-desc">매출 추이 · 그래프</div></a>
     </div>
-    <div class="bookmark-grid" id="bookmarkGrid"></div>
 
-    <!-- ⑤ 하단 2열 -->
+    <!-- ⑥ 하단 2열 -->
     <div class="sec-title">📋 상세 현황</div>
     <div class="bottom-row">
 
