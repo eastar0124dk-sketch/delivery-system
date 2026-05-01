@@ -1290,7 +1290,7 @@
   }
   function unFmt(v) { return Number((v || '0').replace(/,/g, '')) || 0; }
   function esc(v)   { return v ? String(v).replace(/</g,'&lt;').replace(/>/g,'&gt;') : '-'; }
-  function today()  { return new Date().toISOString().slice(0,10).replace(/-/g,''); }
+  function today()  { return todayKST().replace(/-/g,''); }
 
   // ── 숫자 필드 자동 콤마 (메틀러) ─────────────────────
   ['f-carrier-fee','f-carrier-work','f-shipper-fee','f-shipper-work'].forEach(id => {

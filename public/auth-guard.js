@@ -1,4 +1,14 @@
 /**
+ * 한국 시간(KST) 기준 날짜 헬퍼 — 전역 사용
+ * toISOString()은 UTC라 KST와 하루 차이가 날 수 있어 로컬 시간 기준으로 직접 포맷
+ */
+window.todayKST = function(date) {
+  const d = date || new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+window.toYmdKST = window.todayKST;
+
+/**
  * 권한 가드 — 페이지 진입 시 즉시 권한 체크
  *
  * 사용법: HTML <head> 최상단에 다음 중 하나 포함

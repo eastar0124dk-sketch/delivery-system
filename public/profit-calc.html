@@ -696,7 +696,7 @@
     function fmt(n) { return Math.abs(n).toLocaleString('ko-KR'); }
     function parseNum(s) { return parseInt(String(s).replace(/[^0-9-]/g, '')) || 0; }
     function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-    function today() { return new Date().toISOString().slice(0,10); }
+    function today() { return todayKST(); }
     function rateClass(r) {
       if (r < 0)  return 'rate-neg';
       if (r < 8)  return 'rate-low';

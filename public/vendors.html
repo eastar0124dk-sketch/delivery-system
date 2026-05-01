@@ -317,7 +317,7 @@
       ws['!cols'] = [{wch:20},{wch:8},{wch:12},{wch:14},{wch:30},{wch:30}];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '업체관리');
-      XLSX.writeFile(wb, `업체관리_${new Date().toISOString().slice(0,10)}.xlsx`);
+      XLSX.writeFile(wb, `업체관리_${todayKST()}.xlsx`);
     }
 
     // ── 명함 스캔 OCR ──────────────────────────────────────

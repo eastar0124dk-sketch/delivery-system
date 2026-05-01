@@ -527,7 +527,7 @@ async function onPdfFiles(files) {
       const data = await extractPdf(f);
       if (data) {
         const rec = { id: 'pdf-' + Date.now() + Math.random().toString(36).slice(2,6),
-          ...data, sourceFile: f.name, uploadDate: new Date().toISOString().slice(0,10) };
+          ...data, sourceFile: f.name, uploadDate: todayKST() };
         const dupIdx = records.findIndex(r => r.yearMonth === rec.yearMonth && r.type === rec.type);
         if (dupIdx >= 0) {
           if (confirm(`${rec.yearMonth} ${rec.type} 데이터가 이미 있습니다. 덮어쓸까요?`)) {
@@ -639,7 +639,7 @@ function saveManual() {
     yearMonth: ym, type, periodFrom: from, periodTo: to,
     supplyAmount: supply, taxAmount: tax, totalAmount: total,
     sourceFile:'(이미지)', sourceImage: pendingImage,
-    uploadDate: new Date().toISOString().slice(0,10) };
+    uploadDate: todayKST() };
   const dupIdx = records.findIndex(r => r.yearMonth === ym && r.type === type);
   if (dupIdx >= 0) {
     if (!confirm(`${ym} ${type} 데이터가 이미 있습니다. 덮어쓸까요?`)) return;
@@ -684,7 +684,7 @@ function exportData() {
   const blob = new Blob([data], { type:'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `mettler_billing_${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `mettler_billing_${todayKST()}.json`;
   a.click();
   toast('데이터 내보내기 완료');
 }

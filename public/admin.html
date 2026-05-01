@@ -756,7 +756,7 @@
     document.getElementById('tab-register').classList.toggle('active',tab==='register');
     document.getElementById('tab-search').classList.toggle('active',tab==='search');
     if(tab==='search'){
-      const today=new Date().toISOString().slice(0,10);
+      const today=todayKST();
       if(!document.getElementById('searchDateFrom').value){
         document.getElementById('searchDateFrom').value=today;
         document.getElementById('searchDateTo').value=today;
@@ -1579,7 +1579,7 @@ https://delivery-system-r6pr.onrender.com`;
   }
 
   document.getElementById('loginPw').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
-  document.getElementById('delivery_date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('delivery_date').value=todayKST();
   checkAuth();
 
   // 시도 드롭다운 초기화

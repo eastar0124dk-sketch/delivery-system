@@ -682,7 +682,7 @@
     ws['!cols'] = [{wch:14},{wch:12},{wch:10},{wch:35},{wch:12},{wch:8},{wch:30}];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '클레임트래커');
-    XLSX.writeFile(wb, `클레임_${new Date().toISOString().slice(0,10)}.xlsx`);
+    XLSX.writeFile(wb, `클레임_${todayKST()}.xlsx`);
   }
 
   // ── 초기화 ───────────────────────────────────────────

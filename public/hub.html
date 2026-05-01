@@ -1017,7 +1017,7 @@
     function updateDdayCard() {
       try {
         const list = JSON.parse(localStorage.getItem('hub_ddays') || '[]');
-        const today = new Date().toISOString().slice(0,10);
+        const today = todayKST();
         const fnDiff = (a,b) => Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00'))/86400000);
         // 가장 가까운 미래 또는 오늘
         const future = list.filter(d => fnDiff(today, d.date) >= 0)
@@ -1206,7 +1206,7 @@
       ddays.push({
         id: Date.now().toString(36),
         name, date: e,
-        created: new Date().toISOString().slice(0,10)
+        created: todayKST()
       });
       ddaySaveStorage();
       ddayRender();
@@ -1227,7 +1227,7 @@
         list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:14px;font-size:12px;">저장된 D-day가 없습니다.</div>';
         return;
       }
-      const today = new Date().toISOString().slice(0,10);
+      const today = todayKST();
       // 가까운 미래 → 오늘 → 과거 순으로 정렬
       const sorted = [...ddays].sort((a,b) => {
         const da = diffDays(today, a.date);

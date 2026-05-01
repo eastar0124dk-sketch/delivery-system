@@ -543,7 +543,7 @@
     const blob = new Blob([BOM + csvContent], {type:'text/csv;charset=utf-8;'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const today = new Date().toISOString().slice(0,10);
+    const today = todayKST();
     a.href = url; a.download = `배송인수증_${today}.csv`;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
@@ -668,7 +668,7 @@
         }
       }
 
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayKST();
       pdf.save(`인수증명서_일괄_${today}_${checked.length}건.pdf`);
     } catch (e) {
       alert('PDF 생성 오류: ' + e.message);

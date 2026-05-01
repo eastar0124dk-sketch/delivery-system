@@ -314,7 +314,7 @@
     setTodayDate();
 
     function setTodayDate() {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayKST();
       document.getElementById('fDate').value = today;
     }
 
@@ -612,7 +612,7 @@
 
     function resetForm() {
       editingId = null;
-      document.getElementById('fDate').value  = new Date().toISOString().slice(0,10);
+      document.getElementById('fDate').value  = todayKST();
       document.getElementById('fStart').value = '';
       document.getElementById('fEnd').value   = '';
       document.getElementById('fContent').value = '';
