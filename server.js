@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 // ══════════════════════════════════════════
 //  관리자/직원 비밀번호 (여기서 변경하세요!)
 // ══════════════════════════════════════════
-const ADMIN_PASSWORD       = 'admin1234';   // 관리자 비밀번호 (모든 권한)
+const ADMIN_PASSWORD       = 'Liam#0801!';  // 관리자 비밀번호 (모든 권한)
 const METTLER_STAFF_PASSWORD = 'staff1234'; // 메틀러 직원 공통 비밀번호
 // 회사명 (인수증명서에 표시)
 const COMPANY_NAME = '출고 인수증명 시스템';
