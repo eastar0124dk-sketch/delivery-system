@@ -103,6 +103,78 @@
     .sec-title::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
 
     /* ════════════════════════════════════════
+       유틸리티 카드 (계산기/D-day)
+    ════════════════════════════════════════ */
+    .util-grid { display: grid; grid-template-columns: repeat(2, 300px); gap: 14px; margin-bottom: 22px; }
+    @media (max-width: 700px) { .util-grid { grid-template-columns: 1fr; } }
+    .util-card {
+      background: #fff; border-radius: 14px; padding: 16px 20px;
+      display: flex; align-items: center; gap: 14px; cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0,0,0,.06); border: none; font-family: inherit;
+      transition: all .15s; text-align: left;
+    }
+    .util-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.12); }
+    .util-icon {
+      width: 50px; height: 50px; border-radius: 14px; display: flex;
+      align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0;
+    }
+    .util-name { font-size: 15px; font-weight: 800; color: #1e293b; }
+    .util-desc { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+    /* 계산기 모달 */
+    .calc-display {
+      background: #1e293b; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
+      color: #fff; text-align: right; min-height: 80px;
+      display: flex; flex-direction: column; justify-content: flex-end;
+    }
+    .calc-history { font-size: 12px; color: #94a3b8; min-height: 16px; word-break: break-all; }
+    .calc-current { font-size: 28px; font-weight: 800; word-break: break-all; }
+    .calc-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+    .calc-tab { flex: 1; padding: 7px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+                background: #f8fafc; color: #64748b; font-weight: 700; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .calc-tab.active { background: linear-gradient(135deg,#fbbf24,#f59e0b); color: #fff; border-color: transparent; }
+    .calc-grid { display: grid; gap: 6px; }
+    .calc-grid.basic { grid-template-columns: repeat(4, 1fr); }
+    .calc-grid.sci   { grid-template-columns: repeat(5, 1fr); }
+    .calc-btn {
+      padding: 12px 0; border: none; border-radius: 10px; font-size: 14px; font-weight: 700;
+      background: #f1f5f9; color: #1e293b; cursor: pointer; font-family: inherit; transition: all .1s;
+    }
+    .calc-btn:hover { background: #e2e8f0; transform: scale(1.03); }
+    .calc-btn:active { transform: scale(.96); }
+    .calc-btn.op  { background: #dbeafe; color: #1e40af; }
+    .calc-btn.op:hover { background: #bfdbfe; }
+    .calc-btn.eq  { background: linear-gradient(135deg,#fbbf24,#f59e0b); color: #fff; grid-column: span 2; }
+    .calc-btn.clr { background: #fee2e2; color: #b91c1c; }
+    .calc-btn.fn  { background: #ede9fe; color: #5b21b6; font-size: 12px; }
+
+    /* D-day 모달 */
+    .dday-display {
+      background: linear-gradient(135deg,#a78bfa,#8b5cf6); border-radius: 12px;
+      padding: 20px; margin-bottom: 14px; color: #fff; text-align: center;
+    }
+    .dday-big { font-size: 36px; font-weight: 900; letter-spacing: -1px; }
+    .dday-label { font-size: 13px; opacity: .9; margin-top: 4px; }
+    .dday-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .dday-row label { font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px; }
+    .dday-row input { width: 100%; padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-family: inherit; }
+    .dday-list { max-height: 200px; overflow-y: auto; border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 14px; }
+    .dday-item {
+      display: flex; align-items: center; padding: 8px 10px; background: #f8fafc;
+      border-radius: 8px; margin-bottom: 6px; gap: 10px;
+    }
+    .dday-item .dd-name { flex: 1; font-size: 13px; font-weight: 700; color: #1e293b; }
+    .dday-item .dd-date { font-size: 11px; color: #94a3b8; }
+    .dday-item .dd-count {
+      padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; min-width: 60px; text-align: center;
+    }
+    .dd-count.future { background: #dbeafe; color: #1e40af; }
+    .dd-count.today  { background: #fee2e2; color: #b91c1c; }
+    .dd-count.past   { background: #f1f5f9; color: #64748b; }
+    .dday-item button { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 11px; }
+    .dday-item button:hover { color: #b91c1c; }
+
+    /* ════════════════════════════════════════
        URL 즐겨찾기 카드
     ════════════════════════════════════════ */
     .bookmark-grid {
@@ -358,7 +430,22 @@
       <a href="mettler_report.html"  class="qm"><div class="qm-icon i-teal">📊</div><div class="qm-name">메틀러 청구 보고서</div><div class="qm-desc">매출 추이 · 그래프</div></a>
     </div>
 
-    <!-- ④ URL 즐겨찾기 -->
+    <!-- ④ 유틸리티 -->
+    <div class="sec-title">🛠️ 유틸리티</div>
+    <div class="util-grid">
+      <button class="util-card" onclick="openCalculator()">
+        <div class="util-icon" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);">🧮</div>
+        <div class="util-name">계산기</div>
+        <div class="util-desc">공학용 포함</div>
+      </button>
+      <button class="util-card" onclick="openDday()">
+        <div class="util-icon" style="background:linear-gradient(135deg,#a78bfa,#8b5cf6);">📅</div>
+        <div class="util-name">D-Day 계산기</div>
+        <div class="util-desc">날짜 차이 · 기념일</div>
+      </button>
+    </div>
+
+    <!-- ⑤ URL 즐겨찾기 -->
     <div class="sec-title">
       🔗 자주 쓰는 URL
       <button onclick="openBookmarkModal()" style="margin-left:auto;padding:5px 12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">
@@ -433,6 +520,108 @@
     </div>
 
   </div><!-- hub-main -->
+
+  <!-- 계산기 모달 -->
+  <div class="modal-bg" id="calcModal" onclick="if(event.target===this)closeCalculator()">
+    <div class="modal-box" style="max-width:440px;">
+      <h3><i class="fas fa-calculator"></i> 계산기
+        <button onclick="closeCalculator()" style="margin-left:auto;background:none;border:none;font-size:18px;color:#94a3b8;cursor:pointer;">×</button>
+      </h3>
+      <div class="calc-display">
+        <div class="calc-history" id="calcHistory"></div>
+        <div class="calc-current" id="calcCurrent">0</div>
+      </div>
+      <div class="calc-tabs">
+        <button class="calc-tab active" id="calcTabBasic" onclick="setCalcMode('basic')">일반</button>
+        <button class="calc-tab" id="calcTabSci" onclick="setCalcMode('sci')">공학용</button>
+      </div>
+      <!-- 일반 -->
+      <div class="calc-grid basic" id="calcBasicPad">
+        <button class="calc-btn clr" onclick="calcClear()">AC</button>
+        <button class="calc-btn op" onclick="calcDel()">⌫</button>
+        <button class="calc-btn op" onclick="calcInput('%')">%</button>
+        <button class="calc-btn op" onclick="calcInput('/')">÷</button>
+        <button class="calc-btn" onclick="calcInput('7')">7</button>
+        <button class="calc-btn" onclick="calcInput('8')">8</button>
+        <button class="calc-btn" onclick="calcInput('9')">9</button>
+        <button class="calc-btn op" onclick="calcInput('*')">×</button>
+        <button class="calc-btn" onclick="calcInput('4')">4</button>
+        <button class="calc-btn" onclick="calcInput('5')">5</button>
+        <button class="calc-btn" onclick="calcInput('6')">6</button>
+        <button class="calc-btn op" onclick="calcInput('-')">−</button>
+        <button class="calc-btn" onclick="calcInput('1')">1</button>
+        <button class="calc-btn" onclick="calcInput('2')">2</button>
+        <button class="calc-btn" onclick="calcInput('3')">3</button>
+        <button class="calc-btn op" onclick="calcInput('+')">+</button>
+        <button class="calc-btn" onclick="calcInput('0')">0</button>
+        <button class="calc-btn" onclick="calcInput('.')">.</button>
+        <button class="calc-btn eq" onclick="calcEqual()">=</button>
+      </div>
+      <!-- 공학용 -->
+      <div class="calc-grid sci" id="calcSciPad" style="display:none;">
+        <button class="calc-btn fn" onclick="calcFn('sin')">sin</button>
+        <button class="calc-btn fn" onclick="calcFn('cos')">cos</button>
+        <button class="calc-btn fn" onclick="calcFn('tan')">tan</button>
+        <button class="calc-btn fn" onclick="calcFn('log')">log</button>
+        <button class="calc-btn fn" onclick="calcFn('ln')">ln</button>
+        <button class="calc-btn fn" onclick="calcFn('asin')">sin⁻¹</button>
+        <button class="calc-btn fn" onclick="calcFn('acos')">cos⁻¹</button>
+        <button class="calc-btn fn" onclick="calcFn('atan')">tan⁻¹</button>
+        <button class="calc-btn fn" onclick="calcFn('sqrt')">√</button>
+        <button class="calc-btn fn" onclick="calcFn('cbrt')">∛</button>
+        <button class="calc-btn fn" onclick="calcFn('sq')">x²</button>
+        <button class="calc-btn fn" onclick="calcFn('cube')">x³</button>
+        <button class="calc-btn op" onclick="calcInput('**')">x^y</button>
+        <button class="calc-btn fn" onclick="calcFn('inv')">1/x</button>
+        <button class="calc-btn fn" onclick="calcFn('fact')">x!</button>
+        <button class="calc-btn fn" onclick="calcInput('Math.PI')">π</button>
+        <button class="calc-btn fn" onclick="calcInput('Math.E')">e</button>
+        <button class="calc-btn op" onclick="calcInput('(')">(</button>
+        <button class="calc-btn op" onclick="calcInput(')')">)</button>
+        <button class="calc-btn fn" onclick="calcFn('exp')">eˣ</button>
+        <button class="calc-btn fn" onclick="calcFn('abs')">|x|</button>
+        <button class="calc-btn fn" onclick="calcSign()">±</button>
+        <button class="calc-btn fn" onclick="calcDeg()" id="calcDegBtn">DEG</button>
+        <button class="calc-btn clr" onclick="calcClear()">AC</button>
+        <button class="calc-btn op" onclick="calcDel()">⌫</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- D-day 모달 -->
+  <div class="modal-bg" id="ddayModal" onclick="if(event.target===this)closeDday()">
+    <div class="modal-box" style="max-width:480px;">
+      <h3><i class="fas fa-calendar-alt"></i> D-Day 계산기
+        <button onclick="closeDday()" style="margin-left:auto;background:none;border:none;font-size:18px;color:#94a3b8;cursor:pointer;">×</button>
+      </h3>
+      <div class="dday-display">
+        <div class="dday-big" id="ddayBig">D-?</div>
+        <div class="dday-label" id="ddayLabel">날짜를 입력하세요</div>
+      </div>
+      <div class="dday-row">
+        <div>
+          <label>시작일 (또는 오늘)</label>
+          <input type="date" id="ddayStart">
+        </div>
+        <div>
+          <label>목표일</label>
+          <input type="date" id="ddayEnd">
+        </div>
+      </div>
+      <div class="dday-row" style="grid-template-columns:1fr;">
+        <div>
+          <label>이름 (저장 시)</label>
+          <input type="text" id="ddayName" placeholder="예: 프로젝트 마감일">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-cancel" onclick="ddayReset()" style="padding:9px 16px;border:none;border-radius:8px;background:#f1f5f9;color:#475569;font-weight:700;cursor:pointer;font-family:inherit;flex:1;">초기화</button>
+        <button class="btn-save" onclick="ddaySave()" style="padding:9px 16px;border:none;border-radius:8px;background:linear-gradient(135deg,#a78bfa,#8b5cf6);color:#fff;font-weight:700;cursor:pointer;font-family:inherit;flex:1;">💾 저장</button>
+      </div>
+
+      <div class="dday-list" id="ddayList"></div>
+    </div>
+  </div>
 
   <!-- 즐겨찾기 추가/수정 모달 -->
   <div class="modal-bg" id="bookmarkModal" onclick="if(event.target===this)closeBookmarkModal()">
@@ -728,6 +917,211 @@
     }
 
     loadBookmarks();
+
+    /* ════════════════════════════════════════
+       계산기 (일반 + 공학용)
+    ════════════════════════════════════════ */
+    let calcExpr = '';
+    let calcAns  = 0;
+    let calcDegMode = true; // true: DEG, false: RAD
+
+    function openCalculator() { document.getElementById('calcModal').classList.add('show'); calcUpdate(); }
+    function closeCalculator() { document.getElementById('calcModal').classList.remove('show'); }
+    function setCalcMode(m) {
+      document.getElementById('calcBasicPad').style.display = m==='basic'?'grid':'none';
+      document.getElementById('calcSciPad').style.display   = m==='sci'?'grid':'none';
+      document.getElementById('calcTabBasic').classList.toggle('active', m==='basic');
+      document.getElementById('calcTabSci').classList.toggle('active', m==='sci');
+    }
+    function calcInput(v) {
+      if (calcExpr === '0' && /[0-9.]/.test(v)) calcExpr = v;
+      else calcExpr += v;
+      calcUpdate();
+    }
+    function calcDel() { calcExpr = calcExpr.slice(0,-1); calcUpdate(); }
+    function calcClear() { calcExpr = ''; document.getElementById('calcHistory').textContent=''; calcUpdate(); }
+    function calcSign() {
+      if (calcExpr.startsWith('-')) calcExpr = calcExpr.slice(1);
+      else calcExpr = '-' + calcExpr;
+      calcUpdate();
+    }
+    function calcDeg() {
+      calcDegMode = !calcDegMode;
+      document.getElementById('calcDegBtn').textContent = calcDegMode?'DEG':'RAD';
+    }
+    function calcFn(fn) {
+      try {
+        const val = parseFloat(safeEval(calcExpr || '0'));
+        let r;
+        switch(fn) {
+          case 'sin':  r = Math.sin(calcDegMode ? val*Math.PI/180 : val); break;
+          case 'cos':  r = Math.cos(calcDegMode ? val*Math.PI/180 : val); break;
+          case 'tan':  r = Math.tan(calcDegMode ? val*Math.PI/180 : val); break;
+          case 'asin': r = (calcDegMode ? Math.asin(val)*180/Math.PI : Math.asin(val)); break;
+          case 'acos': r = (calcDegMode ? Math.acos(val)*180/Math.PI : Math.acos(val)); break;
+          case 'atan': r = (calcDegMode ? Math.atan(val)*180/Math.PI : Math.atan(val)); break;
+          case 'log':  r = Math.log10(val); break;
+          case 'ln':   r = Math.log(val); break;
+          case 'sqrt': r = Math.sqrt(val); break;
+          case 'cbrt': r = Math.cbrt(val); break;
+          case 'sq':   r = val*val; break;
+          case 'cube': r = val*val*val; break;
+          case 'inv':  r = 1/val; break;
+          case 'exp':  r = Math.exp(val); break;
+          case 'abs':  r = Math.abs(val); break;
+          case 'fact': {
+            if (val < 0 || !Number.isInteger(val)) throw new Error('정수만 가능');
+            r = 1; for (let i=2; i<=val; i++) r *= i; break;
+          }
+        }
+        document.getElementById('calcHistory').textContent = `${fn}(${calcExpr}) =`;
+        calcExpr = String(r);
+        calcAns = r;
+        calcUpdate();
+      } catch { document.getElementById('calcCurrent').textContent = 'Error'; }
+    }
+    function safeEval(expr) {
+      // 기본 연산자만 허용 + Math.PI, Math.E
+      if (!/^[\d+\-*/().% \tMathPIE]+$/.test(expr.replace(/\s/g,''))) throw new Error();
+      const v = Function('"use strict";return (' + expr.replace(/%/g,'/100') + ')')();
+      if (!isFinite(v)) throw new Error();
+      return v;
+    }
+    function calcEqual() {
+      try {
+        const r = safeEval(calcExpr);
+        document.getElementById('calcHistory').textContent = calcExpr + ' =';
+        calcExpr = String(r);
+        calcAns = r;
+      } catch { document.getElementById('calcCurrent').textContent = 'Error'; return; }
+      calcUpdate();
+    }
+    function calcUpdate() {
+      const disp = calcExpr || '0';
+      const display = disp.replace(/\*/g,'×').replace(/\//g,'÷').replace(/Math\.PI/g,'π').replace(/Math\.E/g,'e');
+      document.getElementById('calcCurrent').textContent = display;
+    }
+    // 키보드 입력
+    document.addEventListener('keydown', e => {
+      const modal = document.getElementById('calcModal');
+      if (!modal.classList.contains('show')) return;
+      const k = e.key;
+      if (/^[0-9]$/.test(k)) calcInput(k);
+      else if (k === '.') calcInput('.');
+      else if (['+','-','*','/','(',')','%'].includes(k)) calcInput(k);
+      else if (k === 'Enter' || k === '=') { e.preventDefault(); calcEqual(); }
+      else if (k === 'Backspace') { e.preventDefault(); calcDel(); }
+      else if (k === 'Escape') { calcClear(); closeCalculator(); }
+    });
+
+    /* ════════════════════════════════════════
+       D-day 계산기
+    ════════════════════════════════════════ */
+    const DDAY_KEY = 'hub_ddays';
+    let ddays = [];
+
+    function openDday() {
+      document.getElementById('ddayModal').classList.add('show');
+      const today = new Date();
+      const ts = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+      if (!document.getElementById('ddayStart').value) document.getElementById('ddayStart').value = ts;
+      ddayLoad();
+      ddayCalc();
+      ['ddayStart','ddayEnd'].forEach(id => {
+        document.getElementById(id).onchange = ddayCalc;
+      });
+    }
+    function closeDday() { document.getElementById('ddayModal').classList.remove('show'); }
+    function ddayLoad() {
+      try { ddays = JSON.parse(localStorage.getItem(DDAY_KEY) || '[]'); }
+      catch { ddays = []; }
+      ddayRender();
+    }
+    function ddaySaveStorage() { localStorage.setItem(DDAY_KEY, JSON.stringify(ddays)); }
+
+    function diffDays(a, b) {
+      const da = new Date(a + 'T00:00:00');
+      const db = new Date(b + 'T00:00:00');
+      return Math.round((db - da) / 86400000);
+    }
+    function ddayCalc() {
+      const s = document.getElementById('ddayStart').value;
+      const e = document.getElementById('ddayEnd').value;
+      if (!s || !e) {
+        document.getElementById('ddayBig').textContent = 'D-?';
+        document.getElementById('ddayLabel').textContent = '날짜를 입력하세요';
+        return;
+      }
+      const diff = diffDays(s, e);
+      const big = document.getElementById('ddayBig');
+      const lbl = document.getElementById('ddayLabel');
+      if (diff > 0) {
+        big.textContent = `D-${diff}`;
+        lbl.textContent = `${e}까지 ${diff}일 남음`;
+      } else if (diff < 0) {
+        big.textContent = `D+${Math.abs(diff)}`;
+        lbl.textContent = `${e}로부터 ${Math.abs(diff)}일 지남`;
+      } else {
+        big.textContent = `D-DAY`;
+        lbl.textContent = `오늘이 ${e}입니다!`;
+      }
+    }
+    function ddayReset() {
+      document.getElementById('ddayName').value = '';
+      document.getElementById('ddayEnd').value = '';
+      ddayCalc();
+    }
+    function ddaySave() {
+      const name = document.getElementById('ddayName').value.trim();
+      const e    = document.getElementById('ddayEnd').value;
+      if (!name || !e) { alert('이름과 목표일을 입력해주세요.'); return; }
+      ddays.push({
+        id: Date.now().toString(36),
+        name, date: e,
+        created: new Date().toISOString().slice(0,10)
+      });
+      ddaySaveStorage();
+      ddayRender();
+      document.getElementById('ddayName').value = '';
+      alert('저장되었습니다.');
+    }
+    function ddayDelete(id) {
+      if (!confirm('이 D-day를 삭제할까요?')) return;
+      ddays = ddays.filter(d => d.id !== id);
+      ddaySaveStorage();
+      ddayRender();
+    }
+    function ddayRender() {
+      const list = document.getElementById('ddayList');
+      if (!ddays.length) {
+        list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:14px;font-size:12px;">저장된 D-day가 없습니다.</div>';
+        return;
+      }
+      const today = new Date().toISOString().slice(0,10);
+      // 가까운 미래 → 오늘 → 과거 순으로 정렬
+      const sorted = [...ddays].sort((a,b) => {
+        const da = diffDays(today, a.date);
+        const db = diffDays(today, b.date);
+        if (da >= 0 && db >= 0) return da - db;
+        if (da < 0 && db < 0) return db - da;
+        return da < 0 ? 1 : -1;
+      });
+      list.innerHTML = sorted.map(d => {
+        const diff = diffDays(today, d.date);
+        let cls, txt;
+        if (diff > 0) { cls='future'; txt=`D-${diff}`; }
+        else if (diff < 0) { cls='past'; txt=`D+${Math.abs(diff)}`; }
+        else { cls='today'; txt='D-DAY'; }
+        return `<div class="dday-item">
+          <div style="flex:1;">
+            <div class="dd-name">${d.name}</div>
+            <div class="dd-date">${d.date}</div>
+          </div>
+          <div class="dd-count ${cls}">${txt}</div>
+          <button onclick="ddayDelete('${d.id}')" title="삭제"><i class="fas fa-trash"></i></button>
+        </div>`;
+      }).join('');
+    }
   </script>
 </body>
 </html>
