@@ -7,9 +7,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ══════════════════════════════════════════
-//  관리자 비밀번호 (여기서 변경하세요!)
+//  관리자/직원 비밀번호 (여기서 변경하세요!)
 // ══════════════════════════════════════════
-const ADMIN_PASSWORD = 'admin1234';
+const ADMIN_PASSWORD       = 'admin1234';   // 관리자 비밀번호 (모든 권한)
+const METTLER_STAFF_PASSWORD = 'staff1234'; // 메틀러 직원 공통 비밀번호
 // 회사명 (인수증명서에 표시)
 const COMPANY_NAME = '출고 인수증명 시스템';
 
@@ -67,15 +68,50 @@ db.exec(`
   )
 `);
 
+// 캐논 직원 사용자 (관리자가 생성/관리)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS canon_staff_users (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    username   TEXT UNIQUE NOT NULL,
+    password   TEXT NOT NULL,
+    name       TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 // ──────────────────────────────────────────
 //  인증 토큰 관리 (메모리)
+//  validTokens: Map<token, { role: 'admin'|'mettler_staff'|'canon_staff', username?, expires }>
 // ──────────────────────────────────────────
-const validTokens = new Set();
+const validTokens = new Map();
 
-function requireAdmin(req, res, next) {
+function getTokenInfo(req) {
   const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
-  if (token && validTokens.has(token)) return next();
-  res.status(401).json({ error: '관리자 인증이 필요합니다.' });
+  if (!token) return null;
+  const info = validTokens.get(token);
+  if (!info) return null;
+  if (info.expires && Date.now() > info.expires) {
+    validTokens.delete(token);
+    return null;
+  }
+  return { ...info, token };
+}
+
+// 모든 인증된 사용자 (관리자 + 직원 모두 통과)
+function requireAuth(req, res, next) {
+  const info = getTokenInfo(req);
+  if (!info) return res.status(401).json({ error: '인증이 필요합니다.' });
+  req.auth = info;
+  next();
+}
+
+// 관리자 전용
+function requireAdmin(req, res, next) {
+  const info = getTokenInfo(req);
+  if (!info) return res.status(401).json({ error: '인증이 필요합니다.' });
+  if (info.role !== 'admin') return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
+  req.auth = info;
+  next();
 }
 
 // ──────────────────────────────────────────
@@ -87,20 +123,103 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ──────────────────────────────────────────
 //  인증
 // ──────────────────────────────────────────
+// 통합 로그인 — role 자동 판별
+//   { mode: 'admin',          password }
+//   { mode: 'mettler_staff',  password }
+//   { mode: 'canon_staff',    username, password }
 app.post('/api/auth', (req, res) => {
-  const { password } = req.body || {};
-  if (password === ADMIN_PASSWORD) {
+  const { mode, username, password } = req.body || {};
+  const TTL = 8 * 60 * 60 * 1000;
+  const issue = (info) => {
     const token = crypto.randomBytes(32).toString('hex');
-    validTokens.add(token);
-    setTimeout(() => validTokens.delete(token), 8 * 60 * 60 * 1000); // 8시간 유효
-    res.json({ token });
-  } else {
-    res.status(401).json({ error: '비밀번호가 틀렸습니다.' });
+    validTokens.set(token, { ...info, expires: Date.now() + TTL });
+    return token;
+  };
+
+  // 관리자
+  if (mode === 'admin') {
+    if (password === ADMIN_PASSWORD) {
+      return res.json({ token: issue({ role: 'admin' }), role: 'admin' });
+    }
+    return res.status(401).json({ error: '관리자 비밀번호가 틀렸습니다.' });
+  }
+
+  // 메틀러 직원 (공통 PW)
+  if (mode === 'mettler_staff') {
+    if (password === METTLER_STAFF_PASSWORD) {
+      return res.json({ token: issue({ role: 'mettler_staff' }), role: 'mettler_staff' });
+    }
+    return res.status(401).json({ error: '직원 비밀번호가 틀렸습니다.' });
+  }
+
+  // 캐논 직원 (사용자명 + PW)
+  if (mode === 'canon_staff') {
+    if (!username || !password) return res.status(400).json({ error: '아이디와 비밀번호를 입력하세요.' });
+    const user = db.prepare('SELECT * FROM canon_staff_users WHERE username = ?').get(username.trim());
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: '아이디 또는 비밀번호가 틀렸습니다.' });
+    }
+    return res.json({
+      token: issue({ role: 'canon_staff', username: user.username, name: user.name }),
+      role: 'canon_staff', username: user.username, name: user.name
+    });
+  }
+
+  // 구버전 호환 (mode 없이 password만 보내는 경우 → 관리자 시도)
+  if (password === ADMIN_PASSWORD) {
+    return res.json({ token: issue({ role: 'admin' }), role: 'admin' });
+  }
+  if (password === METTLER_STAFF_PASSWORD) {
+    return res.json({ token: issue({ role: 'mettler_staff' }), role: 'mettler_staff' });
+  }
+  res.status(401).json({ error: '비밀번호가 틀렸습니다.' });
+});
+
+app.get('/api/auth/check', requireAuth, (req, res) => {
+  res.json({ ok: true, role: req.auth.role, username: req.auth.username, name: req.auth.name });
+});
+
+// ──────────────────────────────────────────
+//  캐논 직원 사용자 관리 (관리자 전용)
+// ──────────────────────────────────────────
+app.get('/api/canon-users', requireAdmin, (req, res) => {
+  const rows = db.prepare('SELECT id, username, name, created_at FROM canon_staff_users ORDER BY id').all();
+  res.json({ data: rows });
+});
+
+app.post('/api/canon-users', requireAdmin, (req, res) => {
+  const { username, password, name } = req.body || {};
+  if (!username || !password) return res.status(400).json({ error: '아이디와 비밀번호는 필수입니다.' });
+  try {
+    const r = db.prepare('INSERT INTO canon_staff_users(username, password, name) VALUES (?,?,?)')
+      .run([username.trim(), password, name || '']);
+    res.json({ success: true, id: r.lastInsertRowid });
+  } catch (e) {
+    if (String(e.message).includes('UNIQUE')) return res.status(400).json({ error: '이미 존재하는 아이디입니다.' });
+    res.status(500).json({ error: e.message });
   }
 });
 
-app.get('/api/auth/check', requireAdmin, (req, res) => {
-  res.json({ ok: true });
+app.patch('/api/canon-users/:id', requireAdmin, (req, res) => {
+  const { username, password, name } = req.body || {};
+  const fields = []; const params = [];
+  if (username) { fields.push('username = ?'); params.push(username.trim()); }
+  if (password) { fields.push('password = ?'); params.push(password); }
+  if (name !== undefined) { fields.push('name = ?'); params.push(name); }
+  if (!fields.length) return res.status(400).json({ error: '수정할 항목이 없습니다.' });
+  params.push(req.params.id);
+  try {
+    db.prepare(`UPDATE canon_staff_users SET ${fields.join(', ')} WHERE id = ?`).run(params);
+    res.json({ success: true });
+  } catch (e) {
+    if (String(e.message).includes('UNIQUE')) return res.status(400).json({ error: '이미 존재하는 아이디입니다.' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/canon-users/:id', requireAdmin, (req, res) => {
+  db.prepare('DELETE FROM canon_staff_users WHERE id = ?').run([req.params.id]);
+  res.json({ success: true });
 });
 
 // ──────────────────────────────────────────
@@ -266,11 +385,12 @@ app.listen(PORT, '0.0.0.0', () => {
     if (i.family === 'IPv4' && !i.internal) localIP = i.address;
   });
   console.log('══════════════════════════════════════════');
-  console.log('  배송 인수증명 시스템 가동 중');
+  console.log('  통합 화주관리 시스템 가동 중');
   console.log('══════════════════════════════════════════');
   console.log(`  PC 접속:     http://localhost:${PORT}`);
   console.log(`  모바일 접속: http://${localIP}:${PORT}`);
   console.log(`  관리자 비밀번호: ${ADMIN_PASSWORD}`);
+  console.log(`  메틀러 직원 비밀번호: ${METTLER_STAFF_PASSWORD}`);
   console.log('  (비밀번호는 server.js 상단에서 변경 가능)');
   console.log('══════════════════════════════════════════');
 });

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>배송 인수증명 시스템</title>
+  <title>통합 화주관리 시스템</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
@@ -84,8 +84,8 @@
   </style>
 </head>
 <body>
-  <div class="logo">📦</div>
-  <p class="sys-title">배송 인수증명 시스템</p>
+  <div class="logo">🏢</div>
+  <p class="sys-title">통합 화주관리 시스템</p>
   <p class="sys-sub">디지털 서명 · 실시간 저장 · PDF 출력</p>
 
   <!-- ① 화주 선택 -->
@@ -114,6 +114,9 @@
       <div class="login-box-emoji" id="loginEmoji">🔐</div>
       <div class="login-box-title" id="loginTitle">로그인</div>
       <div class="login-box-sub" id="loginSub">비밀번호를 입력하세요</div>
+      <input type="text" class="pw-input" id="userIdInput" placeholder="아이디 입력" maxlength="30"
+             style="display:none;margin-bottom:10px;"
+             onkeydown="if(event.key==='Enter')document.getElementById('pwInput').focus()">
       <input type="password" class="pw-input" id="pwInput" placeholder="비밀번호 입력" maxlength="30"
              onkeydown="if(event.key==='Enter')doLogin()">
       <div class="login-err" id="loginErr">비밀번호가 틀렸습니다.</div>
@@ -135,23 +138,26 @@
       {
         id: 'mettler', name: '메틀러토레도', emoji: '⚖️',
         borderColor: 'rgba(96,165,250,.55)',
-        publicMenus: ['sign', 'carrier'],
-        staffMenus:  ['order_register', 'order_search', 'history'],
-        adminMenus:  ['admin', 'list', 'billing', 'hub']
+        loginType: 'password',         // 직원 PW 1개
+        publicMenus: [],                // 미로그인 시 메뉴 없음
+        staffMenus:  ['sign', 'carrier', 'admin', 'list'],   // 직원: 서명/작업입력/오더관리/조회·출력
+        adminMenus:  ['sign', 'carrier', 'admin', 'list', 'billing', 'hub']  // 관리자: 모든 메뉴
       },
       {
         id: 'chanel', name: '샤넬코리아', emoji: '💄',
         borderColor: 'rgba(244,114,182,.55)',
-        publicMenus: ['sign', 'carrier'],
-        staffMenus:  ['order_register', 'order_search', 'history'],
-        adminMenus:  ['admin', 'list', 'billing', 'hub']
+        loginType: 'none',              // 로그인 비활성 (메뉴 없음)
+        publicMenus: [],
+        staffMenus:  [],
+        adminMenus:  []
       },
       {
         id: 'canon', name: '캐논메디칼시스템즈', emoji: '📷',
         borderColor: 'rgba(251,146,60,.55)',
+        loginType: 'username',          // 직원 ID + PW
         publicMenus: [],
-        staffMenus:  ['canon_billing'],
-        adminMenus:  ['canon_billing']
+        staffMenus:  ['canon_billing'],                      // 직원: 운송청구서만
+        adminMenus:  ['canon_billing', 'canon_users', 'hub']  // 관리자: 청구서 + 사용자 관리 + 허브
       },
     ];
 
@@ -165,7 +171,8 @@
       list:           { href:'list.html',          icon:'fas fa-search',              iconColor:'#34d399', h2:'조회 · 출력',      p:'기간 검색 · 건별 조회 · PDF' },
       billing:        { href:'billing.html',       icon:'fas fa-file-invoice-dollar', iconColor:'#f093fb', h2:'운송 청구서',      p:'기간별 운송비 집계<br>엑셀 청구서 출력' },
       hub:            { href:'hub.html',           icon:'fas fa-th-large',            iconColor:'#a78bfa', h2:'관리자 허브',       p:'대시보드 · 배차 · 클레임<br>업무일지 · 보세 관리' },
-      canon_billing:  { href:'canon_billing.html', icon:'fas fa-file-invoice-dollar', iconColor:'#fb923c', h2:'운송청구서',        p:'월별 운송 데이터 입력<br>캐논/운송사 운임 자동계산' }
+      canon_billing:  { href:'canon_billing.html', icon:'fas fa-file-invoice-dollar', iconColor:'#fb923c', h2:'운송청구서',        p:'월별 운송 데이터 입력<br>캐논/운송사 운임 자동계산' },
+      canon_users:    { href:'canon_users.html',   icon:'fas fa-users-cog',           iconColor:'#34d399', h2:'직원 계정 관리',    p:'캐논 직원 ID/비밀번호<br>생성 · 수정 · 삭제' }
     };
 
     /* ── 상태 ── */
@@ -207,15 +214,16 @@
       const c = CLIENTS.find(c => c.id === currentClientId);
       if (!c) return;
       const role = currentRole;
-
       let html = '';
 
-      // 준비중 화주 처리
-      if (c.comingSoon) {
-        html += `<div style="text-align:center;padding:40px 20px;">
-          <div style="font-size:48px;margin-bottom:16px;">🚧</div>
-          <div style="color:#fff;font-size:18px;font-weight:700;margin-bottom:8px;">${c.name}</div>
-          <div style="color:rgba(255,255,255,.5);font-size:13px;line-height:1.6;">메뉴 준비 중입니다.<br>추후 업데이트 예정입니다.</div>
+      // 샤넬코리아 — 메뉴 없음
+      if (c.loginType === 'none') {
+        html += `<div style="background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.2);
+          border-radius:14px;padding:40px 20px;text-align:center;color:rgba(255,255,255,.65);font-size:13px;
+          margin-top:20px;">
+          <div style="font-size:36px;margin-bottom:10px;">🚧</div>
+          <div style="font-weight:700;margin-bottom:6px;color:#fff;">${c.name} 시스템 준비 중</div>
+          <div>아직 활성화된 기능이 없습니다.</div>
         </div>`;
         document.getElementById('menuBody').innerHTML = html;
         return;
@@ -309,15 +317,26 @@
     function openLogin(role) {
       pendingRole = role;
       const isAdmin = role === 'admin';
+      const c = CLIENTS.find(c => c.id === currentClientId);
+      // 캐논 직원 로그인은 ID + PW 필요
+      const needId = (!isAdmin && c && c.loginType === 'username');
+
       document.getElementById('loginEmoji').textContent  = isAdmin ? '🔵' : '🟢';
       document.getElementById('loginTitle').textContent  = isAdmin ? '관리자 로그인' : '직원 로그인';
-      document.getElementById('loginSub').textContent    = isAdmin ? '관리자 비밀번호를 입력하세요' : '직원 비밀번호를 입력하세요';
+      document.getElementById('loginSub').textContent    = isAdmin
+        ? '관리자 비밀번호를 입력하세요'
+        : (needId ? '아이디와 비밀번호를 입력하세요' : '직원 비밀번호를 입력하세요');
       document.getElementById('loginSubmit').className   = `login-submit ${role}`;
       document.getElementById('loginSubmit').innerHTML   = `<i class="fas fa-sign-in-alt"></i> ${isAdmin?'관리자':'직원'} 로그인`;
+      document.getElementById('userIdInput').value = '';
+      document.getElementById('userIdInput').style.display = needId ? 'block' : 'none';
       document.getElementById('pwInput').value = '';
       document.getElementById('loginErr').style.display = 'none';
       document.getElementById('loginOverlay').classList.add('show');
-      setTimeout(() => document.getElementById('pwInput').focus(), 100);
+      setTimeout(() => {
+        const focusEl = needId ? 'userIdInput' : 'pwInput';
+        document.getElementById(focusEl).focus();
+      }, 100);
     }
 
     function closeLogin() {
@@ -327,38 +346,56 @@
 
     async function doLogin() {
       const pw = document.getElementById('pwInput').value;
+      const userId = document.getElementById('userIdInput').value.trim();
       if (!pw) return;
+
+      const c = CLIENTS.find(c => c.id === currentClientId);
+      const isAdmin = pendingRole === 'admin';
+
+      // 모드 결정
+      let body;
+      if (isAdmin) {
+        body = { mode: 'admin', password: pw };
+      } else if (c && c.loginType === 'username') {
+        if (!userId) { showLoginErr('아이디를 입력해주세요.'); return; }
+        body = { mode: 'canon_staff', username: userId, password: pw };
+      } else {
+        body = { mode: 'mettler_staff', password: pw };
+      }
+
       document.getElementById('loginSubmit').disabled = true;
       document.getElementById('loginErr').style.display = 'none';
 
       try {
-        const res  = await fetch('/api/auth', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw})});
+        const res  = await fetch('/api/auth', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(body)
+        });
         const data = await res.json();
+        document.getElementById('loginSubmit').disabled = false;
 
-        if (res.ok) {
-          const serverRole = data.role;
-          // 관리자 탭에서 직원 PW → 거부
-          if (pendingRole === 'admin' && serverRole !== 'admin') {
-            showLoginErr('관리자 비밀번호가 틀렸습니다.');
-            return;
-          }
-          // 토큰 저장
-          if (serverRole === 'admin') {
-            sessionStorage.setItem('adminToken', data.token);
-            sessionStorage.removeItem('staffToken');
-            currentRole = 'admin';
-          } else {
-            sessionStorage.setItem('staffToken', data.token);
-            sessionStorage.removeItem('adminToken');
-            currentRole = pendingRole === 'admin' ? 'staff' : 'staff';
-          }
-          sessionStorage.setItem('userRole', currentRole);
-          closeLogin();
-          renderMenu();
-        } else {
-          showLoginErr('비밀번호가 틀렸습니다.');
+        if (!res.ok) {
+          showLoginErr(data.error || '로그인 실패');
+          return;
         }
+
+        // 토큰 저장
+        if (data.role === 'admin') {
+          sessionStorage.setItem('adminToken', data.token);
+          sessionStorage.removeItem('staffToken');
+          currentRole = 'admin';
+        } else {
+          sessionStorage.setItem('staffToken', data.token);
+          sessionStorage.removeItem('adminToken');
+          currentRole = 'staff';
+        }
+        sessionStorage.setItem('userRole', currentRole);
+        sessionStorage.setItem('userClient', currentClientId);
+        if (data.username) sessionStorage.setItem('userName', data.name || data.username);
+        closeLogin();
+        renderMenu();
       } catch(e) {
+        document.getElementById('loginSubmit').disabled = false;
         showLoginErr('서버 연결 오류입니다.');
       }
     }
