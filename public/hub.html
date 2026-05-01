@@ -102,6 +102,12 @@
     }
     .sec-title::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
 
+    /* 드래그 시 시각 효과 */
+    .draggable { cursor: grab; }
+    .draggable:active { cursor: grabbing; }
+    .dragging { opacity: 0.4; transform: scale(.95); }
+    .drag-over { outline: 2.5px dashed #667eea; outline-offset: -3px; background: rgba(102,126,234,.05) !important; }
+
     /* ════════════════════════════════════════
        유틸리티 카드 (계산기/D-day)
     ════════════════════════════════════════ */
@@ -431,14 +437,14 @@
     <div class="bookmark-grid" id="bookmarkGrid"></div>
 
     <!-- ④ 유틸리티 -->
-    <div class="sec-title">🛠️ 유틸리티</div>
-    <div class="util-grid">
-      <button class="util-card" onclick="openCalculator()">
+    <div class="sec-title">🛠️ 유틸리티 <span style="margin-left:auto;font-size:10px;font-weight:600;color:#94a3b8;">↔ 드래그로 순서 변경</span></div>
+    <div class="util-grid" id="utilGrid">
+      <button class="util-card draggable" data-key="calc" onclick="openCalculator()">
         <div class="util-icon" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);">🧮</div>
         <div class="util-name">계산기</div>
         <div class="util-desc">공학용 포함</div>
       </button>
-      <button class="util-card" onclick="openDday()">
+      <button class="util-card draggable" data-key="dday" onclick="openDday()">
         <div class="util-icon" style="background:linear-gradient(135deg,#a78bfa,#8b5cf6);">📅</div>
         <div class="util-name">D-Day 계산기</div>
         <div class="util-desc">날짜 차이 · 기념일</div>
@@ -446,17 +452,17 @@
     </div>
 
     <!-- ⑤ 빠른 메뉴 -->
-    <div class="sec-title">⚡ 빠른 메뉴</div>
-    <div class="qmenu-grid">
-      <a href="admin.html"           class="qm"><div class="qm-icon i-blue">🗂️</div><div class="qm-name">오더 관리</div><div class="qm-desc">등록 · 조회</div></a>
-      <a href="dispatch.html"        class="qm"><div class="qm-icon i-orange">🚚</div><div class="qm-name">차량 배차</div><div class="qm-desc">배차 · 현황</div></a>
-      <a href="claims.html"          class="qm"><div class="qm-icon i-red">⚠️</div><div class="qm-name">클레임 트래커</div><div class="qm-desc">접수 · 처리</div></a>
-      <a href="calendar.html"        class="qm"><div class="qm-icon i-indigo">📅</div><div class="qm-name">캘린더</div><div class="qm-desc">일정 · 이벤트</div></a>
-      <a href="ot.html"              class="qm"><div class="qm-icon i-violet">⏰</div><div class="qm-name">OT 내역</div><div class="qm-desc">초과근무 관리</div></a>
-      <a href="notes.html"           class="qm"><div class="qm-icon i-yellow">📝</div><div class="qm-name">메모장</div><div class="qm-desc">메모 · 기록</div></a>
-      <a href="vendors.html"         class="qm"><div class="qm-icon i-slate">🏢</div><div class="qm-name">업체 관리</div><div class="qm-desc">거래처 · 명함</div></a>
-      <a href="list.html"            class="qm"><div class="qm-icon i-rose">🔍</div><div class="qm-name">조회/출력</div><div class="qm-desc">검색 · PDF</div></a>
-      <a href="mettler_report.html"  class="qm"><div class="qm-icon i-teal">📊</div><div class="qm-name">메틀러 청구 보고서</div><div class="qm-desc">매출 추이 · 그래프</div></a>
+    <div class="sec-title">⚡ 빠른 메뉴 <span style="margin-left:auto;font-size:10px;font-weight:600;color:#94a3b8;">↔ 드래그로 순서 변경</span></div>
+    <div class="qmenu-grid" id="qmenuGrid">
+      <a href="admin.html"           data-key="admin"    class="qm draggable"><div class="qm-icon i-blue">🗂️</div><div class="qm-name">오더 관리</div><div class="qm-desc">등록 · 조회</div></a>
+      <a href="dispatch.html"        data-key="dispatch" class="qm draggable"><div class="qm-icon i-orange">🚚</div><div class="qm-name">차량 배차</div><div class="qm-desc">배차 · 현황</div></a>
+      <a href="claims.html"          data-key="claims"   class="qm draggable"><div class="qm-icon i-red">⚠️</div><div class="qm-name">클레임 트래커</div><div class="qm-desc">접수 · 처리</div></a>
+      <a href="calendar.html"        data-key="calendar" class="qm draggable"><div class="qm-icon i-indigo">📅</div><div class="qm-name">캘린더</div><div class="qm-desc">일정 · 이벤트</div></a>
+      <a href="ot.html"              data-key="ot"       class="qm draggable"><div class="qm-icon i-violet">⏰</div><div class="qm-name">OT 내역</div><div class="qm-desc">초과근무 관리</div></a>
+      <a href="notes.html"           data-key="notes"    class="qm draggable"><div class="qm-icon i-yellow">📝</div><div class="qm-name">메모장</div><div class="qm-desc">메모 · 기록</div></a>
+      <a href="vendors.html"         data-key="vendors"  class="qm draggable"><div class="qm-icon i-slate">🏢</div><div class="qm-name">업체 관리</div><div class="qm-desc">거래처 · 명함</div></a>
+      <a href="list.html"            data-key="list"     class="qm draggable"><div class="qm-icon i-rose">🔍</div><div class="qm-name">조회/출력</div><div class="qm-desc">검색 · PDF</div></a>
+      <a href="mettler_report.html"  data-key="mettler"  class="qm draggable"><div class="qm-icon i-teal">📊</div><div class="qm-name">메틀러 청구 보고서</div><div class="qm-desc">매출 추이 · 그래프</div></a>
     </div>
 
     <!-- ⑥ 하단 2열 -->
@@ -858,7 +864,7 @@
         return;
       }
       grid.innerHTML = bookmarks.map(b => `
-        <a class="bm-card" href="${b.url}" target="_blank" rel="noopener" title="${b.url}">
+        <a class="bm-card draggable" data-key="${b.id}" href="${b.url}" target="_blank" rel="noopener" title="${b.url}">
           <div class="bm-actions" onclick="event.preventDefault();event.stopPropagation();">
             <button onclick="editBookmark('${b.id}')" title="편집"><i class="fas fa-edit"></i></button>
             <button class="bm-del" onclick="deleteBookmark('${b.id}')" title="삭제"><i class="fas fa-trash"></i></button>
@@ -867,6 +873,11 @@
           <div class="bm-name">${b.name}</div>
         </a>
       `).join('');
+      enableDragSort('bookmarkGrid', 'hub_bookmarks_order', (newOrder) => {
+        // 북마크 배열을 새 순서로 재정렬
+        bookmarks.sort((a,b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+        saveBookmarks();
+      });
     }
 
     function openBookmarkModal(bm = null) {
@@ -922,6 +933,83 @@
     }
 
     loadBookmarks();
+
+    /* ════════════════════════════════════════
+       드래그 앤 드롭 정렬 (URL/유틸/빠른메뉴 공통)
+    ════════════════════════════════════════ */
+    function enableDragSort(containerId, storageKey, onReorder) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      let dragSrc = null;
+      const items = container.querySelectorAll('.draggable');
+      items.forEach(item => {
+        item.draggable = true;
+        item.addEventListener('dragstart', e => {
+          dragSrc = item;
+          item.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          // 링크의 드래그 기본동작(URL 드래그) 방지
+          try { e.dataTransfer.setData('text/plain', item.dataset.key || ''); } catch(_){}
+        });
+        item.addEventListener('dragend', () => {
+          item.classList.remove('dragging');
+          container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        });
+        item.addEventListener('dragover', e => {
+          e.preventDefault();
+          if (item !== dragSrc) item.classList.add('drag-over');
+        });
+        item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+        item.addEventListener('drop', e => {
+          e.preventDefault();
+          item.classList.remove('drag-over');
+          if (!dragSrc || dragSrc === item) return;
+          // 위치 결정: 마우스 위치가 대상의 절반 이전이면 앞에, 이후면 뒤에 삽입
+          const rect = item.getBoundingClientRect();
+          const isHorizontal = container.classList.contains('qmenu-grid')
+                            || container.classList.contains('bookmark-grid')
+                            || container.classList.contains('util-grid');
+          let insertBefore;
+          if (isHorizontal) {
+            insertBefore = (e.clientX - rect.left) < rect.width / 2;
+          } else {
+            insertBefore = (e.clientY - rect.top) < rect.height / 2;
+          }
+          if (insertBefore) container.insertBefore(dragSrc, item);
+          else container.insertBefore(dragSrc, item.nextSibling);
+          // 새 순서 저장
+          const newOrder = [...container.querySelectorAll('.draggable')].map(el => el.dataset.key);
+          if (storageKey) localStorage.setItem(storageKey, JSON.stringify(newOrder));
+          if (onReorder) onReorder(newOrder);
+          // 클릭 방지: 드래그 직후 click 이벤트 무력화
+          dragSrc.dataset.justDragged = '1';
+          setTimeout(() => { if (dragSrc) delete dragSrc.dataset.justDragged; }, 100);
+        });
+        // 드래그 직후 발생하는 클릭 차단
+        item.addEventListener('click', e => {
+          if (item.dataset.justDragged) { e.preventDefault(); e.stopPropagation(); }
+        });
+      });
+    }
+
+    function applySavedOrder(containerId, storageKey) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+      if (!Array.isArray(saved) || !saved.length) return;
+      const items = [...container.children];
+      const map = {};
+      items.forEach(el => { if (el.dataset.key) map[el.dataset.key] = el; });
+      // 저장 순서대로 재배치
+      saved.forEach(key => { if (map[key]) container.appendChild(map[key]); });
+      // 저장 안 된 신규 항목은 그대로 끝에 (이미 그 자리에 있음)
+    }
+
+    // 페이지 로드 시 저장된 순서 적용 + 드래그 활성화
+    applySavedOrder('utilGrid',     'hub_util_order');
+    applySavedOrder('qmenuGrid',    'hub_qmenu_order');
+    enableDragSort('utilGrid',     'hub_util_order');
+    enableDragSort('qmenuGrid',    'hub_qmenu_order');
 
     // D-day 카드 업데이트 (가장 가까운 미래 D-day 표시)
     function updateDdayCard() {
