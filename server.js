@@ -263,7 +263,7 @@ app.post('/api/sign/:id', (req, res) => {
 // ──────────────────────────────────────────
 
 // 목록 조회 (검색/필터)
-app.get('/api/records', requireAdmin, (req, res) => {
+app.get('/api/records', requireAuth, (req, res) => {
   const { search, dateFrom, dateTo, status, dn, company, client_code, limit = 1000 } = req.query;
   let query = 'SELECT * FROM delivery_records WHERE 1=1';
   const params = [];
@@ -288,14 +288,14 @@ app.get('/api/records', requireAdmin, (req, res) => {
 });
 
 // 단건 조회
-app.get('/api/records/:id', requireAdmin, (req, res) => {
+app.get('/api/records/:id', requireAuth, (req, res) => {
   const row = db.prepare('SELECT * FROM delivery_records WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Not found' });
   res.json(row);
 });
 
 // 오더 등록
-app.post('/api/records', requireAdmin, (req, res) => {
+app.post('/api/records', requireAuth, (req, res) => {
   const d = req.body;
   const dup = db.prepare('SELECT id FROM delivery_records WHERE order_no = ?').get(d.order_no);
   if (dup) return res.status(400).json({ error: `DN번호 [${d.order_no}]이 이미 등록되어 있습니다.` });
@@ -318,7 +318,7 @@ app.post('/api/records', requireAdmin, (req, res) => {
 });
 
 // 오더 수정 (관리자)
-app.patch('/api/records/:id', requireAdmin, (req, res) => {
+app.patch('/api/records/:id', requireAuth, (req, res) => {
   const d = req.body;
   const fields = Object.keys(d).map(k => `${k} = ?`).join(', ');
   const values = [...Object.values(d), req.params.id];
