@@ -419,9 +419,14 @@
       from=fmt(new Date(today.getFullYear(),today.getMonth()-1,1));
       to=fmt(new Date(today.getFullYear(),today.getMonth(),0));
     } else if(type==='thismonth'){
-      // 이번달 1일~오늘
-      from=fmt(new Date(today.getFullYear(),today.getMonth(),1));
-      to=fmt(today);
+      // 비즈니스 월: 오늘이 1~15일이면 전월16일~당월15일, 16일 이상이면 당월16일~익월15일
+      if(today.getDate()<16){
+        from=fmt(new Date(today.getFullYear(),today.getMonth()-1,16));
+        to=fmt(new Date(today.getFullYear(),today.getMonth(),15));
+      } else {
+        from=fmt(new Date(today.getFullYear(),today.getMonth(),16));
+        to=fmt(new Date(today.getFullYear(),today.getMonth()+1,15));
+      }
     }
 
     document.getElementById('dateFrom').value=from;

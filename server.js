@@ -79,6 +79,16 @@ db.exec(`
   )
 `);
 
+// 메틀러토레도 운송비 청구서 (월별 1개)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mettler_transport_billing (
+    period_key TEXT PRIMARY KEY,   -- 예: '2026-04' 또는 '2026-04-16~2026-05-15'
+    data       TEXT NOT NULL,       -- JSON 배열 (행 데이터)
+    meta       TEXT,                -- JSON (기간/운송업체 등 메타)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 // ──────────────────────────────────────────
 //  인증 토큰 관리 (메모리)
 //  validTokens: Map<token, { role: 'admin'|'mettler_staff'|'canon_staff', username?, expires }>
@@ -220,6 +230,49 @@ app.patch('/api/canon-users/:id', requireAdmin, (req, res) => {
 app.delete('/api/canon-users/:id', requireAdmin, (req, res) => {
   db.prepare('DELETE FROM canon_staff_users WHERE id = ?').run([req.params.id]);
   res.json({ success: true });
+});
+
+// ──────────────────────────────────────────
+//  메틀러토레도 운송비 청구서
+// ──────────────────────────────────────────
+app.get('/api/mettler-transport/:periodKey', requireAuth, (req, res) => {
+  const row = db.prepare('SELECT * FROM mettler_transport_billing WHERE period_key = ?')
+    .get(req.params.periodKey);
+  if (!row) return res.json({ data: [], meta: null });
+  try {
+    res.json({
+      data: JSON.parse(row.data || '[]'),
+      meta: row.meta ? JSON.parse(row.meta) : null,
+      updated_at: row.updated_at
+    });
+  } catch(e) {
+    res.json({ data: [], meta: null });
+  }
+});
+
+app.put('/api/mettler-transport/:periodKey', requireAuth, (req, res) => {
+  const { data, meta } = req.body || {};
+  if (!Array.isArray(data)) return res.status(400).json({ error: 'data 배열이 필요합니다.' });
+  const dataJson = JSON.stringify(data);
+  const metaJson = meta ? JSON.stringify(meta) : null;
+  db.prepare(`
+    INSERT INTO mettler_transport_billing(period_key, data, meta, updated_at)
+    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(period_key) DO UPDATE SET
+      data = excluded.data, meta = excluded.meta, updated_at = CURRENT_TIMESTAMP
+  `).run([req.params.periodKey, dataJson, metaJson]);
+  res.json({ success: true });
+});
+
+app.delete('/api/mettler-transport/:periodKey', requireAdmin, (req, res) => {
+  db.prepare('DELETE FROM mettler_transport_billing WHERE period_key = ?').run([req.params.periodKey]);
+  res.json({ success: true });
+});
+
+// 모든 청구서 기간 목록 조회 (관리자용)
+app.get('/api/mettler-transport', requireAuth, (req, res) => {
+  const rows = db.prepare('SELECT period_key, updated_at FROM mettler_transport_billing ORDER BY period_key DESC').all();
+  res.json({ data: rows });
 });
 
 // ──────────────────────────────────────────
