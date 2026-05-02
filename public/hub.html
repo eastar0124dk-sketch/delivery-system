@@ -789,13 +789,13 @@
 
         // 오늘 서명 대기 (다양한 API 필드명 대응)
         let pendingRaw = d.recent_pending || d.pending_orders || d.pending_list || d.recent_orders || [];
-        // 1차로 안 들어온 경우 /api/orders 직접 호출 시도
+        // 1차로 안 들어온 경우 /api/records로 오늘 분 직접 조회
         if (!pendingRaw.length) {
           try {
-            const ordRes = await fetch('/api/orders?limit=50', { headers: authH() });
+            const ordRes = await fetch(`/api/records?dateFrom=${todayStr}&dateTo=${todayStr}&limit=100`, { headers: authH() });
             if (ordRes.ok) {
               const oj = await ordRes.json();
-              pendingRaw = oj.orders || oj || [];
+              pendingRaw = oj.data || oj || [];
             }
           } catch(_){}
         }
