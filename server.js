@@ -276,6 +276,73 @@ app.get('/api/mettler-transport', requireAuth, (req, res) => {
 });
 
 // ──────────────────────────────────────────
+//  대시보드 통계 (오늘 기준)
+// ──────────────────────────────────────────
+app.get('/api/stats', requireAuth, (req, res) => {
+  try {
+    // 한국 시간 기준 오늘 날짜 (서버가 UTC일 수 있으므로 KST 변환)
+    const now = new Date();
+    const kstOffset = 9 * 60 * 60 * 1000;
+    const kst = new Date(now.getTime() + kstOffset);
+    const ymd = `${kst.getUTCFullYear()}-${String(kst.getUTCMonth()+1).padStart(2,'0')}-${String(kst.getUTCDate()).padStart(2,'0')}`;
+
+    // 오늘 등록 오더 (delivery_date = today)
+    const totalRow = db.prepare(
+      "SELECT COUNT(*) as cnt FROM delivery_records WHERE delivery_date = ?"
+    ).get([ymd]);
+    const total_today = totalRow ? totalRow.cnt : 0;
+
+    // 오늘 서명 완료 (signed_at에 today가 들어있음 — 한국 형식 가능성 대응)
+    const signedRow = db.prepare(
+      "SELECT COUNT(*) as cnt FROM delivery_records WHERE status = 'signed' AND signed_at LIKE ?"
+    ).get([`%${ymd}%`]);
+    let signed_today = signedRow ? signedRow.cnt : 0;
+    // 보조: signed_at이 ko-KR 형식("2026. 5. 2.")일 수 있으므로 더 관대하게 매칭
+    if (signed_today === 0) {
+      const yr = String(kst.getUTCFullYear());
+      const mo = String(kst.getUTCMonth()+1);
+      const da = String(kst.getUTCDate());
+      const altPattern = `${yr}. ${mo}. ${da}.`;
+      const altRow = db.prepare(
+        "SELECT COUNT(*) as cnt FROM delivery_records WHERE status = 'signed' AND signed_at LIKE ?"
+      ).get([`%${altPattern}%`]);
+      signed_today = altRow ? altRow.cnt : 0;
+    }
+
+    // 오늘 미서명 대기
+    const pendingRow = db.prepare(
+      "SELECT COUNT(*) as cnt FROM delivery_records WHERE delivery_date = ? AND (status IS NULL OR status != 'signed')"
+    ).get([ymd]);
+    const pending_today = pendingRow ? pendingRow.cnt : 0;
+
+    // 처리중 클레임 (claims 테이블 있으면 카운트, 없으면 0)
+    let open_claims = 0;
+    try {
+      const cr = db.prepare(
+        "SELECT COUNT(*) as cnt FROM claims WHERE status IN ('접수','처리중','대기')"
+      ).get();
+      open_claims = cr ? cr.cnt : 0;
+    } catch(_) { open_claims = 0; }
+
+    // 최근 서명 완료 목록 (최신 20건)
+    const recent_signed = db.prepare(`
+      SELECT id, order_no, customer_company, signed_at, delivery_date, status
+      FROM delivery_records
+      WHERE status = 'signed'
+      ORDER BY id DESC LIMIT 20
+    `).all();
+
+    res.json({
+      total_today, signed_today, pending_today, open_claims,
+      recent_signed
+    });
+  } catch(e) {
+    console.error('[/api/stats]', e);
+    res.json({ total_today:0, signed_today:0, pending_today:0, open_claims:0, recent_signed:[] });
+  }
+});
+
+// ──────────────────────────────────────────
 //  공개 API (배송기사용)
 // ──────────────────────────────────────────
 
