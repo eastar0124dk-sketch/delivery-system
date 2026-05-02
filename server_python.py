@@ -5,7 +5,7 @@ os.environ.setdefault('PYTHONUTF8', '1')
 
 import json, secrets, re, mimetypes, socket, io, hashlib
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 from datetime import datetime, timedelta
 import urllib.request
 
@@ -126,6 +126,13 @@ if DATABASE_URL:
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         cur.execute('''CREATE TABLE IF NOT EXISTS canon_billing_meta (
             key TEXT PRIMARY KEY, value TEXT)''')
+        cur.execute('''CREATE TABLE IF NOT EXISTS canon_staff_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, name TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        cur.execute('''CREATE TABLE IF NOT EXISTS mettler_transport_billing (
+            period_key TEXT PRIMARY KEY, data TEXT NOT NULL, meta TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         # OT 시드 데이터 (테이블이 비어있을 때만 삽입)
         cur.execute('SELECT COUNT(*) as cnt FROM ot_records')
         row = cur.fetchone(); cnt = dict(row).get('cnt', 0) if row else 0
@@ -256,6 +263,13 @@ else:
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS canon_billing_meta (
             key TEXT PRIMARY KEY, value TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS canon_staff_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, name TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mettler_transport_billing (
+            period_key TEXT PRIMARY KEY, data TEXT NOT NULL, meta TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         # OT 시드 데이터 (테이블이 비어있을 때만 삽입)
         cnt = c.execute('SELECT COUNT(*) FROM ot_records').fetchone()[0]
         if cnt == 0:
@@ -938,6 +952,34 @@ class Handler(BaseHTTPRequestHandler):
             if not row: return self.send_json({'error':'Not found'}, 404)
             return self.send_json(row)
 
+        # ── 캐논 직원 계정 목록 (관리자 전용) ──
+        if path == '/api/canon-users':
+            if not self.token_ok(admin_only=True): return self.send_json({'error':'관리자 권한 필요'}, 403)
+            rows = db_fetchall('SELECT id, username, name, created_at FROM canon_staff_users ORDER BY id')
+            return self.send_json({'data': rows})
+
+        # ── 메틀러 운송청구서 단건 조회 ──
+        m_mt = re.match(r'^/api/mettler-transport/(.+)$', path)
+        if m_mt:
+            if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
+            period_key = unquote(m_mt.group(1))
+            row = db_fetch('SELECT * FROM mettler_transport_billing WHERE period_key=?', (period_key,))
+            if not row: return self.send_json({'data': [], 'meta': None})
+            try:
+                return self.send_json({
+                    'data': json.loads(row.get('data') or '[]'),
+                    'meta': json.loads(row['meta']) if row.get('meta') else None,
+                    'updated_at': row.get('updated_at')
+                })
+            except Exception as e:
+                return self.send_json({'data': [], 'meta': None})
+
+        # ── 메틀러 운송청구서 전체 목록 ──
+        if path == '/api/mettler-transport':
+            if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
+            rows = db_fetchall('SELECT period_key, updated_at FROM mettler_transport_billing ORDER BY period_key DESC')
+            return self.send_json({'data': rows})
+
         self._serve_static(p.path)
       except Exception as e:
         try: self.send_response(500); self.end_headers()
@@ -948,6 +990,43 @@ class Handler(BaseHTTPRequestHandler):
       try:
         p    = urlparse(self.path).path.rstrip('/')
         body = self.read_body()
+
+        # ── 캐논 직원 계정 추가 (관리자 전용) ──
+        if p == '/api/canon-users':
+            if not self.token_ok(admin_only=True): return self.send_json({'error':'관리자 권한 필요'}, 403)
+            username = (body.get('username') or '').strip()
+            password = body.get('password') or ''
+            name     = (body.get('name') or '').strip()
+            if not username or not password:
+                return self.send_json({'error':'아이디와 비밀번호는 필수입니다.'}, 400)
+            try:
+                db_exec('INSERT INTO canon_staff_users(username,password,name) VALUES(?,?,?)',
+                        (username, password, name))
+                return self.send_json({'success': True})
+            except Exception as e:
+                if 'UNIQUE' in str(e):
+                    return self.send_json({'error':'이미 존재하는 아이디입니다.'}, 400)
+                return self.send_json({'error': str(e)}, 500)
+
+        # ── 메틀러 운송청구서 저장 (POST를 PUT처럼 처리) ──
+        m_mt = re.match(r'^/api/mettler-transport/(.+)$', p)
+        if m_mt:
+            if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
+            period_key = unquote(m_mt.group(1))
+            data = body.get('data')
+            meta = body.get('meta')
+            if not isinstance(data, list):
+                return self.send_json({'error':'data 배열이 필요합니다.'}, 400)
+            data_json = json.dumps(data, ensure_ascii=False)
+            meta_json = json.dumps(meta, ensure_ascii=False) if meta else None
+            exists = db_fetch('SELECT 1 AS x FROM mettler_transport_billing WHERE period_key=?', (period_key,))
+            if exists:
+                db_exec('UPDATE mettler_transport_billing SET data=?, meta=?, updated_at=CURRENT_TIMESTAMP WHERE period_key=?',
+                        (data_json, meta_json, period_key))
+            else:
+                db_exec('INSERT INTO mettler_transport_billing(period_key,data,meta) VALUES(?,?,?)',
+                        (period_key, data_json, meta_json))
+            return self.send_json({'success': True})
 
         # ── 캐논 청구 데이터 저장 (월별 덮어쓰기) ──
         if p == '/api/canon/billing':
@@ -972,11 +1051,41 @@ class Handler(BaseHTTPRequestHandler):
                     db_exec("INSERT INTO canon_billing_meta (key, value) VALUES (?, ?)", ('manualSort', ms_json))
             return self.send_json({'success': True})
 
-        # 인증
+        # 인증 (mode 기반 + 구버전 호환)
         if p == '/api/auth':
+            mode = body.get('mode','')
             pw = body.get('password','')
+            username = (body.get('username') or '').strip()
             db_admin = (db_fetch('SELECT value FROM app_settings WHERE key=?', ('admin_pw',)) or {}).get('value') or ADMIN_PW
             db_staff = (db_fetch('SELECT value FROM app_settings WHERE key=?', ('staff_pw',)) or {}).get('value') or STAFF_PW
+
+            # 캐논 직원 (ID + PW)
+            if mode == 'canon_staff':
+                if not username or not pw:
+                    return self.send_json({'error':'아이디와 비밀번호를 입력하세요.'}, 400)
+                user = db_fetch('SELECT * FROM canon_staff_users WHERE username=?', (username,))
+                if not user or user.get('password') != pw:
+                    return self.send_json({'error':'아이디 또는 비밀번호가 틀렸습니다.'}, 401)
+                t = make_token(pw); valid_staff_tokens.add(t)
+                return self.send_json({'token': t, 'role': 'canon_staff',
+                                       'username': user.get('username'),
+                                       'name': user.get('name')})
+
+            # 관리자
+            if mode == 'admin':
+                if pw == db_admin:
+                    t = make_token(pw); valid_tokens.add(t)
+                    return self.send_json({'token': t, 'role': 'admin'})
+                return self.send_json({'error':'관리자 비밀번호가 틀렸습니다.'}, 401)
+
+            # 메틀러 직원
+            if mode == 'mettler_staff':
+                if pw == db_staff:
+                    t = make_token(pw); valid_staff_tokens.add(t)
+                    return self.send_json({'token': t, 'role': 'mettler_staff'})
+                return self.send_json({'error':'직원 비밀번호가 틀렸습니다.'}, 401)
+
+            # 구버전 호환
             if pw == db_admin:
                 t = make_token(pw); valid_tokens.add(t)
                 return self.send_json({'token': t, 'role': 'admin'})
@@ -1138,6 +1247,11 @@ class Handler(BaseHTTPRequestHandler):
         except: pass
 
     # ── PATCH ────────────────────────────────────────────────────────
+    # ── PUT (do_POST 라우트 위임) ───────────────────────────────────
+    def do_PUT(self):
+        # PUT은 POST와 동일하게 처리 (메틀러 운송청구서 저장 등)
+        return self.do_POST()
+
     def do_PATCH(self):
       try:
         p = urlparse(self.path).path.rstrip('/')
@@ -1177,6 +1291,25 @@ class Handler(BaseHTTPRequestHandler):
             db_exec(f'UPDATE delivery_records SET {sets} WHERE id=?', vals)
             return self.send_json({'success': True})
 
+        # ── 캐논 직원 비밀번호/이름 수정 (관리자 전용) ──
+        m_cu = re.match(r'^/api/canon-users/(\d+)$', p)
+        if m_cu:
+            if not self.token_ok(admin_only=True): return self.send_json({'error':'관리자 권한 필요'}, 403)
+            updates = {}
+            for k in ['username','password','name']:
+                if k in body and body[k] is not None:
+                    updates[k] = body[k]
+            if not updates: return self.send_json({'error':'수정할 항목이 없습니다.'}, 400)
+            sets = ', '.join(f'{k}=?' for k in updates.keys())
+            vals = list(updates.values()) + [m_cu.group(1)]
+            try:
+                db_exec(f'UPDATE canon_staff_users SET {sets} WHERE id=?', vals)
+                return self.send_json({'success': True})
+            except Exception as e:
+                if 'UNIQUE' in str(e):
+                    return self.send_json({'error':'이미 존재하는 아이디입니다.'}, 400)
+                return self.send_json({'error': str(e)}, 500)
+
         # ── 제네릭 PATCH (admin) ──
         if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
         PATCH_MAP = {
@@ -1213,6 +1346,19 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({'success': True})
 
         if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
+
+        # 캐논 직원 삭제
+        m_cu = re.match(r'^/api/canon-users/(\d+)$', p)
+        if m_cu:
+            db_exec('DELETE FROM canon_staff_users WHERE id=?', (m_cu.group(1),))
+            return self.send_json({'success': True})
+
+        # 메틀러 운송청구서 삭제
+        m_mt = re.match(r'^/api/mettler-transport/(.+)$', p)
+        if m_mt:
+            period_key = unquote(m_mt.group(1))
+            db_exec('DELETE FROM mettler_transport_billing WHERE period_key=?', (period_key,))
+            return self.send_json({'success': True})
 
         m = re.match(r'^/api/records/(\d+)$', p)
         if m:
