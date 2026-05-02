@@ -472,10 +472,79 @@
   }
   function fmtInput(el){ el.value=(parseInt(el.value.replace(/[^0-9]/g,''))||0).toLocaleString(); }
 
+  // ── 행정구역 별칭 매핑 (운임표에 없는 동/읍/면/구 → 시 변환) ──
+  const REGION_ALIAS = {
+    // 용인시
+    '처인구':'용인','기흥구':'용인','수지구':'용인','처인':'용인','기흥':'용인','수지':'용인',
+    // 화성시
+    '향남읍':'화성','향남':'화성','동탄':'화성','봉담읍':'화성','봉담':'화성','남양읍':'화성','남양':'화성','우정읍':'화성','정남면':'화성','매송면':'화성',
+    // 천안시
+    '서북구':'천안','동남구':'천안','서북':'천안','동남':'천안',
+    // 인천광역시
+    '연수구':'인천','남동구':'인천','부평구':'인천','계양구':'인천','미추홀구':'인천','강화군':'인천','옹진군':'인천',
+    '연수':'인천','남동':'인천','부평':'인천','계양':'인천','미추홀':'인천','강화':'인천','옹진':'인천',
+    // 안산시
+    '단원구':'안산','상록구':'안산','단원':'안산','상록':'안산',
+    // 안양시
+    '만안구':'안양','동안구':'안양','만안':'안양','동안':'안양',
+    // 성남시
+    '분당구':'성남','수정구':'성남','중원구':'성남','분당':'성남','수정':'성남',
+    // 수원시
+    '권선구':'수원','영통구':'수원','장안구':'수원','팔달구':'수원','권선':'수원','영통':'수원','팔달':'수원',
+    // 고양시
+    '덕양구':'고양','일산동구':'고양','일산서구':'고양','덕양':'고양','일산':'고양','일산동':'고양','일산서':'고양',
+    // 부천시 (구 폐지됐지만 호환)
+    '소사구':'부천','오정구':'부천','원미구':'부천','소사':'부천','오정':'부천','원미':'부천',
+    // 아산시 (천안 인근)
+    '음봉면':'아산','둔포면':'아산','신창면':'아산','배방읍':'아산','탕정면':'아산','음봉':'아산','둔포':'아산','신창':'아산','배방':'아산','탕정':'아산',
+    // 평택시
+    '안중읍':'평택','팽성읍':'평택','서탄면':'평택','진위면':'평택','오성면':'평택','안중':'평택','팽성':'평택','서탄':'평택','진위':'평택','오성':'평택',
+    // 청주시
+    '상당구':'청주','서원구':'청주','청원구':'청주','흥덕구':'청주','상당':'청주','서원':'청주','청원':'청주','흥덕':'청주',
+    // 창원시
+    '의창구':'창원','마산합포구':'창원','마산회원구':'창원','진해구':'창원','의창':'창원','마산합포':'창원','마산회원':'창원','진해':'창원',
+  };
+
+  // 시도 prefix 자동 제거
+  const SIDO_PREFIXES = ['서울특별시','부산광역시','대구광역시','인천광역시','광주광역시','대전광역시','울산광역시','세종특별자치시',
+    '경기도','강원도','강원특별자치도','충청북도','충청남도','전라북도','전북특별자치도','전라남도','경상북도','경상남도','제주특별자치도','제주도',
+    '서울','부산','대구','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주'];
+
+  function normalizeDistrict(input){
+    if(!input) return '';
+    let s = String(input).trim();
+    // 시도 prefix 제거
+    for (const sido of SIDO_PREFIXES) {
+      if (s.startsWith(sido + ' ')) { s = s.substring(sido.length).trim(); break; }
+      if (s === sido) return '';
+    }
+    return s;
+  }
+
+  // 입력에서 별칭 키를 찾아 표준 시군 반환 (없으면 null)
+  function aliasMatch(input){
+    if(!input) return null;
+    const s = normalizeDistrict(input);
+    // 1) 별칭 직접 매칭
+    if (REGION_ALIAS[s]) return REGION_ALIAS[s];
+    // 2) 입력이 별칭 키를 포함하면 매칭
+    for (const key of Object.keys(REGION_ALIAS)) {
+      if (s.includes(key)) return REGION_ALIAS[key];
+    }
+    // 3) 첫 토큰의 "OO시" → "OO" 시도
+    const first = s.split(/\s+/)[0];
+    if (first.endsWith('시') || first.endsWith('군')) {
+      const cand = first.slice(0, -1);
+      if (REGION_ALIAS[cand]) return REGION_ALIAS[cand];
+      return cand;  // 정규화된 시군구명 (예: 용인시 → 용인)
+    }
+    return null;
+  }
+
   // ── 운임표 조회 (도착지 시군 + 차종) ──
   function lookupRate(district, vehicleType){
     if(!district||!vehicleType||typeof RATE_TABLE==='undefined') return null;
-    const d=district.trim();
+    const d=normalizeDistrict(district);
     const vt=vehicleType.trim();
     let overrides={};
     try{ overrides=JSON.parse(localStorage.getItem('rate_override')||'{}'); }catch(e){}
@@ -486,19 +555,32 @@
       const k = ov[`k_${vt}`]!=null ? ov[`k_${vt}`] : client;
       return {c, k};
     }
-
-    // 1차: 정확히 sigun 일치
-    for(const key in RATE_TABLE){
-      const e=RATE_TABLE[key];
-      if(e.sigun===d){
-        const base=e.carrier[vt], kbase=e.client[vt];
-        if(base!=null||kbase!=null){
-          const {c,k}=applyOverride(key,base||0,kbase||0);
-          return {carrier:c,client:k,matched:e.sigun,sido:e.sido};
+    function tryMatch(target){
+      for(const key in RATE_TABLE){
+        const e=RATE_TABLE[key];
+        if(e.sigun===target){
+          const base=e.carrier[vt], kbase=e.client[vt];
+          if(base!=null||kbase!=null){
+            const {c,k}=applyOverride(key,base||0,kbase||0);
+            return {carrier:c,client:k,matched:e.sigun,sido:e.sido};
+          }
         }
       }
+      return null;
     }
-    // 2차: 시/구/군/도 제거 후 포함 매칭
+
+    // 1차: 정확히 sigun 일치
+    let r = tryMatch(d);
+    if (r) return r;
+
+    // 2차: 별칭 매핑 (예: "처인구" → "용인", "경기도 용인시" → "용인")
+    const aliased = aliasMatch(d);
+    if (aliased) {
+      r = tryMatch(aliased);
+      if (r) return r;
+    }
+
+    // 3차: 시/구/군/도 제거 후 포함 매칭 (기존 fallback)
     const clean=d.replace(/[시도구군읍면동로길]/g,'');
     for(const key in RATE_TABLE){
       const e=RATE_TABLE[key];

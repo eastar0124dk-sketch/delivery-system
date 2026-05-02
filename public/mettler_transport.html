@@ -8,6 +8,7 @@
   <title>메틀러토레도 운송청구서</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <script src="rates.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family:'Noto Sans KR','Malgun Gothic',sans-serif; background:#f0f4f8; color:#1a202c; font-size:13px; }
@@ -420,18 +421,34 @@ function normalizeRegion(input) {
 }
 
 // 도착지(시/군)와 차종으로 운임 조회
+// billing.html(운송청구서)과 동일한 RATE_TABLE 사용 (rates.js)
 function lookupRate(sigungu, vehicle, side) {
   if (!sigungu || !vehicle) return 0;
+  if (typeof RATE_TABLE === 'undefined') return 0;
   const RATE_VEHICLES = ['다마스','1톤','2.5톤','5톤','11톤'];
   if (!RATE_VEHICLES.includes(vehicle)) return 0;
   const normalized = normalizeRegion(sigungu);
   if (!normalized) return 0;
-  // 정확 매칭
-  let row = rates.find(r => r.sigungu === normalized);
-  // 부분 매칭
-  if (!row) row = rates.find(r => normalized.includes(r.sigungu) || r.sigungu.includes(normalized));
-  if (!row) return 0;
-  return (side === 'shipper' ? row.shipper : row.carrier)[vehicle] || 0;
+
+  // 1차: 정확 매칭
+  for (const key in RATE_TABLE) {
+    const e = RATE_TABLE[key];
+    if (e.sigun === normalized) {
+      const v = side === 'shipper' ? e.client[vehicle] : e.carrier[vehicle];
+      return v || 0;
+    }
+  }
+  // 2차: 부분 매칭 (시/군 제거 후)
+  const clean = normalized.replace(/[시도구군읍면동로길]/g,'');
+  for (const key in RATE_TABLE) {
+    const e = RATE_TABLE[key];
+    const sc = e.sigun.replace(/[시도구군읍면동]/g,'');
+    if (clean && sc && (clean.includes(sc) || sc.includes(clean))) {
+      const v = side === 'shipper' ? e.client[vehicle] : e.carrier[vehicle];
+      return v || 0;
+    }
+  }
+  return 0;
 }
 
 // 주소에서 시/군 추출 (정규화 적용)
@@ -464,9 +481,9 @@ async function loadBilling() {
     return;
   }
 
-  // 2) 서버에 없으면 admin 오더에서 자동 가져오기 (메틀러 화주만)
+  // 2) 서버에 없으면 운송청구서(billing.html)와 동일하게 admin 오더에서 변환
   try {
-    const url = `/api/records?dateFrom=${encodeURIComponent(f)}&dateTo=${encodeURIComponent(t)}&client_code=mettler&limit=500`;
+    const url = `/api/records?dateFrom=${encodeURIComponent(f)}&dateTo=${encodeURIComponent(t)}&client_code=mettler&limit=2000`;
     const r = await fetch(url, { headers: authH() });
     if (!r.ok) {
       const errText = await r.text();
@@ -474,35 +491,69 @@ async function loadBilling() {
     }
     const j = await r.json();
     const orders = (j.data || j || []);
-    console.log('[admin records]', orders.length, '건', orders[0] || '(없음)');
+    console.log('[admin records]', orders.length, '건');
 
     rows = orders.map((o, idx) => {
-      const dest = extractSigungu(o.customer_address || '');
+      // billing.html과 동일한 변환 로직
+      const vt = o.vehicle_type || '';
+      const tt = o.transport_type || '';
+
+      // 운임 기준 시군구 결정
+      let billingDistrict = '';
+      if (tt === '회수') {
+        billingDistrict = o.origin_sigun || extractSigungu(o.origin_address || '');
+      } else {
+        billingDistrict = o.dest_sigun || extractSigungu(o.customer_address || '');
+      }
+
+      // 출발지/도착지 표시
+      let originDisplay = '', originNameDisplay = '', destNameDisplay = '';
+      if (tt === '회수' || tt === '입고') {
+        originDisplay = billingDistrict || o.origin_sigun || extractSigungu(o.origin_address || '') || o.origin || '';
+        originNameDisplay = o.customer_company || '';
+        destNameDisplay = 'ACT';
+      } else {
+        const isActOrigin = (o.origin === 'ACT' || (o.origin || '').toUpperCase() === 'ACT');
+        originNameDisplay = isActOrigin ? 'ACT' : (o.origin_address || o.origin || 'ACT');
+        originDisplay = isActOrigin ? '김포' : (o.origin_sigun || extractSigungu(o.origin_address || '') || o.origin || '김포');
+        destNameDisplay = o.customer_company || '';
+      }
+
+      // 내용(형태) 자동결정
+      let content = '';
+      if (originNameDisplay === 'ACT') content = '출고';
+      else if (destNameDisplay === 'ACT') content = '입고';
+      else content = '이동';
+      if (tt && !['출고','회수','이동','입고'].includes(tt)) content = tt;
+
+      // 청구금액(L열) — admin의 work_fee 활용
+      const cBill = parseInt(o.work_fee) || 0;
+
       const row = {
         no: idx + 1,
         date: (o.delivery_date || '').slice(0,10),
         dn: o.order_no || '',
-        src: '김포',
-        srcCode: 'ACT',
-        dest: dest,
-        destCode: o.customer_company || '',
-        type: '',
-        vehicle: '',
-        cBase: 0, cExtra: 0, cBill: 0, cMemo: '',
+        src: originDisplay,
+        srcCode: originNameDisplay || 'ACT',
+        dest: billingDistrict,
+        destCode: destNameDisplay,
+        type: content,
+        vehicle: vt,
+        cBase: 0, cExtra: 0, cBill: cBill, cMemo: '',
         sBase: 0, sExtra: 0,
         qty: o.quantity || '',
         memo: o.notes || '',
         _src: 'auto'
       };
-      // 차종 선택 안 됐어도 자동계산 시도 (안되면 0)
       autoCalcRow(row);
       return row;
     });
     renderRows();
     if (rows.length) {
-      toast(`admin 오더에서 ${rows.length}건 자동 가져왔습니다. 차종/형태 입력 시 운임이 자동계산됩니다.`);
+      const matched = rows.filter(r => r.cBase > 0 || r.sBase > 0).length;
+      toast(`운송청구서와 동일한 데이터 ${rows.length}건 (자동매칭 ${matched}건)`);
     } else {
-      toast('해당 기간 admin 메틀러 오더가 없습니다. + 행 추가로 직접 입력하세요.', 'error');
+      toast('해당 기간 메틀러 오더가 없습니다. + 행 추가로 직접 입력하세요.', 'error');
     }
   } catch(e) {
     console.error('데이터 조회 실패:', e);
