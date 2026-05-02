@@ -340,28 +340,104 @@ async function loadRates() {
   }
 }
 
+// 행정구역 별칭 매핑: 동/읍/면/구 → 운임표 시군구
+const REGION_ALIAS = {
+  // 용인시
+  '처인구':'용인','기흥구':'용인','수지구':'용인',
+  // 화성시
+  '향남읍':'화성','동탄':'화성','봉담읍':'화성','남양읍':'화성','우정읍':'화성','정남면':'화성','매송면':'화성',
+  // 천안시
+  '서북구':'천안','동남구':'천안',
+  // 인천광역시 → 인천
+  '연수구':'인천','남동구':'인천','부평구':'인천','계양구':'인천','미추홀구':'인천','중구':'인천','동구':'인천','서구':'인천','강화군':'인천','옹진군':'인천',
+  // 안산시
+  '단원구':'안산','상록구':'안산',
+  // 안양시
+  '만안구':'안양','동안구':'안양',
+  // 성남시
+  '분당구':'성남','수정구':'성남','중원구':'성남',
+  // 수원시
+  '권선구':'수원','영통구':'수원','장안구':'수원','팔달구':'수원',
+  // 고양시
+  '덕양구':'고양','일산동구':'고양','일산서구':'고양',
+  // 부천시
+  '소사구':'부천','오정구':'부천','원미구':'부천',
+  // 용인 외 경기 추가 동/면
+  '음봉면':'아산','둔포면':'아산','신창면':'아산','배방읍':'아산','탕정면':'아산',
+  '안중읍':'평택','팽성읍':'평택','서탄면':'평택','진위면':'평택','오성면':'평택',
+  // 청주시
+  '상당구':'청주','서원구':'청주','청원구':'청주','흥덕구':'청주',
+  // 창원시
+  '의창구':'창원','성산구':'창원','마산합포구':'창원','마산회원구':'창원','진해구':'창원',
+  // 포항시
+  '남구':'포항','북구':'포항',
+  // 김해
+  '진영읍':'김해','장유':'김해',
+  // 광명
+  '광명시':'광명',
+  // 시흥
+  '정왕동':'시흥',
+};
+
+// 시도 prefix 제거 패턴
+const SIDO_PREFIXES = ['서울특별시','부산광역시','대구광역시','인천광역시','광주광역시','대전광역시','울산광역시','세종특별자치시',
+                       '경기도','강원도','강원특별자치도','충청북도','충청남도','전라북도','전북특별자치도','전라남도','경상북도','경상남도','제주특별자치도','제주도',
+                       '서울','부산','대구','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주'];
+
+// 입력값을 운임표 시군구 형태로 정규화 (예: "경기도 용인시" → "용인")
+function normalizeRegion(input) {
+  if (!input) return '';
+  let s = String(input).trim();
+  // 시도 제거
+  for (const sido of SIDO_PREFIXES) {
+    if (s.startsWith(sido + ' ')) { s = s.substring(sido.length).trim(); break; }
+    if (s === sido) return '';
+  }
+  // 첫 번째 토큰 (예: "용인시 처인구..." → "용인시")
+  const firstToken = s.split(/\s+/)[0];
+  // 운임표에 직접 매칭되는지
+  if (rates.find(r => r.sigungu === s)) return s;
+  if (rates.find(r => r.sigungu === firstToken)) return firstToken;
+  // "OO시" → "OO"
+  if (firstToken.endsWith('시')) {
+    const cand = firstToken.slice(0, -1);
+    if (rates.find(r => r.sigungu === cand)) return cand;
+  }
+  // "OO군" → "OO"
+  if (firstToken.endsWith('군')) {
+    const cand = firstToken.slice(0, -1);
+    if (rates.find(r => r.sigungu === cand)) return cand;
+  }
+  // 별칭 매핑 (구/읍/면)
+  // 입력 전체에서 alias 키 찾기
+  for (const key of Object.keys(REGION_ALIAS)) {
+    if (s.includes(key)) return REGION_ALIAS[key];
+  }
+  // 첫 토큰으로 alias
+  if (REGION_ALIAS[firstToken]) return REGION_ALIAS[firstToken];
+  // 모두 실패 시 원본 (또는 첫 토큰) 반환 → 매칭 안되면 0원
+  return firstToken || s;
+}
+
 // 도착지(시/군)와 차종으로 운임 조회
 function lookupRate(sigungu, vehicle, side) {
   if (!sigungu || !vehicle) return 0;
   const RATE_VEHICLES = ['다마스','1톤','2.5톤','5톤','11톤'];
   if (!RATE_VEHICLES.includes(vehicle)) return 0;
-  // 시군구 정확 매칭 (또는 부분 매칭)
-  let row = rates.find(r => r.sigungu === sigungu);
-  if (!row) row = rates.find(r => sigungu.includes(r.sigungu) || r.sigungu.includes(sigungu));
+  const normalized = normalizeRegion(sigungu);
+  if (!normalized) return 0;
+  // 정확 매칭
+  let row = rates.find(r => r.sigungu === normalized);
+  // 부분 매칭
+  if (!row) row = rates.find(r => normalized.includes(r.sigungu) || r.sigungu.includes(normalized));
   if (!row) return 0;
   return (side === 'shipper' ? row.shipper : row.carrier)[vehicle] || 0;
 }
 
-// 주소에서 시/군 추출
+// 주소에서 시/군 추출 (정규화 적용)
 function extractSigungu(address) {
   if (!address) return '';
-  // 공백 분리 후 "OO시/군/구" 패턴 찾기
-  const parts = String(address).split(/\s+/);
-  for (const p of parts) {
-    const m = p.match(/^(.+?)(시|군|구)$/);
-    if (m) return m[1];
-  }
-  return '';
+  return normalizeRegion(address);
 }
 
 /* ════════ 데이터 조회 ════════ */
@@ -388,32 +464,37 @@ async function loadBilling() {
     return;
   }
 
-  // 2) 서버에 없으면 admin 오더에서 자동 가져오기
+  // 2) 서버에 없으면 admin 오더에서 자동 가져오기 (메틀러 화주만)
   try {
     const r = await fetch(`/api/records?dateFrom=${f}&dateTo=${t}&client_code=mettler&limit=500`, { headers: authH() });
     const j = await r.json();
     const orders = (j.data || j || []);
-    rows = orders.map((o, idx) => ({
-      no: idx + 1,
-      date: (o.delivery_date || '').slice(0,10),
-      dn: o.order_no || '',
-      src: '김포',
-      srcCode: 'ACT',
-      dest: extractSigungu(o.customer_address || o.customer_company || ''),
-      destCode: o.customer_company || '',
-      type: '',
-      vehicle: '',
-      cBase: 0, cExtra: 0, cBill: 0, cMemo: '',
-      sBase: 0, sExtra: 0,
-      qty: o.quantity || '',
-      memo: o.notes || '',
-      _src: 'auto'
-    }));
+    rows = orders.map((o, idx) => {
+      const dest = extractSigungu(o.customer_address || '');
+      // 차종은 admin에 없으므로 빈값 (사용자가 선택)
+      // 자동계산은 차종 선택 시 바로 동작
+      return {
+        no: idx + 1,
+        date: (o.delivery_date || '').slice(0,10),
+        dn: o.order_no || '',
+        src: '김포',
+        srcCode: 'ACT',
+        dest: dest,
+        destCode: o.customer_company || '',
+        type: '',
+        vehicle: '',
+        cBase: 0, cExtra: 0, cBill: 0, cMemo: '',
+        sBase: 0, sExtra: 0,
+        qty: o.quantity || '',
+        memo: o.notes || '',
+        _src: 'auto'
+      };
+    });
     renderRows();
     if (rows.length) {
-      toast(`admin 오더에서 ${rows.length}건 자동 가져왔습니다. 차종/형태 입력 후 저장하세요.`);
+      toast(`admin 오더에서 ${rows.length}건 자동 가져왔습니다. 차종/형태 입력 시 운임이 자동계산됩니다.`);
     } else {
-      toast('해당 기간 admin 오더가 없습니다. + 행 추가로 직접 입력하세요.');
+      toast('해당 기간 admin 메틀러 오더가 없습니다. + 행 추가로 직접 입력하세요.');
     }
   } catch(e) {
     rows = [];
