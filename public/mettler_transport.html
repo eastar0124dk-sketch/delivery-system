@@ -738,15 +738,37 @@ async function saveBilling() {
   const key = periodKey();
   if (!key) { toast('청구 기간을 선택해주세요.', 'error'); return; }
   if (!rows.length) { toast('저장할 데이터가 없습니다.', 'error'); return; }
+  if (!authToken) { toast('로그인이 필요합니다.', 'error'); return; }
+
+  console.log('[saveBilling] periodKey:', key, '| rows:', rows.length, '| token:', authToken ? 'OK' : '없음');
+
   try {
-    const res = await fetch('/api/mettler-transport/' + encodeURIComponent(key), {
-      method: 'PUT', headers: authH(),
-      body: JSON.stringify({ data: rows, meta: { carrier: '패스로직스' } })
+    const url = '/api/mettler-transport/' + encodeURIComponent(key);
+    const body = JSON.stringify({ data: rows, meta: { carrier: '패스로직스' } });
+    console.log('[saveBilling] PUT', url, '| body size:', body.length);
+
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: authH(),
+      body: body
     });
-    if (!res.ok) throw new Error();
+
+    let respText = '';
+    try { respText = await res.text(); } catch(_) {}
+    console.log('[saveBilling] response:', res.status, respText.slice(0, 200));
+
+    if (!res.ok) {
+      let errMsg = `HTTP ${res.status}`;
+      try {
+        const j = JSON.parse(respText);
+        if (j.error) errMsg += ': ' + j.error;
+      } catch(_) { errMsg += ': ' + respText.slice(0, 80); }
+      throw new Error(errMsg);
+    }
     toast(`저장 완료 (${rows.length}건)`);
   } catch(e) {
-    toast('저장 실패: ' + e.message, 'error');
+    console.error('[saveBilling] 실패:', e);
+    toast('저장 실패: ' + (e.message || '알 수 없는 오류'), 'error');
   }
 }
 
