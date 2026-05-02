@@ -457,6 +457,23 @@ function extractSigungu(address) {
   return normalizeRegion(address);
 }
 
+// 도착지 상호로 시군구 추론 (특정 거래처는 고정 시군구)
+const DEST_NAME_TO_REGION = {
+  '메틀러토레도': '송파',
+  '메틀러토레도(주)': '송파',
+  '메틀러토레도㈜': '송파',
+  '한국메틀러토레도': '송파',
+  '메틀러토레도코리아': '송파',
+};
+function regionFromDestName(destName) {
+  if (!destName) return '';
+  const s = String(destName).replace(/\s+/g,'');
+  for (const key of Object.keys(DEST_NAME_TO_REGION)) {
+    if (s.includes(key.replace(/\s+/g,''))) return DEST_NAME_TO_REGION[key];
+  }
+  return '';
+}
+
 /* ════════ 데이터 조회 ════════ */
 async function loadBilling() {
   const f = document.getElementById('dateFrom').value;
@@ -493,6 +510,14 @@ async function loadBilling() {
     const orders = (j.data || j || []);
     console.log('[admin records]', orders.length, '건');
 
+    // 등록이 빠른 순(오래된 순) 정렬 — delivery_date asc, 같은 날짜는 id asc
+    orders.sort((a, b) => {
+      const da = (a.delivery_date || '').slice(0,10);
+      const db = (b.delivery_date || '').slice(0,10);
+      if (da !== db) return da.localeCompare(db);
+      return (a.id || 0) - (b.id || 0);
+    });
+
     rows = orders.map((o, idx) => {
       // billing.html과 동일한 변환 로직
       const vt = o.vehicle_type || '';
@@ -504,6 +529,10 @@ async function loadBilling() {
         billingDistrict = o.origin_sigun || extractSigungu(o.origin_address || '');
       } else {
         billingDistrict = o.dest_sigun || extractSigungu(o.customer_address || '');
+      }
+      // 거래처명으로 추론 (예: 메틀러토레도 → 송파)
+      if (!billingDistrict) {
+        billingDistrict = regionFromDestName(o.customer_company || '');
       }
 
       // 출발지/도착지 표시
@@ -610,8 +639,18 @@ function onCellChange(idx, field, value) {
       row.dest = normalized;
     }
   }
-  // 도착지/차종/출발지번호 변경 시 자동계산 갱신
-  if (['dest','vehicle','srcCode'].includes(field)) {
+  // 도착지번호 입력 시 거래처별 자동 시군구 (예: 메틀러토레도 → 송파)
+  if (field === 'destCode') {
+    const auto = regionFromDestName(value);
+    if (auto && !row.dest) {
+      row.dest = auto;
+    } else if (auto) {
+      // 이미 dest 있어도 메틀러는 송파로 강제 (사용자 요구)
+      row.dest = auto;
+    }
+  }
+  // 도착지/차종/출발지번호/도착지번호 변경 시 자동계산 갱신
+  if (['dest','vehicle','srcCode','destCode'].includes(field)) {
     autoCalcRow(row);
     renderRows();
     return;
@@ -638,11 +677,15 @@ function renderRows() {
   }
 
   body.innerHTML = rows.map((r, idx) => {
-    const cTotal = (num(r.cBase) || 0) + (num(r.cExtra) || 0);
+    // 운송사 합계 = 청구금액(L) 우선. L 없으면 기본운임(J) + 추가운임(K)
+    const cBaseN  = num(r.cBase) || 0;
+    const cExtraN = num(r.cExtra) || 0;
+    const cBillN  = num(r.cBill) || 0;
+    const cTotal = cBillN > 0 ? cBillN : (cBaseN + cExtraN);
     const sTotal = (num(r.sBase) || 0) + (num(r.sExtra) || 0);
     const diff   = sTotal - cTotal;
     const diffCls = diff > 0 ? 'diff-pos' : (diff < 0 ? 'diff-neg' : 'diff-zero');
-    const isACT = r.srcCode === 'ACT';
+    const isACT = isActSource(r.srcCode);
     return `<tr>
       <td class="no"><button class="row-del-btn" onclick="deleteRow(${idx})" title="삭제"><i class="fas fa-times"></i></button></td>
       <td class="no">${r.no}<div class="row-badge ${r._src==='auto'?'auto':'manual'}" style="margin-top:2px;">${r._src==='auto'?'자동':'수동'}</div></td>
@@ -668,8 +711,11 @@ function renderRows() {
     </tr>`;
   }).join('');
 
-  // 합계
-  const totalC = rows.reduce((s,r) => s + num(r.cBase) + num(r.cExtra), 0);
+  // 합계 (운송사 합계 = L > 0 시 L, 아니면 J+K)
+  const totalC = rows.reduce((s,r) => {
+    const cBill = num(r.cBill) || 0;
+    return s + (cBill > 0 ? cBill : (num(r.cBase) + num(r.cExtra)));
+  }, 0);
   const totalS = rows.reduce((s,r) => s + num(r.sBase) + num(r.sExtra), 0);
   const totalBill = rows.reduce((s,r) => s + num(r.cBill), 0);
   const totalDiff = totalS - totalC;
@@ -761,8 +807,11 @@ function exportExcel() {
       r.qty, r.memo
     ]);
   });
-  // 합계
-  const totalC = rows.reduce((s,r) => s + num(r.cBase) + num(r.cExtra), 0);
+  // 합계 (운송사 합계 = L > 0 시 L, 아니면 J+K)
+  const totalC = rows.reduce((s,r) => {
+    const cBill = num(r.cBill) || 0;
+    return s + (cBill > 0 ? cBill : (num(r.cBase) + num(r.cExtra)));
+  }, 0);
   const totalS = rows.reduce((s,r) => s + num(r.sBase) + num(r.sExtra), 0);
   const totalBill = rows.reduce((s,r) => s + num(r.cBill), 0);
   const totalDiff = totalS - totalC;
