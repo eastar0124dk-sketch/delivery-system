@@ -466,14 +466,19 @@ async function loadBilling() {
 
   // 2) 서버에 없으면 admin 오더에서 자동 가져오기 (메틀러 화주만)
   try {
-    const r = await fetch(`/api/records?dateFrom=${f}&dateTo=${t}&client_code=mettler&limit=500`, { headers: authH() });
+    const url = `/api/records?dateFrom=${encodeURIComponent(f)}&dateTo=${encodeURIComponent(t)}&client_code=mettler&limit=500`;
+    const r = await fetch(url, { headers: authH() });
+    if (!r.ok) {
+      const errText = await r.text();
+      throw new Error(`HTTP ${r.status}: ${errText.slice(0,100)}`);
+    }
     const j = await r.json();
     const orders = (j.data || j || []);
+    console.log('[admin records]', orders.length, '건', orders[0] || '(없음)');
+
     rows = orders.map((o, idx) => {
       const dest = extractSigungu(o.customer_address || '');
-      // 차종은 admin에 없으므로 빈값 (사용자가 선택)
-      // 자동계산은 차종 선택 시 바로 동작
-      return {
+      const row = {
         no: idx + 1,
         date: (o.delivery_date || '').slice(0,10),
         dn: o.order_no || '',
@@ -489,14 +494,18 @@ async function loadBilling() {
         memo: o.notes || '',
         _src: 'auto'
       };
+      // 차종 선택 안 됐어도 자동계산 시도 (안되면 0)
+      autoCalcRow(row);
+      return row;
     });
     renderRows();
     if (rows.length) {
       toast(`admin 오더에서 ${rows.length}건 자동 가져왔습니다. 차종/형태 입력 시 운임이 자동계산됩니다.`);
     } else {
-      toast('해당 기간 admin 메틀러 오더가 없습니다. + 행 추가로 직접 입력하세요.');
+      toast('해당 기간 admin 메틀러 오더가 없습니다. + 행 추가로 직접 입력하세요.', 'error');
     }
   } catch(e) {
+    console.error('데이터 조회 실패:', e);
     rows = [];
     renderRows();
     toast('데이터 조회 실패: ' + e.message, 'error');
@@ -525,17 +534,34 @@ function deleteRow(idx) {
 
 function renumber() { rows.forEach((r, i) => r.no = i + 1); }
 
+// ACT 출발지번호 체크 (대소문자 무관, 부분포함)
+function isActSource(srcCode) {
+  return /act/i.test(String(srcCode || ''));
+}
+
+// 도착지/차종/출발지번호 변경 시 자동계산
+function autoCalcRow(row) {
+  if (!row) return;
+  if (!isActSource(row.srcCode)) return;
+  row.cBase = lookupRate(row.dest, row.vehicle, 'carrier');
+  row.sBase = lookupRate(row.dest, row.vehicle, 'shipper');
+}
+
 /* ════════ 셀 변경 핸들러 ════════ */
 function onCellChange(idx, field, value) {
   const row = rows[idx];
   if (!row) return;
   row[field] = value;
+  // 도착지 입력 시 자동 정규화 (예: "경기도 용인시" → "용인")
+  if (field === 'dest') {
+    const normalized = normalizeRegion(value);
+    if (normalized && normalized !== value) {
+      row.dest = normalized;
+    }
+  }
   // 도착지/차종/출발지번호 변경 시 자동계산 갱신
   if (['dest','vehicle','srcCode'].includes(field)) {
-    if (row.srcCode === 'ACT') {
-      row.cBase = lookupRate(row.dest, row.vehicle, 'carrier');
-      row.sBase = lookupRate(row.dest, row.vehicle, 'shipper');
-    }
+    autoCalcRow(row);
     renderRows();
     return;
   }
