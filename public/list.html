@@ -795,9 +795,7 @@
         <td>${r.quantity||'-'}</td><td>${maskName(r.receiver_name)}</td>
         <td>${maskName(r.driver_name)}</td><td>${r.status==='signed'?'서명완료':'대기중'}</td>
       </tr>`).join('');
-    win.document.write(`<!DOCTYPE html><html><head>
-  <script>window.AUTH_REQUIRE="mettler_staff";</script>
-  <script src="auth-guard.js"></script><meta charset="UTF-8"><title>출고 목록 인쇄</title>
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>출고 목록 인쇄</title>
       <style>body{font-family:'Noto Sans KR',sans-serif;padding:20px;font-size:12px;}
       h2{font-size:16px;margin-bottom:10px;}table{width:100%;border-collapse:collapse;}
       th{background:#2d3748;color:#fff;padding:7px 8px;text-align:left;}
