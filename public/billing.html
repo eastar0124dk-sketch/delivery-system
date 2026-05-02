@@ -846,6 +846,16 @@
       }
     }catch(e){}
 
+    // 차량사용일(delivery_date) 오름차순 + 같은 날짜는 id 오름차순 (등록 순서)
+    billingRows.sort((a,b) => {
+      const da = (a.delivery_date || '').slice(0,10);
+      const db = (b.delivery_date || '').slice(0,10);
+      if (da !== db) return da.localeCompare(db);
+      return (a.id || 0) - (b.id || 0);
+    });
+    // No. 재할당
+    billingRows.forEach((r, i) => r.no = i + 1);
+
     renderBillingTable();
     updateSummary();
 

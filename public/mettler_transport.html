@@ -218,9 +218,8 @@
       <thead>
         <tr class="grp-row">
           <th class="grp-info" colspan="9">기본 정보</th>
-          <th class="grp-carrier" colspan="4">운송사 운임</th>
-          <th class="grp-shipper" colspan="2">화주 청구 운임</th>
-          <th class="grp-summary" colspan="3">합계</th>
+          <th class="grp-carrier" colspan="5">운송사 운임</th>
+          <th class="grp-shipper" colspan="3">화주 청구 운임</th>
           <th class="grp-info" colspan="3">기타</th>
         </tr>
         <tr class="col-row">
@@ -238,10 +237,10 @@
           <th class="w-num">추가운임</th>
           <th class="w-num">청구금액</th>
           <th class="w-note">청구금액<br>비고</th>
+          <th class="w-num">운송사<br>합계</th>
           <th class="w-num">기본운임</th>
           <th class="w-num">추가운임</th>
-          <th class="w-num">운송사 합계</th>
-          <th class="w-num">화주 합계</th>
+          <th class="w-num">화주<br>합계</th>
           <th class="w-num">차액<br>(화주-운송사)</th>
           <th class="w-text">Q'ty</th>
           <th class="w-note">비고</th>
@@ -701,9 +700,9 @@ function renderRows() {
       <td><input type="number" class="right" value="${r.cExtra||''}" onchange="onCellChange(${idx},'cExtra',this.value)"></td>
       <td><input type="number" class="right" value="${r.cBill||''}" onchange="onCellChange(${idx},'cBill',this.value)"></td>
       <td><input type="text" class="left" value="${r.cMemo||''}" onchange="onCellChange(${idx},'cMemo',this.value)" placeholder="예: 155000+20000"></td>
+      <td class="calc">${cTotal?fmt(cTotal):'-'}</td>
       <td><input type="number" class="right" value="${r.sBase||''}" onchange="onCellChange(${idx},'sBase',this.value)" placeholder="${isACT?'자동':'0'}"></td>
       <td><input type="number" class="right" value="${r.sExtra||''}" onchange="onCellChange(${idx},'sExtra',this.value)"></td>
-      <td class="calc">${cTotal?fmt(cTotal):'-'}</td>
       <td class="calc">${sTotal?fmt(sTotal):'-'}</td>
       <td class="calc ${diffCls}">${diff?fmt(diff):'-'}</td>
       <td><input type="text" value="${r.qty||''}" onchange="onCellChange(${idx},'qty',this.value)"></td>
@@ -724,8 +723,8 @@ function renderRows() {
       <td class="lbl" colspan="12">합계 (${rows.length}건)</td>
       <td>${fmt(totalBill)}</td>
       <td class="lbl"></td>
-      <td class="lbl" colspan="2"></td>
       <td>${fmt(totalC)}</td>
+      <td class="lbl" colspan="2"></td>
       <td>${fmt(totalS)}</td>
       <td class="diff">${fmt(totalDiff)}</td>
       <td class="lbl" colspan="2"></td>
@@ -801,32 +800,34 @@ function exportExcel() {
 
   const HDRS = [
     ['No.','출고일자','DN No.','출발지','출발지\n번호','도착지\n(시/군)','도착지\n번호','형태','차종',
-     '운송사 운임\n기본운임','운송사 운임\n추가운임','운송사\n청구금액','청구금액\n비고',
-     '화주 청구\n기본운임','화주 청구\n추가운임',
-     '운송사 합계','화주 합계','차액(화주-운송사)',"Q'ty",'비고']
+     '기본운임','추가운임','청구금액','청구금액\n비고','운송사\n합계',
+     '기본운임','추가운임','화주\n합계',
+     '차액(화주-운송사)',"Q'ty",'비고']
   ];
   const aoa = [];
-  // Row 1: 제목
+  // Row 1: 제목 (20 cols)
   aoa.push([`메틀러토레도 ${month}월 운송비 청구서`, ...Array(19).fill('')]);
   // Row 2: 청구기간
   aoa.push([`청구 기간: ${f} ~ ${t}`, ...Array(19).fill('')]);
   // Row 3: 빈 줄
   aoa.push(Array(20).fill(''));
-  // Row 4: 그룹 헤더
-  aoa.push(['기본 정보','','','','','','','','', '운송사 운임','','','', '화주 청구 운임','', '합계','','', '기타','']);
+  // Row 4: 그룹 헤더 (기본정보 9, 운송사 운임 5, 화주 청구 3, 기타 3)
+  aoa.push(['기본 정보','','','','','','','','', '운송사 운임','','','','', '화주 청구 운임','','', '기타','','']);
   // Row 5: 컬럼 헤더
   aoa.push(HDRS[0]);
-  // Row 6+: 데이터
+  // Row 6+: 데이터 (운송사 합계 = L > 0 시 L 우선)
   rows.forEach(r => {
-    const cTotal = num(r.cBase) + num(r.cExtra);
+    const cBaseN  = num(r.cBase) || 0;
+    const cExtraN = num(r.cExtra) || 0;
+    const cBillN  = num(r.cBill) || 0;
+    const cTotal = cBillN > 0 ? cBillN : (cBaseN + cExtraN);
     const sTotal = num(r.sBase) + num(r.sExtra);
     const diff = sTotal - cTotal;
     aoa.push([
       r.no, r.date, r.dn, r.src, r.srcCode, r.dest, r.destCode, r.type, r.vehicle,
-      num(r.cBase), num(r.cExtra), num(r.cBill), r.cMemo,
-      num(r.sBase), num(r.sExtra),
-      cTotal, sTotal, diff,
-      r.qty, r.memo
+      cBaseN, cExtraN, cBillN, r.cMemo, cTotal,
+      num(r.sBase), num(r.sExtra), sTotal,
+      diff, r.qty, r.memo
     ]);
   });
   // 합계 (운송사 합계 = L > 0 시 L, 아니면 J+K)
@@ -838,7 +839,7 @@ function exportExcel() {
   const totalBill = rows.reduce((s,r) => s + num(r.cBill), 0);
   const totalDiff = totalS - totalC;
   aoa.push([
-    `합계 (${rows.length}건)`,'','','','','','','','','','', totalBill,'','','', totalC, totalS, totalDiff, '',''
+    `합계 (${rows.length}건)`,'','','','','','','','','','', totalBill,'', totalC, '','', totalS, totalDiff, '',''
   ]);
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -848,11 +849,10 @@ function exportExcel() {
   ws['!merges'] = [
     { s:{r:0,c:0}, e:{r:0,c:COL-1} },
     { s:{r:1,c:0}, e:{r:1,c:COL-1} },
-    { s:{r:3,c:0}, e:{r:3,c:8} },     // 기본 정보
-    { s:{r:3,c:9}, e:{r:3,c:12} },    // 운송사 운임
-    { s:{r:3,c:13}, e:{r:3,c:14} },   // 화주 청구
-    { s:{r:3,c:15}, e:{r:3,c:17} },   // 합계
-    { s:{r:3,c:18}, e:{r:3,c:19} },   // 기타
+    { s:{r:3,c:0}, e:{r:3,c:8} },     // 기본 정보 (9 cols)
+    { s:{r:3,c:9}, e:{r:3,c:13} },    // 운송사 운임 (5 cols: 기본/추가/청구금액/비고/합계)
+    { s:{r:3,c:14}, e:{r:3,c:16} },   // 화주 청구 (3 cols: 기본/추가/합계)
+    { s:{r:3,c:17}, e:{r:3,c:19} },   // 기타 (3 cols: 차액/Q'ty/비고)
   ];
 
   // 1행 제목 스타일
@@ -860,9 +860,9 @@ function exportExcel() {
     const ref = XLSX.utils.encode_cell({r:0,c}); if (ws[ref]) ws[ref].s = S_TITLE;
     const ref2 = XLSX.utils.encode_cell({r:1,c}); if (ws[ref2]) ws[ref2].s = mkS(null,'333333',false,11,'left');
   }
-  // 그룹 헤더
-  const grpStyles = [S_GRP_INFO, S_GRP_C, S_GRP_S, S_GRP_SUM, S_GRP_INFO];
-  const grpRanges = [[0,8],[9,12],[13,14],[15,17],[18,19]];
+  // 그룹 헤더 (4그룹)
+  const grpStyles = [S_GRP_INFO, S_GRP_C, S_GRP_S, S_GRP_INFO];
+  const grpRanges = [[0,8],[9,13],[14,16],[17,19]];
   grpRanges.forEach(([s,e], i) => {
     for (let c=s; c<=e; c++) {
       const ref = XLSX.utils.encode_cell({r:3,c}); if (ws[ref]) ws[ref].s = grpStyles[i];
@@ -872,14 +872,16 @@ function exportExcel() {
   for (let c=0; c<COL; c++) {
     const ref = XLSX.utils.encode_cell({r:4,c}); if (ws[ref]) ws[ref].s = S_HDR;
   }
-  // 데이터
+  // 데이터: 숫자 컬럼 = 9~13(운송사) + 14~16(화주) + 17(차액) = 9,10,11,13,14,15,16,17
+  // 합계 컬럼(13, 16) + 차액(17)는 강조 (S_CALC)
   const numCols = [9,10,11,13,14,15,16,17];
   rows.forEach((_, ri) => {
     for (let c=0; c<COL; c++) {
       const ref = XLSX.utils.encode_cell({r:5+ri,c});
       if (!ws[ref]) continue;
       if (numCols.includes(c)) {
-        if (c >= 15) ws[ref].s = S_CALC;
+        // 합계 컬럼(13=운송사합계, 16=화주합계, 17=차액)은 강조 스타일
+        if ([13,16,17].includes(c)) ws[ref].s = S_CALC;
         else ws[ref].s = S_NUM;
       } else if (c === 12 || c === 19 || c === 3 || c === 5) {
         ws[ref].s = S_TXTL;
@@ -894,15 +896,14 @@ function exportExcel() {
     const ref = XLSX.utils.encode_cell({r:totalRow,c});
     if (!ws[ref]) ws[ref] = { v:'' };
     ws[ref].s = mkS('FEF3C7','9A3412',true,11, c>=11?'right':'center');
-    if ([11,15,16,17].includes(c)) ws[ref].s = { ...ws[ref].s, numFmt:'#,##0' };
+    if ([11,13,16,17].includes(c)) ws[ref].s = { ...ws[ref].s, numFmt:'#,##0' };
   }
 
   ws['!cols'] = [
     {wch:5},{wch:11},{wch:13},{wch:9},{wch:7},{wch:9},{wch:11},{wch:7},{wch:8},
-    {wch:11},{wch:10},{wch:12},{wch:14},
-    {wch:11},{wch:10},
-    {wch:12},{wch:12},{wch:14},
-    {wch:9},{wch:18}
+    {wch:11},{wch:10},{wch:12},{wch:14},{wch:12},
+    {wch:11},{wch:10},{wch:12},
+    {wch:14},{wch:9},{wch:18}
   ];
   ws['!rows'] = [{hpt:28},{hpt:18},{hpt:6},{hpt:22},{hpt:32},...rows.map(()=>({hpt:18})),{hpt:24}];
 
