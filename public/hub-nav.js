@@ -97,29 +97,38 @@ function initNav(currentPage) {
   `;
   document.head.appendChild(style);
 
-  const token = sessionStorage.getItem('adminToken');
+  const adminToken = sessionStorage.getItem('adminToken');
+  const staffToken = sessionStorage.getItem('staffToken');
+  const userRole   = sessionStorage.getItem('userRole'); // 'admin' | 'staff'
+  const token = adminToken || staffToken;
   if (!token) { location.href = 'index.html'; return; }
 
-  const navItems = [
-    { section: '📊 운영 현황' },
-    { href: 'hub.html',      icon: '🏠', label: '대시보드' },
-    { href: 'dispatch.html', icon: '🚚', label: '차량 배차' },
-    { href: 'claims.html',   icon: '⚠️', label: '클레임 트래커' },
-    { href: 'calendar.html', icon: '📅', label: '캘린더' },
-    { href: 'notes.html',    icon: '📝', label: '메모장' },
-    { href: 'vendors.html',  icon: '🏢', label: '업체 관리' },
-    { section: '📋 일일 업무' },
-    { href: 'ot.html',       icon: '⏰', label: 'OT 내역 관리' },
-    { section: '📦 오더 시스템' },
-    { href: 'admin.html', icon: '🗂️', label: '오더 관리' },
-    { href: 'list.html',  icon: '🔍', label: '조회/출력' },
-    { section: '💰 청구' },
-    { href: 'billing.html',          icon: '📋', label: '메틀러토레도 운송내역' },
-    { href: 'mettler_transport.html', icon: '🚛', label: '메틀러토레도 운송청구서' },
-    { href: 'mettler_report.html',   icon: '📊', label: '메틀러 청구 보고서' },
-    { href: 'profit-calc.html',      icon: '📊', label: '수익율 계산기' },
-    { href: 'ot_fee.html',           icon: '⏱️', label: 'OT Fee (메틀러)' },
+  const isAdmin = (userRole === 'admin') && !!adminToken;
+
+  // 메뉴 정의 (adminOnly: true → 관리자만)
+  const allNavItems = [
+    { section: '📊 운영 현황', adminOnly: true },
+    { href: 'hub.html',      icon: '🏠', label: '대시보드',         adminOnly: true },
+    { href: 'dispatch.html', icon: '🚚', label: '차량 배차',         adminOnly: true },
+    { href: 'claims.html',   icon: '⚠️', label: '클레임 트래커',     adminOnly: true },
+    { href: 'calendar.html', icon: '📅', label: '캘린더',           adminOnly: true },
+    { href: 'notes.html',    icon: '📝', label: '메모장',            adminOnly: true },
+    { href: 'vendors.html',  icon: '🏢', label: '업체 관리',         adminOnly: true },
+    { section: '📋 일일 업무', adminOnly: true },
+    { href: 'ot.html',       icon: '⏰', label: 'OT 내역 관리',      adminOnly: true },
+    { section: '📦 오더 시스템' },                                  // 직원도 보임
+    { href: 'admin.html', icon: '🗂️', label: '오더 관리' },          // 직원도 가능
+    { href: 'list.html',  icon: '🔍', label: '조회/출력' },          // 직원도 가능
+    { section: '💰 청구', adminOnly: true },
+    { href: 'billing.html',           icon: '📋', label: '메틀러토레도 운송내역',  adminOnly: true },
+    { href: 'mettler_transport.html', icon: '🚛', label: '메틀러토레도 운송청구서', adminOnly: true },
+    { href: 'mettler_report.html',    icon: '📊', label: '메틀러 청구 보고서',     adminOnly: true },
+    { href: 'profit-calc.html',       icon: '📊', label: '수익율 계산기',         adminOnly: true },
+    { href: 'ot_fee.html',            icon: '⏱️', label: 'OT Fee (메틀러)',      adminOnly: true },
   ];
+
+  // 권한별 필터링
+  const navItems = allNavItems.filter(item => isAdmin || !item.adminOnly);
 
   // 추가 CSS: 홈버튼 + WMS + 파일 바로가기
   const style2 = document.createElement('style');
@@ -194,11 +203,11 @@ function initNav(currentPage) {
     <div class="hub-logo">
       <div class="hub-logo-icon">🚛</div>
       <div class="hub-logo-title">토탈 물류</div>
-      <div class="hub-logo-sub">Total Logistics</div>
+      <div class="hub-logo-sub">${isAdmin ? 'Total Logistics' : '직원 모드'}</div>
     </div>
-    <a href="hub.html" class="hub-home-btn ${currentPage === 'hub.html' ? 'active' : ''}">
+    ${isAdmin ? `<a href="hub.html" class="hub-home-btn ${currentPage === 'hub.html' ? 'active' : ''}">
       🏠 <span>대시보드 홈</span>
-    </a>
+    </a>` : ''}
     <div class="hub-wms-wrap" id="hub-wms-wrap"></div>
   `;
 
