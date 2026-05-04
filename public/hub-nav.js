@@ -132,8 +132,8 @@ function initNav(currentPage) {
     { href: 'ot_fee.html',            icon: '⏱️', label: 'OT Fee (메틀러)',      adminOnly: true },
   ];
 
-  // 권한별 필터링
-  const navItems = allNavItems.filter(item => isAdmin || !item.adminOnly);
+  // 사이드바는 모든 메뉴 항상 표시 (auth-guard가 페이지 진입 시 권한 체크)
+  const navItems = allNavItems;
 
   // 추가 CSS: 홈버튼 + WMS + 파일 바로가기
   const style2 = document.createElement('style');
@@ -210,9 +210,9 @@ function initNav(currentPage) {
       <div class="hub-logo-title">토탈 물류</div>
       <div class="hub-logo-sub">${isAdmin ? 'Total Logistics' : '직원 모드'}</div>
     </div>
-    ${isAdmin ? `<a href="hub.html" class="hub-home-btn ${currentPage === 'hub.html' ? 'active' : ''}">
+    <a href="hub.html" class="hub-home-btn ${currentPage === 'hub.html' ? 'active' : ''}">
       🏠 <span>대시보드 홈</span>
-    </a>` : ''}
+    </a>
     <div class="hub-wms-wrap" id="hub-wms-wrap"></div>
   `;
 
