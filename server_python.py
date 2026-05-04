@@ -1045,7 +1045,11 @@ class Handler(BaseHTTPRequestHandler):
 
         self._serve_static(p.path)
       except Exception as e:
-        try: self.send_response(500); self.end_headers()
+        import traceback
+        err = traceback.format_exc()
+        print(f'[do_GET ERROR] {self.path}\n{err}')
+        try:
+          self.send_json({'error': str(e), 'trace': err.split('\n')[-3:]}, 500)
         except: pass
 
     # ── POST ─────────────────────────────────────────────────────────
@@ -1438,7 +1442,11 @@ class Handler(BaseHTTPRequestHandler):
 
         self.send_json({'error':'Not found'}, 404)
       except Exception as e:
-        try: self.send_response(500); self.end_headers()
+        import traceback
+        err = traceback.format_exc()
+        print(f'[ERROR] {self.command} {self.path}\n{err}')
+        try:
+          self.send_json({'error': str(e), 'trace': err.split('\n')[-3:]}, 500)
         except: pass
 
     # ── DELETE ───────────────────────────────────────────────────────
@@ -1491,7 +1499,11 @@ class Handler(BaseHTTPRequestHandler):
 
         self.send_json({'error':'Not found'}, 404)
       except Exception as e:
-        try: self.send_response(500); self.end_headers()
+        import traceback
+        err = traceback.format_exc()
+        print(f'[ERROR] {self.command} {self.path}\n{err}')
+        try:
+          self.send_json({'error': str(e), 'trace': err.split('\n')[-3:]}, 500)
         except: pass
 
 
