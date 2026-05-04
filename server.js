@@ -78,6 +78,14 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
+// 캐논 직원 시드 (jmshin / staff1234)
+try {
+  const exists = db.prepare('SELECT 1 FROM canon_staff_users WHERE username = ?').get(['jmshin']);
+  if (!exists) {
+    db.prepare('INSERT INTO canon_staff_users(username, password, name) VALUES (?, ?, ?)')
+      .run(['jmshin', 'staff1234', '신지민']);
+  }
+} catch(e) { /* 무시 */ }
 
 // 메틀러토레도 운송비 청구서 (월별 1개)
 db.exec(`

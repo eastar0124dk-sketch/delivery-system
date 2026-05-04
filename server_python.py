@@ -133,6 +133,15 @@ if DATABASE_URL:
         cur.execute('''CREATE TABLE IF NOT EXISTS mettler_transport_billing (
             period_key TEXT PRIMARY KEY, data TEXT NOT NULL, meta TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # 캐논 직원 시드 (없을 때만 추가)
+        try:
+            cur.execute("SELECT COUNT(*) as cnt FROM canon_staff_users WHERE username=%s", ('jmshin',))
+            row = cur.fetchone(); ucnt = dict(row).get('cnt', 0) if row else 0
+            if ucnt == 0:
+                cur.execute("INSERT INTO canon_staff_users(username, password, name) VALUES(%s, %s, %s)",
+                            ('jmshin', 'staff1234', '신지민'))
+        except Exception as e:
+            pass
         # OT 시드 데이터 (테이블이 비어있을 때만 삽입)
         cur.execute('SELECT COUNT(*) as cnt FROM ot_records')
         row = cur.fetchone(); cnt = dict(row).get('cnt', 0) if row else 0
@@ -270,6 +279,14 @@ else:
         c.execute('''CREATE TABLE IF NOT EXISTS mettler_transport_billing (
             period_key TEXT PRIMARY KEY, data TEXT NOT NULL, meta TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # 캐논 직원 시드 (jmshin / staff1234)
+        try:
+            ucnt = c.execute("SELECT COUNT(*) FROM canon_staff_users WHERE username=?", ('jmshin',)).fetchone()[0]
+            if ucnt == 0:
+                c.execute("INSERT INTO canon_staff_users(username, password, name) VALUES(?, ?, ?)",
+                          ('jmshin', 'staff1234', '신지민'))
+        except Exception as e:
+            pass
         # OT 시드 데이터 (테이블이 비어있을 때만 삽입)
         cnt = c.execute('SELECT COUNT(*) FROM ot_records').fetchone()[0]
         if cnt == 0:
