@@ -876,6 +876,27 @@
       };
     });
 
+    // ── 저장된 잘못된 시군구 자동 정정 ─────────────────────────────
+    // 운임 매칭이 실패한 행에 대해 customer_address에서 별칭 검색하여 district 정정
+    billingRows.forEach(row => {
+      if (!row.rate_matched && row.vehicle_type && row.district) {
+        const original = data.find(d => d.id === row.id);
+        const fullAddr = original ? (original.customer_address || '') : '';
+        const altDistrict = aliasMatch(fullAddr || row.district);
+        if (altDistrict && altDistrict !== row.district) {
+          const found = lookupRate(altDistrict, row.vehicle_type);
+          if (found) {
+            console.log(`[자동정정] ${row.order_no}: ${row.district} → ${altDistrict}`);
+            row.district = altDistrict;
+            row.carrier_base = found.carrier;
+            row.client_base  = found.client;
+            row.rate_matched = true;
+            row.rate_info = `${found.sido} ${found.matched}`;
+          }
+        }
+      }
+    });
+
     // ── 저장된 수정값 복원 ──────────────────────────────────────────
     // 같은 기간에 저장된 데이터가 있으면 order_no 기준으로 운임값 자동 병합
     const savedKey=`billing_save_${from}_${to}`;
@@ -897,7 +918,8 @@
             // 텍스트 필드도 복원 (수동 수정된 경우)
             if(sv.origin)       row.origin      =sv.origin;
             if(sv.origin_name)  row.origin_name =sv.origin_name;
-            if(sv.district)     row.district    =sv.district;
+            // district는 자동 매칭된 값을 우선 (저장값이 운임표에 없으면 자동값 유지)
+            if(sv.district && lookupRate(sv.district, row.vehicle_type)) row.district = sv.district;
             if(sv.dest_name)    row.dest_name   =sv.dest_name;
             if(sv.content)      row.content     =sv.content;
             if(sv.vehicle_type) row.vehicle_type=sv.vehicle_type;
