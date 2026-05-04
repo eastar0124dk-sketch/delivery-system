@@ -539,7 +539,7 @@ async function loadBilling() {
   if (f > t) { toast('시작일이 종료일보다 클 수 없습니다.', 'error'); return; }
   updatePeriodInfo();
 
-  // 1) 서버에 저장된 청구서가 있으면 자동정정 적용 후 로드
+  // 1) 서버 저장본 미리 가져오기 (메모/수동 수정값 병합용)
   const key = periodKey();
   let serverRows = [];
   try {
@@ -548,33 +548,7 @@ async function loadBilling() {
     serverRows = j.data || [];
   } catch(e) {}
 
-  if (serverRows.length) {
-    rows = serverRows;
-    // 저장 데이터에도 자동정정 적용 (운임 매칭 안된 행)
-    let corrected = 0;
-    rows.forEach(row => {
-      if (row.vehicle && (!row.cBase || row.cBase === 0)) {
-        // 1차: 도착지 상호로 추론
-        let alt = regionFromDestName(row.destCode || '');
-        // 2차: dest 정규화
-        if (!alt || lookupRate(alt, row.vehicle, 'carrier') === 0) {
-          alt = normalizeRegion(row.dest || '');
-        }
-        if (alt && lookupRate(alt, row.vehicle, 'carrier') > 0) {
-          row.dest = alt;
-          row.cBase = lookupRate(alt, row.vehicle, 'carrier');
-          row.sBase = lookupRate(alt, row.vehicle, 'shipper');
-          corrected++;
-          console.log(`[자동정정] ${row.dn || row.no}: → ${alt}`);
-        }
-      }
-    });
-    renderRows();
-    toast(`저장 청구서 ${rows.length}건 로드${corrected ? ` (자동정정 ${corrected}건)` : ''}`);
-    return;
-  }
-
-  // 2) 서버에 없으면 운송청구서(billing.html)와 동일하게 admin 오더에서 변환
+  // 2) 항상 admin 오더에서 fresh 로드 (billing.html과 동일 결과 보장)
   try {
     const url = `/api/records?dateFrom=${encodeURIComponent(f)}&dateTo=${encodeURIComponent(t)}&client_code=mettler&limit=2000`;
     const r = await fetch(url, { headers: authH() });
@@ -666,10 +640,32 @@ async function loadBilling() {
       autoCalcRow(row);
       return row;
     });
+
+    // 3) 서버 저장본의 수동 수정값(메모, 비고, 추가 청구금액) 병합
+    //    DN(order_no) 기준 매칭, 자동계산값(cBase/sBase)은 덮어쓰지 않음
+    if (serverRows.length) {
+      let merged = 0;
+      rows.forEach(row => {
+        const sv = serverRows.find(s => s.dn && s.dn === row.dn);
+        if (sv) {
+          if (sv.memo)  row.memo  = sv.memo;
+          if (sv.cMemo) row.cMemo = sv.cMemo;
+          if (sv.qty)   row.qty   = sv.qty;
+          // 사용자가 직접 수정한 운임이 있으면 보존 (work_fee와 다른 값)
+          // 단 자동매칭값이 0인데 저장값이 있으면 사용
+          if (sv.cBase > 0 && row.cBase === 0) row.cBase = sv.cBase;
+          if (sv.sBase > 0 && row.sBase === 0) row.sBase = sv.sBase;
+          merged++;
+        }
+      });
+      console.log(`[병합] 저장본 ${serverRows.length}건 중 ${merged}건 병합`);
+    }
+
     renderRows();
     if (rows.length) {
       const matched = rows.filter(r => r.cBase > 0 || r.sBase > 0).length;
-      toast(`운송청구서와 동일한 데이터 ${rows.length}건 (자동매칭 ${matched}건)`);
+      const mergedMsg = serverRows.length ? `, 저장본 병합` : '';
+      toast(`운송청구서와 동일 ${rows.length}건 (자동매칭 ${matched}건${mergedMsg})`);
     } else {
       toast('해당 기간 메틀러 오더가 없습니다. + 행 추가로 직접 입력하세요.', 'error');
     }
