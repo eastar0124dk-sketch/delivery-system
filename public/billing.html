@@ -539,6 +539,8 @@
     // 인천광역시
     '연수구':'인천','남동구':'인천','부평구':'인천','계양구':'인천','미추홀구':'인천','강화군':'인천','옹진군':'인천',
     '연수':'인천','남동':'인천','부평':'인천','계양':'인천','미추홀':'인천','강화':'인천','옹진':'인천',
+    // 남양주시
+    '퇴계원읍':'남양주','퇴계원':'남양주','진접읍':'남양주','오남읍':'남양주','별내':'남양주','다산':'남양주','와부읍':'남양주','조안면':'남양주','수동면':'남양주',
     // 안산시
     '단원구':'안산','상록구':'안산','단원':'안산','상록':'안산',
     // 안양시
@@ -569,10 +571,19 @@
   function normalizeDistrict(input){
     if(!input) return '';
     let s = String(input).trim();
-    // 시도 prefix 제거
+    // 시도 prefix 제거 (단, 광역시 단위로 매칭 가능한 경우 보존)
+    // 예: "대전광역시" → "대전" (운임표에 있음)
+    //     "서울특별시" → "" (구가 별도로 있어야 함)
+    const SIDO_TO_SIGUN = {
+      '대전광역시':'대전','대전':'대전',
+      '광주광역시':'광주','광주':'광주',
+      '울산광역시':'울산','울산':'울산',
+      '세종특별자치시':'세종','세종':'세종',
+      // 부산은 광역시 → 구 단위로 운임표 등록
+    };
+    if (SIDO_TO_SIGUN[s]) return SIDO_TO_SIGUN[s];
     for (const sido of SIDO_PREFIXES) {
       if (s.startsWith(sido + ' ')) { s = s.substring(sido.length).trim(); break; }
-      if (s === sido) return '';
     }
     return s;
   }
@@ -879,14 +890,22 @@
     // ── 저장된 잘못된 시군구 자동 정정 ─────────────────────────────
     // 운임 매칭이 실패한 행에 대해 customer_address에서 별칭 검색하여 district 정정
     billingRows.forEach(row => {
-      if (!row.rate_matched && row.vehicle_type && row.district) {
+      if (!row.rate_matched && row.vehicle_type) {
         const original = data.find(d => d.id === row.id);
         const fullAddr = original ? (original.customer_address || '') : '';
-        const altDistrict = aliasMatch(fullAddr || row.district);
+        // 1차: 전체 주소에서 별칭 매칭
+        let altDistrict = aliasMatch(fullAddr);
+        // 2차: 주소가 없거나 매칭 실패하면 현재 district에서 직접 정규화 시도
+        if (!altDistrict || !lookupRate(altDistrict, row.vehicle_type)) {
+          altDistrict = normalizeDistrict(row.district || '');
+          if (altDistrict && !lookupRate(altDistrict, row.vehicle_type)) {
+            altDistrict = aliasMatch(row.district || '');
+          }
+        }
         if (altDistrict && altDistrict !== row.district) {
           const found = lookupRate(altDistrict, row.vehicle_type);
           if (found) {
-            console.log(`[자동정정] ${row.order_no}: ${row.district} → ${altDistrict}`);
+            console.log(`[자동정정] ${row.order_no}: ${row.district || '(없음)'} → ${altDistrict}`);
             row.district = altDistrict;
             row.carrier_base = found.carrier;
             row.client_base  = found.client;
