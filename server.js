@@ -83,7 +83,7 @@ try {
   const exists = db.prepare('SELECT 1 FROM canon_staff_users WHERE username = ?').get(['jmshin']);
   if (!exists) {
     db.prepare('INSERT INTO canon_staff_users(username, password, name) VALUES (?, ?, ?)')
-      .run(['jmshin', 'staff1234', '신지민']);
+      .run(['jmshin', 'staff1234', '신재민']);
   }
 } catch(e) { /* 무시 */ }
 

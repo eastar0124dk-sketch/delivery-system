@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script>window.AUTH_REQUIRE="admin";</script>
+  <script src="auth-guard.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>직원 계정 관리</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Noto Sans KR','Malgun Gothic',sans-serif;background:#f0f4f8;color:#1a202c;font-size:13px;display:flex;min-height:100vh;}
+    #sidebar{flex-shrink:0;}
+    .main-wrap{flex:1;min-width:0;}
+
+    .topbar{padding:14px 22px;display:flex;align-items:center;gap:12px;color:#fff;
+            box-shadow:0 3px 12px rgba(0,0,0,.2); position:sticky;top:0;z-index:100;}
+    .topbar.client-mettler { background:linear-gradient(135deg,#1e3a8a,#3b82f6); }
+    .topbar.client-canon   { background:linear-gradient(135deg,#7c2d12,#f97316); }
+    .topbar.client-chanel  { background:linear-gradient(135deg,#831843,#ec4899); }
+    .topbar h1{font-size:18px;font-weight:800;}
+    .topbar a.back{color:#fff;opacity:.85;text-decoration:none;}
+    .topbar .badge{margin-left:auto;background:rgba(255,255,255,.22);padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;}
+
+    .wrap{padding:24px 18px;max-width:900px;margin:0 auto;}
+    .card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:20px;margin-bottom:18px;}
+    .card-title{font-size:15px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;align-items:center;gap:8px;
+                padding-bottom:10px;border-bottom:2px solid #f0f4f8;}
+    .card-title i{color:#34d399;}
+
+    .form-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;}
+    @media(max-width:600px){.form-row{grid-template-columns:1fr;}}
+    .form-row label{font-size:11px;color:#475569;font-weight:700;display:block;margin-bottom:4px;}
+    .form-row input{width:100%;padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:8px;
+                    font-size:13px;font-family:inherit;background:#fafafa;}
+    .form-row input:focus{outline:none;border-color:#34d399;background:#fff;}
+    .btn{padding:9px 16px;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;
+         cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .12s;}
+    .btn-green{background:linear-gradient(135deg,#10b981,#34d399);color:#fff;}
+    .btn-green:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(16,185,129,.4);}
+    .btn-edit{background:#dbeafe;color:#1e40af;padding:6px 11px;font-size:11px;}
+    .btn-del{background:#fee2e2;color:#b91c1c;padding:6px 11px;font-size:11px;}
+
+    table{width:100%;border-collapse:collapse;font-size:12px;}
+    th{background:#f1f5f9;color:#475569;padding:10px 8px;text-align:center;font-weight:700;border-bottom:2px solid #cbd5e1;}
+    td{padding:10px 8px;text-align:center;border-bottom:1px solid #e2e8f0;}
+    tr:hover td{background:#f8fafc;}
+    .empty{text-align:center;color:#94a3b8;padding:30px;font-size:13px;}
+    .empty i{font-size:32px;display:block;margin-bottom:8px;opacity:.5;}
+    .toast{position:fixed;top:80px;right:20px;padding:12px 18px;border-radius:10px;
+           box-shadow:0 4px 16px rgba(0,0,0,.15);font-size:13px;font-weight:700;z-index:9999;display:none;color:#fff;}
+    .toast.success{background:#10b981;}.toast.error{background:#ef4444;}
+  </style>
+</head>
+<body>
+  <div id="sidebar"></div>
+  <div class="main-wrap">
+
+    <div class="topbar" id="topbar">
+      <a href="hub.html" class="back"><i class="fas fa-arrow-left"></i></a>
+      <h1 id="pageTitle">👥 직원 계정 관리</h1>
+      <span class="badge" id="clientBadge">화주명</span>
+    </div>
+
+    <div class="wrap">
+
+      <div class="card">
+        <div class="card-title"><i class="fas fa-user-plus"></i> 직원 계정 추가</div>
+        <div class="form-row">
+          <div><label>아이디 *</label><input type="text" id="newUsername" placeholder="예: jmshin" autocomplete="off"></div>
+          <div><label>비밀번호 *</label><input type="text" id="newPassword" placeholder="비밀번호" autocomplete="off"></div>
+          <div><label>이름 (선택)</label><input type="text" id="newName" placeholder="홍길동"></div>
+          <button class="btn btn-green" onclick="addUser()"><i class="fas fa-plus"></i> 추가</button>
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:8px;" id="hintText">
+          💡 직원이 화주 선택 → 직원 로그인에서 위 아이디/비밀번호로 접속할 수 있습니다.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-users"></i> 등록된 직원 목록
+          <span style="margin-left:auto;font-size:11px;color:#94a3b8;font-weight:600;" id="userCount"></span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:60px;">#</th>
+                <th>아이디</th>
+                <th>이름</th>
+                <th style="width:130px;">생성일</th>
+                <th style="width:200px;">관리</th>
+              </tr>
+            </thead>
+            <tbody id="userList"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="hub-nav.js"></script>
+  <script>
+    // URL ?client=mettler|canon|chanel 로 화주 결정
+    const urlParams = new URLSearchParams(location.search);
+    const CLIENT = urlParams.get('client') || 'canon';
+    const CLIENT_NAMES = { mettler:'메틀러토레도', canon:'캐논메디칼시스템즈', chanel:'샤넬코리아' };
+    const CLIENT_NAME = CLIENT_NAMES[CLIENT] || '직원';
+
+    initNav('staff_management.html');
+
+    document.getElementById('topbar').classList.add('client-' + CLIENT);
+    document.getElementById('pageTitle').textContent = `👥 ${CLIENT_NAME} 직원 계정 관리`;
+    document.getElementById('clientBadge').textContent = CLIENT_NAME;
+    document.title = `${CLIENT_NAME} 직원 계정 관리`;
+
+    const adminToken = sessionStorage.getItem('adminToken');
+    const authH = () => ({ 'Content-Type':'application/json', 'Authorization':'Bearer '+adminToken });
+
+    function toast(msg, type='success') {
+      const el = document.getElementById('toast');
+      el.textContent = msg; el.className = 'toast ' + type; el.style.display = 'block';
+      setTimeout(() => el.style.display = 'none', 2600);
+    }
+
+    async function loadUsers() {
+      try {
+        const res = await fetch(`/api/staff-users?client=${CLIENT}`, { headers: authH() });
+        if (res.status === 401 || res.status === 403) {
+          alert('관리자 권한이 만료되었습니다. 다시 로그인해주세요.');
+          location.href = 'index.html'; return;
+        }
+        const json = await res.json();
+        const users = json.data || [];
+        const tb = document.getElementById('userList');
+        document.getElementById('userCount').textContent = `${users.length}명 등록됨`;
+        if (!users.length) {
+          tb.innerHTML = `<tr><td colspan="5" class="empty"><i class="fas fa-user-slash"></i>등록된 직원이 없습니다.</td></tr>`;
+          return;
+        }
+        tb.innerHTML = users.map((u, i) => `
+          <tr>
+            <td style="color:#94a3b8;">${i+1}</td>
+            <td><strong>${u.username}</strong></td>
+            <td>${u.name || '-'}</td>
+            <td style="font-size:11px;color:#94a3b8;">${(u.created_at || '').toString().slice(0,10)}</td>
+            <td>
+              <button class="btn btn-edit" onclick="editName(${u.id}, '${u.username}', '${u.name||''}')"><i class="fas fa-user-edit"></i> 이름</button>
+              <button class="btn btn-edit" onclick="editPassword(${u.id}, '${u.username}')"><i class="fas fa-key"></i> PW</button>
+              <button class="btn btn-del" onclick="deleteUser(${u.id}, '${u.username}')"><i class="fas fa-trash"></i></button>
+            </td>
+          </tr>`).join('');
+      } catch(e) {
+        toast('로드 실패: ' + e.message, 'error');
+      }
+    }
+
+    async function addUser() {
+      const username = document.getElementById('newUsername').value.trim();
+      const password = document.getElementById('newPassword').value;
+      const name     = document.getElementById('newName').value.trim();
+      if (!username || !password) { toast('아이디와 비밀번호는 필수입니다.', 'error'); return; }
+      try {
+        const res = await fetch('/api/staff-users', {
+          method:'POST', headers: authH(),
+          body: JSON.stringify({ client_code: CLIENT, username, password, name })
+        });
+        const j = await res.json();
+        if (!res.ok) { toast(j.error || '추가 실패', 'error'); return; }
+        toast(`[${username}] 추가 완료`);
+        document.getElementById('newUsername').value = '';
+        document.getElementById('newPassword').value = '';
+        document.getElementById('newName').value = '';
+        loadUsers();
+      } catch(e) { toast('서버 오류: '+e.message, 'error'); }
+    }
+
+    async function editPassword(id, username) {
+      const newPw = prompt(`[${username}] 새 비밀번호:`);
+      if (newPw === null) return;
+      if (!newPw.trim()) { toast('비밀번호를 입력해주세요.', 'error'); return; }
+      try {
+        const res = await fetch('/api/staff-users/'+id, {
+          method:'PATCH', headers: authH(),
+          body: JSON.stringify({ password: newPw })
+        });
+        const j = await res.json();
+        if (!res.ok) { toast(j.error || '수정 실패', 'error'); return; }
+        toast(`[${username}] 비밀번호 변경됨`);
+        loadUsers();
+      } catch(e) { toast('서버 오류: '+e.message, 'error'); }
+    }
+
+    async function editName(id, username, currentName) {
+      const newName = prompt(`[${username}] 새 이름:`, currentName);
+      if (newName === null) return;
+      try {
+        const res = await fetch('/api/staff-users/'+id, {
+          method:'PATCH', headers: authH(),
+          body: JSON.stringify({ name: newName.trim() })
+        });
+        const j = await res.json();
+        if (!res.ok) { toast(j.error || '수정 실패', 'error'); return; }
+        toast(`[${username}] 이름 변경: ${newName}`);
+        loadUsers();
+      } catch(e) { toast('서버 오류: '+e.message, 'error'); }
+    }
+
+    async function deleteUser(id, username) {
+      if (!confirm(`직원 [${username}]을 삭제하시겠습니까?`)) return;
+      try {
+        const res = await fetch('/api/staff-users/'+id, { method:'DELETE', headers: authH() });
+        if (!res.ok) { toast('삭제 실패', 'error'); return; }
+        toast(`[${username}] 삭제 완료`);
+        loadUsers();
+      } catch(e) { toast('서버 오류: '+e.message, 'error'); }
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>
