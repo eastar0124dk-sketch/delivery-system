@@ -122,6 +122,7 @@ function initNav(currentPage) {
     { section: '💰 청구', adminOnly: true },
     { href: 'billing.html',           icon: '📋', label: '메틀러토레도 운송내역',  adminOnly: true },
     { href: 'mettler_transport.html', icon: '🚛', label: '메틀러토레도 운송청구서', adminOnly: true },
+    { href: 'mettler_rate_table.html', icon: '📋', label: '메틀러토레도 운임표',    adminOnly: true },
     { href: 'mettler_report.html',    icon: '📊', label: '메틀러 청구 보고서',     adminOnly: true },
     { href: 'profit-calc.html',       icon: '📊', label: '수익율 계산기',         adminOnly: true },
     { href: 'ot_fee.html',            icon: '⏱️', label: 'OT Fee (메틀러)',      adminOnly: true },

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script>window.AUTH_REQUIRE="admin";</script>
+  <script src="auth-guard.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>메틀러토레도 운임표</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="rates.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Noto Sans KR','Malgun Gothic',sans-serif; background:#f0f4f8; color:#1a202c; font-size:13px; display:flex; min-height:100vh; }
+
+    /* hub-nav 사이드바 자리 */
+    #sidebar { flex-shrink:0; }
+    .main-wrap { flex:1; min-width:0; }
+
+    .topbar {
+      background:linear-gradient(135deg,#7c2d12 0%,#c2410c 60%,#fb923c 100%);
+      color:#fff; padding:14px 22px; display:flex; align-items:center; gap:12px;
+      box-shadow:0 3px 12px rgba(124,45,18,.4); position:sticky; top:0; z-index:100;
+    }
+    .topbar a.back { color:#fff; opacity:.85; text-decoration:none; }
+    .topbar h1 { font-size:18px; font-weight:800; }
+    .topbar .actions { margin-left:auto; display:flex; gap:8px; }
+    .topbar button {
+      background:rgba(255,255,255,.22); border:none; color:#fff;
+      padding:7px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:700;
+      display:flex; align-items:center; gap:5px; font-family:inherit;
+    }
+    .topbar button:hover { background:rgba(255,255,255,.35); }
+    .topbar button.btn-excel { background:#15803d; }
+    .topbar button.btn-print { background:#fff; color:#7c2d12; }
+
+    .wrap { padding:18px; }
+
+    /* 필터 */
+    .filter-bar {
+      background:#fff; border-radius:12px; padding:14px 18px; margin-bottom:14px;
+      box-shadow:0 2px 8px rgba(0,0,0,.06); display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    }
+    .filter-bar label { font-size:12px; font-weight:700; color:#475569; }
+    .filter-bar select, .filter-bar input {
+      padding:8px 12px; border:1.5px solid #e2e8f0; border-radius:8px;
+      font-size:13px; font-family:inherit; background:#fafafa;
+    }
+    .filter-bar select:focus, .filter-bar input:focus { outline:none; border-color:#fb923c; background:#fff; }
+
+    .stat-info {
+      margin-left:auto; font-size:12px; color:#64748b; font-weight:600;
+    }
+    .stat-info strong { color:#c2410c; font-size:14px; }
+
+    /* 운임표 테이블 */
+    .table-wrap {
+      background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.06); overflow:auto;
+    }
+    table.rates {
+      width:100%; border-collapse:collapse; font-size:12px; min-width:1100px;
+    }
+    table.rates thead th {
+      background:linear-gradient(135deg,#1e293b,#334155); color:#fff;
+      padding:10px 8px; text-align:center; font-size:11px; font-weight:800;
+      border:1px solid #475569; position:sticky; top:0; z-index:10;
+    }
+    table.rates thead .grp-row th {
+      padding:8px; font-size:12px;
+    }
+    table.rates thead .grp-info    { background:#0f172a !important; }
+    table.rates thead .grp-carrier { background:linear-gradient(135deg,#1e40af,#2563eb) !important; }
+    table.rates thead .grp-shipper { background:linear-gradient(135deg,#b91c1c,#dc2626) !important; }
+    table.rates thead .grp-diff    { background:linear-gradient(135deg,#7c3aed,#8b5cf6) !important; }
+
+    table.rates tbody td {
+      padding:7px 8px; text-align:center; border:1px solid #e2e8f0;
+      font-family:'Roboto Mono',monospace; font-weight:600; color:#1f2937;
+    }
+    table.rates tbody td.sido {
+      font-family:inherit; font-weight:800; color:#475569; background:#f1f5f9;
+      text-align:center;
+    }
+    table.rates tbody td.sigun {
+      font-family:inherit; font-weight:800; color:#0f172a; background:#fafafa;
+      text-align:left; padding-left:14px;
+    }
+    table.rates tbody td.empty { color:#cbd5e1; font-weight:400; }
+    table.rates tbody tr:nth-child(even) td:not(.sido):not(.sigun) {
+      background:#f9fafb;
+    }
+    table.rates tbody tr:hover td { background:#fef3c7 !important; }
+    table.rates tbody td.col-c   { background:#dbeafe; color:#1e40af; }
+    table.rates tbody td.col-s   { background:#fee2e2; color:#b91c1c; }
+    table.rates tbody td.col-d   { color:#7c3aed; font-weight:800; }
+    table.rates tbody td.col-d.pos { color:#059669; }
+    table.rates tbody td.col-d.zero { color:#94a3b8; }
+
+    /* 페이지 검색 하이라이트 */
+    .highlight { background:#fef08a !important; }
+
+    @media print {
+      body { background:#fff; }
+      #sidebar, .topbar, .filter-bar, .topbar .actions { display:none !important; }
+      .wrap { padding:5mm; }
+      table.rates { font-size:10px; min-width:auto; }
+      table.rates thead th { padding:5px; font-size:10px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar"></div>
+  <div class="main-wrap">
+
+    <div class="topbar">
+      <h1>📋 메틀러토레도 운임표</h1>
+      <div class="actions">
+        <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> 인쇄</button>
+        <button class="btn-excel" onclick="exportExcel()"><i class="fas fa-file-excel"></i> 엑셀 다운로드</button>
+      </div>
+    </div>
+
+    <div class="wrap">
+
+      <!-- 필터 -->
+      <div class="filter-bar">
+        <label>시/도 필터:</label>
+        <select id="sidoFilter" onchange="renderTable()">
+          <option value="">전체</option>
+        </select>
+        <label style="margin-left:8px;">시/군 검색:</label>
+        <input type="text" id="searchInput" placeholder="예: 강남, 송파" oninput="renderTable()">
+        <button onclick="resetFilter()" style="padding:7px 14px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#475569;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;font-size:12px;">
+          <i class="fas fa-undo"></i> 초기화
+        </button>
+        <div class="stat-info">
+          전체 <strong id="totalCount">0</strong>개 / 표시 <strong id="visibleCount">0</strong>개
+        </div>
+      </div>
+
+      <!-- 운임표 -->
+      <div class="table-wrap">
+        <table class="rates" id="ratesTable">
+          <thead>
+            <tr class="grp-row">
+              <th class="grp-info" colspan="2">기본 정보</th>
+              <th class="grp-carrier" colspan="5">운송사 운임 (원)</th>
+              <th class="grp-shipper" colspan="5">화주 청구 운임 (원)</th>
+              <th class="grp-diff" colspan="5">차액 (화주 - 운송사)</th>
+            </tr>
+            <tr>
+              <th style="width:80px;">시/도</th>
+              <th style="width:110px;">시/군/구</th>
+              <th>다마스</th><th>1톤</th><th>2.5톤</th><th>5톤</th><th>11톤</th>
+              <th>다마스</th><th>1톤</th><th>2.5톤</th><th>5톤</th><th>11톤</th>
+              <th>다마스</th><th>1톤</th><th>2.5톤</th><th>5톤</th><th>11톤</th>
+            </tr>
+          </thead>
+          <tbody id="ratesBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="hub-nav.js"></script>
+  <script>
+    initNav('mettler_rate_table.html');
+
+    const VEHICLES = ['다마스','1톤','2.5톤','5톤','11톤'];
+    let allRates = [];
+
+    function loadRates() {
+      if (typeof RATE_TABLE === 'undefined') {
+        alert('운임표 데이터를 불러올 수 없습니다.');
+        return;
+      }
+      allRates = Object.values(RATE_TABLE);
+      // 시도 필터 옵션 채우기
+      const sidos = [...new Set(allRates.map(r => r.sido))].sort();
+      const sel = document.getElementById('sidoFilter');
+      sidos.forEach(sido => {
+        const opt = document.createElement('option');
+        opt.value = sido; opt.textContent = sido;
+        sel.appendChild(opt);
+      });
+      document.getElementById('totalCount').textContent = allRates.length;
+      renderTable();
+    }
+
+    function renderTable() {
+      const sidoFilter = document.getElementById('sidoFilter').value;
+      const search = document.getElementById('searchInput').value.trim();
+      let filtered = allRates;
+      if (sidoFilter) filtered = filtered.filter(r => r.sido === sidoFilter);
+      if (search) filtered = filtered.filter(r => r.sigun.includes(search));
+
+      // 시도 → 시군 정렬
+      filtered.sort((a, b) => {
+        if (a.sido !== b.sido) return a.sido.localeCompare(b.sido, 'ko');
+        return a.sigun.localeCompare(b.sigun, 'ko');
+      });
+
+      const fmt = n => n ? n.toLocaleString('ko-KR') : '';
+      const tbody = document.getElementById('ratesBody');
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="17" style="padding:40px;text-align:center;color:#94a3b8;">
+          🔍 검색 결과가 없습니다.
+        </td></tr>`;
+      } else {
+        tbody.innerHTML = filtered.map(r => {
+          const carrierCells = VEHICLES.map(v => {
+            const val = r.carrier[v];
+            return val
+              ? `<td class="col-c">${fmt(val)}</td>`
+              : `<td class="col-c empty">-</td>`;
+          }).join('');
+          const shipperCells = VEHICLES.map(v => {
+            const val = r.client[v];
+            return val
+              ? `<td class="col-s">${fmt(val)}</td>`
+              : `<td class="col-s empty">-</td>`;
+          }).join('');
+          const diffCells = VEHICLES.map(v => {
+            const c = r.carrier[v] || 0;
+            const s = r.client[v]  || 0;
+            if (!c && !s) return `<td class="col-d empty">-</td>`;
+            const d = s - c;
+            const cls = d > 0 ? 'pos' : (d === 0 ? 'zero' : '');
+            return `<td class="col-d ${cls}">${fmt(d)}</td>`;
+          }).join('');
+          return `<tr>
+            <td class="sido">${r.sido}</td>
+            <td class="sigun">${r.sigun}</td>
+            ${carrierCells}${shipperCells}${diffCells}
+          </tr>`;
+        }).join('');
+      }
+      document.getElementById('visibleCount').textContent = filtered.length;
+    }
+
+    function resetFilter() {
+      document.getElementById('sidoFilter').value = '';
+      document.getElementById('searchInput').value = '';
+      renderTable();
+    }
+
+    function exportExcel() {
+      const sidoFilter = document.getElementById('sidoFilter').value;
+      const search = document.getElementById('searchInput').value.trim();
+      let filtered = allRates;
+      if (sidoFilter) filtered = filtered.filter(r => r.sido === sidoFilter);
+      if (search) filtered = filtered.filter(r => r.sigun.includes(search));
+      filtered.sort((a, b) => {
+        if (a.sido !== b.sido) return a.sido.localeCompare(b.sido, 'ko');
+        return a.sigun.localeCompare(b.sigun, 'ko');
+      });
+
+      const aoa = [];
+      // 제목
+      aoa.push(['메틀러토레도 운임표 - 운송사 vs 화주 청구 비교', ...Array(16).fill('')]);
+      aoa.push(Array(17).fill(''));
+      // 그룹 헤더
+      aoa.push(['기본 정보','','운송사 운임 (원)','','','','','화주 청구 운임 (원)','','','','','차액 (화주-운송사)','','','','']);
+      // 컬럼 헤더
+      aoa.push(['시/도','시/군/구','다마스','1톤','2.5톤','5톤','11톤','다마스','1톤','2.5톤','5톤','11톤','다마스','1톤','2.5톤','5톤','11톤']);
+      // 데이터
+      filtered.forEach(r => {
+        const cVals = VEHICLES.map(v => r.carrier[v] || 0);
+        const sVals = VEHICLES.map(v => r.client[v]  || 0);
+        const dVals = VEHICLES.map(v => (r.client[v] || 0) - (r.carrier[v] || 0));
+        aoa.push([r.sido, r.sigun, ...cVals, ...sVals, ...dVals]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const COL = 17;
+      const mkS = (bg, fg, bold=false, sz=10, halign='center') => ({
+        font: { bold, sz, color:{rgb:fg}, name:'맑은 고딕' },
+        fill: bg ? { patternType:'solid', fgColor:{rgb:bg} } : undefined,
+        alignment: { horizontal:halign, vertical:'center', wrapText:true },
+        border: { top:{style:'thin',color:{rgb:'BBBBBB'}}, bottom:{style:'thin',color:{rgb:'BBBBBB'}},
+                  left:{style:'thin',color:{rgb:'BBBBBB'}}, right:{style:'thin',color:{rgb:'BBBBBB'}} }
+      });
+      const S_TITLE  = mkS('1F4E78','FFFFFF',true,14);
+      const S_GRP_I  = mkS('0F172A','FFFFFF',true,11);
+      const S_GRP_C  = mkS('1E40AF','FFFFFF',true,11);
+      const S_GRP_S  = mkS('B91C1C','FFFFFF',true,11);
+      const S_GRP_D  = mkS('7C3AED','FFFFFF',true,11);
+      const S_HDR    = mkS('334155','FFFFFF',true,10);
+      const S_TXT    = mkS(null,'333333',false,10);
+      const S_SIDO   = mkS('F1F5F9','475569',true,10);
+      const S_NUM_C  = { ...mkS('DBEAFE','1E40AF',false,10,'right'), numFmt:'#,##0' };
+      const S_NUM_S  = { ...mkS('FEE2E2','B91C1C',false,10,'right'), numFmt:'#,##0' };
+      const S_NUM_D  = { ...mkS(null,'7C3AED',true,10,'right'), numFmt:'#,##0' };
+
+      ws['!merges'] = [
+        { s:{r:0,c:0}, e:{r:0,c:COL-1} },
+        { s:{r:2,c:0}, e:{r:2,c:1} },     // 기본 정보
+        { s:{r:2,c:2}, e:{r:2,c:6} },     // 운송사 운임
+        { s:{r:2,c:7}, e:{r:2,c:11} },    // 화주 청구
+        { s:{r:2,c:12}, e:{r:2,c:16} },   // 차액
+      ];
+
+      // 제목
+      for (let c=0; c<COL; c++) {
+        const ref = XLSX.utils.encode_cell({r:0,c}); if (ws[ref]) ws[ref].s = S_TITLE;
+      }
+      // 그룹 헤더 (3행)
+      const grpRanges = [[S_GRP_I, 0, 1], [S_GRP_C, 2, 6], [S_GRP_S, 7, 11], [S_GRP_D, 12, 16]];
+      grpRanges.forEach(([style, s, e]) => {
+        for (let c=s; c<=e; c++) {
+          const ref = XLSX.utils.encode_cell({r:2,c}); if (ws[ref]) ws[ref].s = style;
+        }
+      });
+      // 컬럼 헤더 (4행)
+      for (let c=0; c<COL; c++) {
+        const ref = XLSX.utils.encode_cell({r:3,c}); if (ws[ref]) ws[ref].s = S_HDR;
+      }
+      // 데이터 행 스타일
+      filtered.forEach((_, ri) => {
+        const row = 4 + ri;
+        // 시도/시군
+        let ref = XLSX.utils.encode_cell({r:row,c:0}); if (ws[ref]) ws[ref].s = S_SIDO;
+        ref = XLSX.utils.encode_cell({r:row,c:1}); if (ws[ref]) ws[ref].s = mkS(null,'0F172A',true,10,'left');
+        // 운송사 (2~6)
+        for (let c=2; c<=6; c++) { const r = XLSX.utils.encode_cell({r:row,c}); if (ws[r]) ws[r].s = S_NUM_C; }
+        // 화주 (7~11)
+        for (let c=7; c<=11; c++) { const r = XLSX.utils.encode_cell({r:row,c}); if (ws[r]) ws[r].s = S_NUM_S; }
+        // 차액 (12~16)
+        for (let c=12; c<=16; c++) { const r = XLSX.utils.encode_cell({r:row,c}); if (ws[r]) ws[r].s = S_NUM_D; }
+      });
+
+      ws['!cols'] = [
+        {wch:10},{wch:14},
+        {wch:10},{wch:10},{wch:10},{wch:10},{wch:10},
+        {wch:10},{wch:10},{wch:10},{wch:10},{wch:10},
+        {wch:10},{wch:10},{wch:10},{wch:10},{wch:10}
+      ];
+      ws['!rows'] = [{hpt:30},{hpt:8},{hpt:24},{hpt:24},...filtered.map(()=>({hpt:18}))];
+      ws['!ref'] = `A1:${XLSX.utils.encode_col(COL-1)}${4+filtered.length}`;
+
+      const wb = { SheetNames:['운임표'], Sheets:{ '운임표': ws } };
+      XLSX.writeFile(wb, `메틀러토레도_운임표_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    loadRates();
+  </script>
+</body>
+</html>
