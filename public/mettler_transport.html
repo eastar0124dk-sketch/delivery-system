@@ -527,7 +527,7 @@ async function loadBilling() {
   if (f > t) { toast('시작일이 종료일보다 클 수 없습니다.', 'error'); return; }
   updatePeriodInfo();
 
-  // 1) 서버에 저장된 청구서가 있으면 우선 로드
+  // 1) 서버에 저장된 청구서가 있으면 자동정정 적용 후 로드
   const key = periodKey();
   let serverRows = [];
   try {
@@ -538,8 +538,27 @@ async function loadBilling() {
 
   if (serverRows.length) {
     rows = serverRows;
+    // 저장 데이터에도 자동정정 적용 (운임 매칭 안된 행)
+    let corrected = 0;
+    rows.forEach(row => {
+      if (row.vehicle && (!row.cBase || row.cBase === 0)) {
+        // 1차: 도착지 상호로 추론
+        let alt = regionFromDestName(row.destCode || '');
+        // 2차: dest 정규화
+        if (!alt || lookupRate(alt, row.vehicle, 'carrier') === 0) {
+          alt = normalizeRegion(row.dest || '');
+        }
+        if (alt && lookupRate(alt, row.vehicle, 'carrier') > 0) {
+          row.dest = alt;
+          row.cBase = lookupRate(alt, row.vehicle, 'carrier');
+          row.sBase = lookupRate(alt, row.vehicle, 'shipper');
+          corrected++;
+          console.log(`[자동정정] ${row.dn || row.no}: → ${alt}`);
+        }
+      }
+    });
     renderRows();
-    toast(`저장된 청구서 ${rows.length}건 로드 완료`);
+    toast(`저장 청구서 ${rows.length}건 로드${corrected ? ` (자동정정 ${corrected}건)` : ''}`);
     return;
   }
 
@@ -613,8 +632,8 @@ async function loadBilling() {
       else content = '이동';
       if (tt && !['출고','회수','이동','입고'].includes(tt)) content = tt;
 
-      // 청구금액(L열) — admin의 work_fee 활용
-      const cBill = parseInt(o.work_fee) || 0;
+      // 추가운임(work_fee) — billing.html과 동일하게 운송사/화주 양쪽에 적용
+      const addFee = parseInt(o.work_fee) || 0;
 
       const row = {
         no: idx + 1,
@@ -626,8 +645,8 @@ async function loadBilling() {
         destCode: destNameDisplay,
         type: content,
         vehicle: vt,
-        cBase: 0, cExtra: 0, cBill: cBill, cMemo: '',
-        sBase: 0, sExtra: 0,
+        cBase: 0, cExtra: addFee, cMemo: '',
+        sBase: 0, sExtra: addFee,
         qty: o.quantity || '',
         memo: o.notes || '',
         _src: 'auto'
