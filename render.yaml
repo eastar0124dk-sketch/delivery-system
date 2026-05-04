@@ -1,11 +1,13 @@
 services:
   - type: web
     name: delivery-receipt-system
-    env: node
-    buildCommand: npm install
-    startCommand: node server.js
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server_python.py
     envVars:
       - key: PORT
         value: 10000
-      - key: NODE_VERSION
-        value: 20
+      - key: ADMIN_PW
+        value: admin1234
+      - key: DATABASE_URL
+        sync: false

@@ -127,7 +127,7 @@ if DATABASE_URL:
         cur.execute('''CREATE TABLE IF NOT EXISTS canon_billing_meta (
             key TEXT PRIMARY KEY, value TEXT)''')
         cur.execute('''CREATE TABLE IF NOT EXISTS canon_staff_users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, name TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         cur.execute('''CREATE TABLE IF NOT EXISTS mettler_transport_billing (
