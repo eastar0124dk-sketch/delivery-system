@@ -177,7 +177,12 @@
       <div class="card-title"><i class="fas fa-warehouse"></i> 출발지 정보</div>
       <div class="form-grid">
         <div class="form-group">
-          <label>출발지</label>
+          <label>출발지
+            <button type="button" onclick="saveOriginPreset()" title="현재 출발지/주소/담당자를 저장"
+              style="margin-left:6px;padding:2px 9px;font-size:11px;font-weight:600;border:none;border-radius:6px;background:#38a169;color:#fff;cursor:pointer;">💾 저장</button>
+            <button type="button" onclick="deleteOriginPreset()" title="선택한 저장 출발지 삭제"
+              style="margin-left:4px;padding:2px 9px;font-size:11px;font-weight:600;border:none;border-radius:6px;background:#fed7d7;color:#c53030;cursor:pointer;">🗑 삭제</button>
+          </label>
           <select id="origin" onchange="onOriginSelect(this.value)" style="padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;">
             <option value="ACT">ACT</option>
             <option value="기타">기타 (회수/직접입력)</option>
@@ -682,6 +687,7 @@
         document.getElementById('mainWrap').style.display='block';
         applyRoleUI();
         refreshCompanyDropdown();
+        refreshOriginDropdown();
       } else {
         document.getElementById('loginError').style.display='block';
         document.getElementById('loginPw').value='';
@@ -861,6 +867,10 @@
     const addrEl = document.getElementById('origin_address');
     const customEl = document.getElementById('origin_custom');
     const sidoGroup = document.getElementById('origin_sido_group');
+    const contactEl = document.getElementById('contact_person');
+    const contactCustom = document.getElementById('contact_person_custom');
+    const phoneEl = document.getElementById('contact_phone');
+
     if(val === 'ACT') {
       addrEl.value = ACT_ADDRESS;
       addrEl.readOnly = true;
@@ -868,7 +878,9 @@
       customEl.style.display = 'none';
       customEl.value = '';
       sidoGroup.style.display = 'none';
-    } else {
+      return;
+    }
+    if(val === '기타') {
       addrEl.value = '';
       addrEl.readOnly = false;
       addrEl.style.background = '#fafafa';
@@ -876,7 +888,98 @@
       sidoGroup.style.display = 'block';
       populateSido('origin_sido');
       customEl.focus();
+      return;
     }
+    // 저장된 출발지 프리셋 선택
+    const presets = JSON.parse(localStorage.getItem('delivery_origin_presets') || '{}');
+    const p = presets[val];
+    if(p) {
+      addrEl.value = p.address || '';
+      addrEl.readOnly = false;
+      addrEl.style.background = '#fafafa';
+      customEl.style.display = 'none';
+      customEl.value = '';
+      sidoGroup.style.display = 'none';
+      if(p.contact_person) {
+        // 기본 담당자 옵션에 있으면 선택, 아니면 기타로 직접입력
+        const opts = Array.from(contactEl.options).map(o => o.value);
+        if(opts.includes(p.contact_person)) {
+          contactEl.value = p.contact_person;
+          contactCustom.style.display = 'none';
+          contactCustom.value = '';
+        } else {
+          contactEl.value = '기타';
+          contactCustom.style.display = 'block';
+          contactCustom.value = p.contact_person;
+        }
+      }
+      if(p.contact_phone) phoneEl.value = p.contact_phone;
+    }
+  }
+
+  // 저장된 출발지 드롭다운 갱신
+  function refreshOriginDropdown() {
+    const sel = document.getElementById('origin');
+    if(!sel) return;
+    const cur = sel.value;
+    const presets = JSON.parse(localStorage.getItem('delivery_origin_presets') || '{}');
+    const names = Object.keys(presets).sort();
+    sel.innerHTML = `<option value="ACT">ACT</option>`;
+    names.forEach(n => {
+      sel.innerHTML += `<option value="${n}">${n} (저장)</option>`;
+    });
+    sel.innerHTML += `<option value="기타">기타 (회수/직접입력)</option>`;
+    if(cur && (cur === 'ACT' || cur === '기타' || names.includes(cur))) sel.value = cur;
+  }
+
+  function saveOriginPreset() {
+    const sel = document.getElementById('origin');
+    const customEl = document.getElementById('origin_custom');
+    const addrEl = document.getElementById('origin_address');
+    const contactEl = document.getElementById('contact_person');
+    const contactCustom = document.getElementById('contact_person_custom');
+    const phoneEl = document.getElementById('contact_phone');
+
+    let name = sel.value === '기타' ? customEl.value.trim() : sel.value;
+    if(!name || name === 'ACT') {
+      name = prompt('저장할 출발지명을 입력하세요 (예: 신한인비스타):', '');
+      if(!name) return;
+      name = name.trim();
+    }
+    if(!name) return;
+    const address = addrEl.value.trim();
+    if(!address) { alert('출발지 주소를 입력해주세요.'); return; }
+
+    const contact_person = contactEl.value === '기타'
+      ? contactCustom.value.trim()
+      : contactEl.value;
+    const contact_phone = phoneEl.value.trim();
+
+    const presets = JSON.parse(localStorage.getItem('delivery_origin_presets') || '{}');
+    presets[name] = { address, contact_person, contact_phone };
+    localStorage.setItem('delivery_origin_presets', JSON.stringify(presets));
+    refreshOriginDropdown();
+    document.getElementById('origin').value = name;
+    if(typeof showAlert === 'function') showAlert(`✅ 출발지 "${name}" 저장됨`, 'success');
+    else alert(`✅ 출발지 "${name}" 저장됨`);
+  }
+
+  function deleteOriginPreset() {
+    const sel = document.getElementById('origin');
+    const target = sel.value;
+    if(!target || target === 'ACT' || target === '기타') {
+      alert('삭제할 저장 출발지를 드롭다운에서 먼저 선택해주세요.');
+      return;
+    }
+    if(!confirm(`저장된 출발지 "${target}" 을(를) 삭제할까요?`)) return;
+    const presets = JSON.parse(localStorage.getItem('delivery_origin_presets') || '{}');
+    delete presets[target];
+    localStorage.setItem('delivery_origin_presets', JSON.stringify(presets));
+    sel.value = 'ACT';
+    onOriginSelect('ACT');
+    refreshOriginDropdown();
+    if(typeof showAlert === 'function') showAlert(`✅ "${target}" 삭제됨`, 'success');
+    else alert(`✅ "${target}" 삭제됨`);
   }
 
   function onContactSelect(val) {
