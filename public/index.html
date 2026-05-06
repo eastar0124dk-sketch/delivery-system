@@ -139,9 +139,9 @@
         id: 'mettler', name: '메틀러토레도', emoji: '⚖️',
         borderColor: 'rgba(96,165,250,.55)',
         loginType: 'password',         // 직원 PW 1개
-        publicMenus: [],                // 미로그인 시 메뉴 없음
-        staffMenus:  ['sign', 'carrier', 'admin', 'list'],   // 직원: 서명/작업입력/오더관리/조회·출력
-        adminMenus:  ['sign', 'carrier', 'admin', 'list', 'billing', 'hub']  // 관리자: 모든 메뉴
+        publicMenus: ['sign', 'carrier'],  // 로그인 없이: 배송기사 서명 / 운송사 작업입력
+        staffMenus:  ['admin', 'list'],    // 직원: 오더관리/조회·출력
+        adminMenus:  ['admin', 'list', 'billing', 'hub']  // 관리자: 모든 메뉴
       },
       {
         id: 'chanel', name: '샤넬코리아', emoji: '💄',
@@ -254,9 +254,14 @@
 
       } else if (role === 'staff') {
         /* ────────────────────────────────────────
-           직원 로그인: 직원 메뉴 + 관리자 로그인 카드
-           (sign/carrier 숨김)
+           직원 로그인: 공개 메뉴 + 직원 메뉴
         ──────────────────────────────────────── */
+        if (c.publicMenus.length) {
+          html += makeSectionLabel('🚚 로그인 없이 사용 가능');
+          html += '<div class="cards">';
+          html += makeCards(c.publicMenus);
+          html += '</div>';
+        }
         html += makeSectionLabel('🟢 직원 메뉴');
         html += '<div style="text-align:center;margin-bottom:10px;">';
         html += `<button class="role-badge staff" onclick="logout()"><i class="fas fa-sign-out-alt"></i> 직원 로그인 중 · 로그아웃</button>`;
