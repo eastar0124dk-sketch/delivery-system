@@ -204,6 +204,12 @@
     const DONE_KEY = 'notes_done_v1';
     function loadDoneMap()  { try { return JSON.parse(localStorage.getItem(DONE_KEY) || '{}'); } catch { return {}; } }
     function saveDoneMap(m) { localStorage.setItem(DONE_KEY, JSON.stringify(m)); }
+
+    /* ── 삭제된 메모 ID 차단 목록 (서버 삭제 실패 대비 클라이언트에서도 숨김) ── */
+    const DEL_KEY = 'notes_deleted_v1';
+    function loadDelSet()  { try { return new Set(JSON.parse(localStorage.getItem(DEL_KEY) || '[]')); } catch { return new Set(); } }
+    function saveDelSet(s) { localStorage.setItem(DEL_KEY, JSON.stringify([...s])); }
+    function markDeleted(id) { const s = loadDelSet(); s.add(id); saveDelSet(s); }
     function isDone(id)     { return !!loadDoneMap()[id]; }
     function toggleDone(id) {
       const m = loadDoneMap();
@@ -220,6 +226,9 @@
       } catch {
         notes = [];
       }
+      // 삭제 처리된 메모는 전체 포함 모든 탭에서 제외
+      const delSet = loadDelSet();
+      notes = notes.filter(n => !delSet.has(n.id));
       renderList();
     }
 
@@ -398,6 +407,8 @@
       if (!confirm('메모를 삭제하시겠습니까?')) return;
       try {
         await fetch(`/api/memos/${id}`, { method: 'DELETE', headers: authH() });
+        // 클라이언트 차단 목록에 등록 (서버 삭제가 실패해도 모든 탭에서 숨김)
+        markDeleted(id);
         notes = notes.filter(n => n.id !== id);
         // 완료 상태도 제거
         const m = loadDoneMap(); delete m[id]; saveDoneMap(m);
