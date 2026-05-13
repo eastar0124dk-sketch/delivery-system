@@ -411,12 +411,13 @@ function loadData() {
   dateList.forEach(d => {
     if (!data[d.dateStr]) {
       data[d.dateStr] = { ot: employees.map(() => null), pt1: null, pt2: null,
-        ptHours: '', ptHeadcount: null, ptWorkers: '', ptBilling: null, ptDesc: '', holiday: false };
+        ptWorkHours: null, ptHours: '', ptHeadcount: null, ptWorkers: '', ptBilling: null, ptDesc: '', holiday: false };
     } else {
       // employees 길이 맞추기
       while (data[d.dateStr].ot.length < employees.length) data[d.dateStr].ot.push(null);
       if (data[d.dateStr].ot.length > employees.length) data[d.dateStr].ot.length = employees.length;
       // 새 PT 필드 누락 시 초기화
+      if (data[d.dateStr].ptWorkHours=== undefined) data[d.dateStr].ptWorkHours= null;
       if (data[d.dateStr].ptHours    === undefined) data[d.dateStr].ptHours    = '';
       if (data[d.dateStr].ptHeadcount=== undefined) data[d.dateStr].ptHeadcount= null;
       if (data[d.dateStr].ptWorkers  === undefined) data[d.dateStr].ptWorkers  = '';
@@ -595,17 +596,16 @@ function renderPTTable() {
   const tbody = document.getElementById('ptBody');
   const tfoot = document.getElementById('ptFoot');
 
-  // 헤더
+  // 헤더 (1일/4시간 통합 → 근무시간 단일 입력 · 8시간=1일)
   thead.innerHTML = `<tr>
     <th style="min-width:88px;">날짜</th>
-    <th style="min-width:80px;">Part Time (1일)</th>
-    <th style="min-width:80px;">Part Time (4시간)</th>
+    <th style="min-width:84px;">근무시간 (h)</th>
     <th style="min-width:80px;">업무시간</th>
     <th style="min-width:64px;">인원수</th>
-    <th style="min-width:90px;">작업인원</th>
+    <th style="min-width:120px;">작업자 성명</th>
     <th style="min-width:100px;">청구금액</th>
     <th style="min-width:150px;">내용</th>
-    <th style="min-width:72px;">Day Total</th>
+    <th style="min-width:78px;">Day Total (일)</th>
   </tr>`;
 
   // 본문
@@ -620,29 +620,30 @@ function renderPTTable() {
     const dow = new Date(dateStr + 'T00:00:00').getDay();
     const dateLabel = `${parseInt(m)}/${parseInt(d)} (${DAY_KO[dow]})`;
 
-    const rowData = data[dateStr] || { ot: [], pt1: null, pt2: null, ptHours: '', ptHeadcount: null, ptWorkers: '', ptBilling: null, ptDesc: '', holiday: false };
-    const pt1 = rowData.pt1;
-    const pt2 = rowData.pt2;
+    const rowData = data[dateStr] || { ot: [], pt1: null, pt2: null, ptWorkHours: null, ptHours: '', ptHeadcount: null, ptWorkers: '', ptBilling: null, ptDesc: '', holiday: false };
+    // 마이그레이션: 기존 pt1(1일)/pt2(4시간) → ptWorkHours(시간)
+    let ptWorkHours = rowData.ptWorkHours;
+    if ((ptWorkHours === null || ptWorkHours === undefined) &&
+        (rowData.pt1 || rowData.pt2)) {
+      ptWorkHours = (parseInt(rowData.pt1)||0)*8 + (parseInt(rowData.pt2)||0)*4;
+      rowData.ptWorkHours = ptWorkHours;
+    }
     const ptHours    = rowData.ptHours    || '';
     const ptHeadcount= rowData.ptHeadcount;
     const ptWorkers  = rowData.ptWorkers  || '';
     const ptBilling  = rowData.ptBilling;
     const ptDesc     = rowData.ptDesc     || '';
-    const dayTotal   = (parseInt(pt1)||0) + (parseInt(pt2)||0);
+    const dayTotal   = ptWorkHours ? (ptWorkHours/8) : 0;  // 8h = 1일
+    const dayTotalLabel = dayTotal > 0 ? (Math.round(dayTotal*100)/100) : '';
     const billingCls = (ptBilling > 0) ? 'has-value-wday' : '';
 
     tbHTML += `<tr class="${rowCls}">
       <td class="date-cell ${dateCls}" onclick="toggleHoliday('${dateStr}')" title="클릭하여 휴일 토글">${dateLabel}</td>
-      <td><input type="number" class="num-input ${pt1 > 0 ? 'has-value-wday' : ''}" min="0" max="99" step="1"
-        value="${pt1 !== null && pt1 !== undefined ? pt1 : ''}"
-        data-date="${dateStr}" data-type="pt1"
-        onchange="onPTInput(this,'pt1')"
-        onkeydown="cellKeyNav(event,this,'pt')"
-      ></td>
-      <td><input type="number" class="num-input ${pt2 > 0 ? 'has-value-wday' : ''}" min="0" max="99" step="1"
-        value="${pt2 !== null && pt2 !== undefined ? pt2 : ''}"
-        data-date="${dateStr}" data-type="pt2"
-        onchange="onPTInput(this,'pt2')"
+      <td><input type="number" class="num-input ${ptWorkHours > 0 ? 'has-value-wday' : ''}" min="0" max="24" step="0.5"
+        value="${ptWorkHours !== null && ptWorkHours !== undefined && ptWorkHours !== '' ? ptWorkHours : ''}"
+        data-date="${dateStr}" data-type="ptWorkHours"
+        placeholder="시간"
+        onchange="onPTInput(this,'ptWorkHours')"
         onkeydown="cellKeyNav(event,this,'pt')"
       ></td>
       <td><input type="text" class="text-input" placeholder="예) 09~18"
@@ -655,7 +656,7 @@ function renderPTTable() {
         data-date="${dateStr}"
         onchange="onPTInput(this,'ptHeadcount')"
       ></td>
-      <td><input type="text" class="text-input"
+      <td><input type="text" class="text-input wide" placeholder="예) 홍길동, 김철수"
         value="${escHtml(ptWorkers)}"
         data-date="${dateStr}"
         oninput="onPTTextInput(this,'ptWorkers')"
@@ -670,7 +671,7 @@ function renderPTTable() {
         data-date="${dateStr}"
         oninput="onPTTextInput(this,'ptDesc')"
       ></td>
-      <td class="total-cell" id="pt-total-${dateStr}">${dayTotal > 0 ? dayTotal : ''}</td>
+      <td class="total-cell" id="pt-total-${dateStr}">${dayTotalLabel}</td>
     </tr>`;
   });
   tbody.innerHTML = tbHTML;
@@ -681,9 +682,14 @@ function renderPTTable() {
 
 function onPTInput(el, field) {
   const dateStr = el.dataset.date;
-  const val     = el.value === '' ? null : Math.max(0, parseInt(el.value) || 0);
+  // ptWorkHours는 소수(0.5단위) 허용
+  let val;
+  if (el.value === '') val = null;
+  else if (field === 'ptWorkHours') val = Math.max(0, Math.min(24, parseFloat(el.value) || 0));
+  else val = Math.max(0, parseInt(el.value) || 0);
+
   if (!data[dateStr]) data[dateStr] = { ot: employees.map(() => null), pt1: null, pt2: null,
-    ptHours: '', ptHeadcount: null, ptWorkers: '', ptBilling: null, ptDesc: '', holiday: false };
+    ptWorkHours: null, ptHours: '', ptHeadcount: null, ptWorkers: '', ptBilling: null, ptDesc: '', holiday: false };
   data[dateStr][field] = val;
 
   if (field === 'ptBilling') {
@@ -694,11 +700,12 @@ function onPTInput(el, field) {
     if (val > 0) el.classList.add('has-value-wday');
   }
 
-  // Day Total 업데이트
+  // Day Total 업데이트 (8시간 = 1일)
   const r = data[dateStr];
-  const dayTotal = (parseInt(r.pt1)||0) + (parseInt(r.pt2)||0);
+  const hours = parseFloat(r.ptWorkHours) || 0;
+  const dayTotal = hours / 8;
   const cell = document.getElementById(`pt-total-${dateStr}`);
-  if (cell) cell.textContent = dayTotal > 0 ? dayTotal : '';
+  if (cell) cell.textContent = dayTotal > 0 ? (Math.round(dayTotal*100)/100) : '';
 
   renderPTSummary();
   autoSave();
@@ -714,25 +721,26 @@ function onPTTextInput(el, field) {
 
 function renderPTSummary() {
   const tfoot = document.getElementById('ptFoot');
-  let totalPt1 = 0, totalPt2 = 0, totalBilling = 0;
+  let totalHours = 0, totalBilling = 0;
   dateList.forEach(entry => {
     const r = data[entry.dateStr];
     if (!r) return;
-    totalPt1    += parseInt(r.pt1)       || 0;
-    totalPt2    += parseInt(r.pt2)       || 0;
+    // 이전 데이터 호환: pt1*8 + pt2*4 → 시간
+    let h = parseFloat(r.ptWorkHours);
+    if (!h && (r.pt1 || r.pt2)) h = (parseInt(r.pt1)||0)*8 + (parseInt(r.pt2)||0)*4;
+    totalHours  += h || 0;
     totalBilling+= parseInt(r.ptBilling) || 0;
   });
-  const totalAll = totalPt1 + totalPt2;
+  const totalDays = totalHours / 8;
   tfoot.innerHTML = `<tr class="summary-row">
     <td class="lbl">합계 (Total)</td>
-    <td class="grand">${totalPt1 > 0 ? totalPt1 : '-'}</td>
-    <td class="grand">${totalPt2 > 0 ? totalPt2 : '-'}</td>
+    <td class="grand">${totalHours > 0 ? totalHours + 'h' : '-'}</td>
     <td>-</td>
     <td>-</td>
     <td>-</td>
     <td class="grand">${totalBilling > 0 ? totalBilling.toLocaleString() + ' 원' : '-'}</td>
     <td>-</td>
-    <td class="grand">${totalAll > 0 ? totalAll : '-'}</td>
+    <td class="grand">${totalDays > 0 ? (Math.round(totalDays*100)/100) + '일' : '-'}</td>
   </tr>`;
 }
 
@@ -964,49 +972,49 @@ function exportExcel() {
   const ptAoa = [];
   ptAoa.push([`METTLER TOLEDO  Part Time List`, '', '', '', '', '', '', '']);
   ptAoa.push([`대상 기간 : ${startStr} ~ ${endStr}`, '', `출력일 : ${exportDate}`, '', '', '', '', '']);
-  ptAoa.push(Array(9).fill(''));
-  ptAoa.push(['날짜', 'Part Time (1일)', 'Part Time (4시간)', '업무시간', '인원수', '작업인원', '청구금액 (원)', '내용', 'Day Total']);
+  ptAoa.push(Array(8).fill(''));
+  ptAoa.push(['날짜', '근무시간 (h)', '업무시간', '인원수', '작업자 성명', '청구금액 (원)', '내용', 'Day Total (일)']);
 
-  let totalPt1 = 0, totalPt2 = 0, totalBilling = 0;
+  let totalHours = 0, totalBilling = 0;
   dateList.forEach(entry => {
     const { dateStr } = entry;
     const [, m, d] = dateStr.split('-');
     const dow = new Date(dateStr + 'T00:00:00').getDay();
     const label = `${parseInt(m)}/${parseInt(d)} (${DAY_KO[dow]})`;
     const r = data[dateStr] || {};
-    const pt1 = parseInt(r.pt1) || 0;
-    const pt2 = parseInt(r.pt2) || 0;
+    let h = parseFloat(r.ptWorkHours);
+    if (!h && (r.pt1 || r.pt2)) h = (parseInt(r.pt1)||0)*8 + (parseInt(r.pt2)||0)*4;
+    h = h || 0;
     const billing = parseInt(r.ptBilling) || 0;
-    totalPt1 += pt1; totalPt2 += pt2; totalBilling += billing;
+    totalHours += h; totalBilling += billing;
     ptAoa.push([
       label,
-      pt1 || '',
-      pt2 || '',
+      h || '',
       r.ptHours    || '',
       parseInt(r.ptHeadcount) || '',
       r.ptWorkers  || '',
       billing      || '',
       r.ptDesc     || '',
-      (pt1 + pt2)  || '',
+      h ? Math.round((h/8)*100)/100 : '',
     ]);
   });
 
-  ptAoa.push(Array(9).fill(''));
-  ptAoa.push(['합계 (Total)', totalPt1 || '', totalPt2 || '', '', '', '', totalBilling || '', '', (totalPt1+totalPt2) || '']);
+  ptAoa.push(Array(8).fill(''));
+  ptAoa.push(['합계 (Total)', totalHours || '', '', '', '', totalBilling || '', '', totalHours ? Math.round((totalHours/8)*100)/100 : '']);
 
   const wsPT = XLSX.utils.aoa_to_sheet(ptAoa);
   wsPT['!cols'] = [
-    { wch: 14 }, { wch: 15 }, { wch: 16 }, { wch: 12 },
-    { wch: 8  }, { wch: 14 }, { wch: 14  }, { wch: 24 }, { wch: 10 },
+    { wch: 14 }, { wch: 13 }, { wch: 12 },
+    { wch: 8  }, { wch: 18 }, { wch: 14  }, { wch: 24 }, { wch: 12 },
   ];
   wsPT['!rows'] = [{ hpt: 32 }, { hpt: 20 }, { hpt: 6 }, { hpt: 22 }];
   wsPT['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } },
-    { s: { r: 1, c: 2 }, e: { r: 1, c: 8 } },
+    { s: { r: 1, c: 2 }, e: { r: 1, c: 7 } },
   ];
 
-  const PT_NC = 9;
+  const PT_NC = 8;
   // 타이틀
   applyRangeStyle(wsPT, 0, 0, 0, PT_NC-1, {
     font:  { bold: true, sz: 16, color: { rgb: 'FFFFFF' }, name: '맑은 고딕' },
@@ -1057,15 +1065,22 @@ function exportExcel() {
       alignment: { horizontal: 'left', vertical: 'center' },
       border: BORDER_THIN,
     });
+    // 작업자 성명 왼쪽 정렬
+    applyStyle(wsPT, XLSX.utils.encode_cell({r:rowIdx,c:4}), {
+      font:  { sz: 10, color: { rgb: '374151' }, name: '맑은 고딕' },
+      fill:  { patternType: 'solid', fgColor: { rgb: bgColor } },
+      alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+      border: BORDER_THIN,
+    });
     // 내용 셀 왼쪽 정렬
-    applyStyle(wsPT, XLSX.utils.encode_cell({r:rowIdx,c:7}), {
+    applyStyle(wsPT, XLSX.utils.encode_cell({r:rowIdx,c:6}), {
       font:  { sz: 10, color: { rgb: '374151' }, name: '맑은 고딕' },
       fill:  { patternType: 'solid', fgColor: { rgb: bgColor } },
       alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
       border: BORDER_THIN,
     });
     // 청구금액 오른쪽 정렬
-    applyStyle(wsPT, XLSX.utils.encode_cell({r:rowIdx,c:6}), {
+    applyStyle(wsPT, XLSX.utils.encode_cell({r:rowIdx,c:5}), {
       font:  { bold: true, sz: 10, color: { rgb: '059669' }, name: '맑은 고딕' },
       fill:  { patternType: 'solid', fgColor: { rgb: bgColor } },
       alignment: { horizontal: 'right', vertical: 'center' },
@@ -1073,7 +1088,7 @@ function exportExcel() {
       numFmt: '#,##0',
     });
     // Day Total 강조
-    applyStyle(wsPT, XLSX.utils.encode_cell({r:rowIdx,c:8}), {
+    applyStyle(wsPT, XLSX.utils.encode_cell({r:rowIdx,c:7}), {
       font:  { bold: true, sz: 10, color: { rgb: '1D4ED8' }, name: '맑은 고딕' },
       fill:  { patternType: 'solid', fgColor: { rgb: 'DBEAFE' } },
       alignment: { horizontal: 'center', vertical: 'center' },
@@ -1094,7 +1109,7 @@ function exportExcel() {
     alignment: { horizontal: 'left', vertical: 'center' },
     border: BORDER_MEDIUM,
   });
-  [1,2,6,8].forEach(ci => {
+  [1,5,7].forEach(ci => {
     applyStyle(wsPT, XLSX.utils.encode_cell({r:ptSumRow,c:ci}), {
       font:  { bold: true, sz: 13, color: { rgb: 'FCD34D' }, name: '맑은 고딕' },
       fill:  { patternType: 'solid', fgColor: { rgb: '1E3A5F' } },
@@ -1112,7 +1127,7 @@ function exportExcel() {
 //  유틸
 // ════════════════════════════════════════════
 function escHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
 </body>
