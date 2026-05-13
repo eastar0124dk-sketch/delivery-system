@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script>window.AUTH_REQUIRE="admin";</script>
+  <script src="auth-guard.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>DN Line Count 매크로</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;font-size:13px;display:flex;min-height:100vh;}
+    #sidebar{flex-shrink:0;}
+    .main-wrap{flex:1;min-width:0;}
+    .wrap{padding:24px 28px;max-width:980px;margin:0 auto;}
+    .card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:22px;margin-bottom:18px;}
+    .card-title{font-size:15px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;align-items:center;gap:8px;
+                padding-bottom:10px;border-bottom:2px solid #f0f4f8;}
+    .card-title i{color:#6366f1;}
+
+    /* 드롭존 */
+    .dropzone{border:2.5px dashed #cbd5e1;border-radius:14px;padding:38px 20px;text-align:center;cursor:pointer;
+              transition:all .18s;background:#fafbfc;}
+    .dropzone:hover, .dropzone.dragover{border-color:#6366f1;background:#eef2ff;}
+    .dropzone .icon{font-size:42px;color:#94a3b8;margin-bottom:10px;}
+    .dropzone:hover .icon, .dropzone.dragover .icon{color:#6366f1;}
+    .dropzone .lbl{font-size:14px;font-weight:700;color:#334155;}
+    .dropzone .sub{font-size:11px;color:#94a3b8;margin-top:5px;}
+    .dropzone input{display:none;}
+
+    .btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;font-family:inherit;
+         cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .12s;}
+    .btn:disabled{opacity:.45;cursor:not-allowed;}
+    .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;}
+    .btn-primary:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(102,126,234,.4);}
+    .btn-green{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+    .btn-green:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(16,185,129,.4);}
+    .btn-gray{background:#e2e8f0;color:#475569;}
+
+    .info-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f8fafc;border-radius:10px;margin-top:12px;}
+    .info-row .fname{flex:1;font-weight:700;color:#0f172a;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .info-row .fsize{font-size:11px;color:#94a3b8;}
+
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0 0;}
+    .stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;}
+    .stat .lbl{font-size:11px;color:#64748b;font-weight:600;}
+    .stat .val{font-size:18px;font-weight:800;color:#1e293b;margin-top:3px;}
+
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-top:14px;}
+    th{background:#1e293b;color:#e2e8f0;padding:8px;text-align:center;font-weight:700;}
+    td{padding:7px 8px;text-align:center;border-bottom:1px solid #e2e8f0;}
+    tr:hover td{background:#f8fafc;}
+    .sec-title{font-size:13px;font-weight:700;color:#475569;margin:18px 0 6px;display:flex;align-items:center;gap:6px;}
+
+    .note{font-size:11px;color:#64748b;background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:10px 14px;margin-top:12px;}
+    .note b{color:#854d0e;}
+
+    .toast{position:fixed;top:80px;right:20px;padding:12px 18px;border-radius:10px;
+           box-shadow:0 4px 16px rgba(0,0,0,.15);font-size:13px;font-weight:700;z-index:9999;display:none;color:#fff;}
+    .toast.success{background:#10b981;}.toast.error{background:#ef4444;}
+  </style>
+</head>
+<body>
+<script src="hub-nav.js"></script>
+<div id="sidebar"></div>
+
+<main class="hub-main">
+  <h1 class="hub-page-title">⚡ DN Line Count 매크로 변환</h1>
+
+  <div class="wrap">
+
+    <div class="card">
+      <div class="card-title"><i class="fas fa-file-upload"></i> 엑셀 파일 업로드</div>
+      <label class="dropzone" id="dropzone">
+        <div class="icon"><i class="fas fa-cloud-upload-alt"></i></div>
+        <div class="lbl">엑셀 파일을 끌어다 놓거나 클릭하세요</div>
+        <div class="sub">.xlsx / .xlsm / .xls — 첫 시트 또는 "RawData" 시트를 자동 인식</div>
+        <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls">
+      </label>
+      <div class="info-row" id="fileInfo" style="display:none;">
+        <i class="fas fa-file-excel" style="color:#10b981;font-size:18px;"></i>
+        <span class="fname" id="fileName">—</span>
+        <span class="fsize" id="fileSize">—</span>
+        <button class="btn btn-gray" onclick="clearFile()" style="padding:5px 10px;font-size:11px;">✕</button>
+      </div>
+      <div class="note">
+        <b>📋 매크로 규칙</b> &nbsp;<code>Delivery</code> · <code>Actual delivery qty</code> · <code>Receiving SLOC</code> 헤더를 자동 인식 →
+        <b>허용 SLOC</b>(1000 / 1002 / 1003 / 1004 / 1008 / 1009)에 해당하는 라인만 카운트 →
+        Summary 시트로 DN별 라인수 + SLOC별 라인수 출력
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+        <button class="btn btn-primary" id="btnRun" onclick="runMacro()" disabled>
+          <i class="fas fa-bolt"></i> 변환 실행
+        </button>
+        <button class="btn btn-green" id="btnDl" onclick="downloadResult()" disabled>
+          <i class="fas fa-download"></i> 결과 엑셀 다운로드
+        </button>
+      </div>
+    </div>
+
+    <div class="card" id="resultCard" style="display:none;">
+      <div class="card-title"><i class="fas fa-chart-bar"></i> 변환 결과 미리보기</div>
+      <div class="stats" id="statsRow"></div>
+
+      <div class="sec-title"><i class="fas fa-list-ol"></i> DN별 라인 수</div>
+      <div style="max-height:300px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">
+        <table>
+          <thead><tr><th style="width:40px;">#</th><th>DN</th><th style="width:90px;">Line Count</th></tr></thead>
+          <tbody id="dnTbody"></tbody>
+        </table>
+      </div>
+
+      <div class="sec-title"><i class="fas fa-warehouse"></i> SLOC별 라인 수</div>
+      <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+        <table>
+          <thead><tr><th>Allowed SLOC</th><th style="width:90px;">Line Count</th></tr></thead>
+          <tbody id="slocTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script>
+  initNav('dn_macro.html');
+
+  const ALLOWED_SLOC = ['1000','1002','1003','1004','1008','1009'];
+  let inputWB = null, inputFileName = '';
+  let resultData = null; // {dnCounts: {dn:cnt}, slocCounts: {sloc:cnt}}
+
+  /* ── 파일 업로드 UI ── */
+  const dz = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); }));
+  dz.addEventListener('drop', e => {
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+  fileInput.addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) handleFile(f);
+  });
+
+  function handleFile(file) {
+    inputFileName = file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        inputWB = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        document.getElementById('fileInfo').style.display = 'flex';
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatSize(file.size);
+        document.getElementById('btnRun').disabled = false;
+        document.getElementById('btnDl').disabled = true;
+        document.getElementById('resultCard').style.display = 'none';
+        toast(`✅ "${file.name}" 로드 완료`);
+      } catch (err) {
+        toast('파일 읽기 실패: ' + err.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function clearFile() {
+    inputWB = null; resultData = null; inputFileName = '';
+    fileInput.value = '';
+    document.getElementById('fileInfo').style.display = 'none';
+    document.getElementById('btnRun').disabled = true;
+    document.getElementById('btnDl').disabled = true;
+    document.getElementById('resultCard').style.display = 'none';
+  }
+
+  /* ── 매크로 변환 (VBA CountLinesByDN 포팅) ── */
+  function runMacro() {
+    if (!inputWB) return;
+    try {
+      // 시트 선택: "RawData" 우선, 없으면 첫 시트
+      let sheetName = inputWB.SheetNames.find(n => n.toLowerCase() === 'rawdata');
+      if (!sheetName) sheetName = inputWB.SheetNames[0];
+      const ws = inputWB.Sheets[sheetName];
+      if (!ws) { toast('시트를 찾을 수 없습니다.', 'error'); return; }
+
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      if (!rows.length) { toast('시트가 비어 있습니다.', 'error'); return; }
+
+      const headers = rows[0].map(h => String(h || '').trim().toLowerCase());
+      const idxDN   = headers.indexOf('delivery');
+      const idxQty  = headers.indexOf('actual delivery qty');
+      const idxSLOC = headers.indexOf('receiving sloc');
+
+      if (idxDN < 0)   { toast("헤더 'Delivery' 를 찾을 수 없습니다.", 'error'); return; }
+      if (idxQty < 0)  { toast("헤더 'Actual delivery qty' 를 찾을 수 없습니다.", 'error'); return; }
+      if (idxSLOC < 0) { toast("헤더 'Receiving SLOC' 를 찾을 수 없습니다.", 'error'); return; }
+
+      const allowed = new Set(ALLOWED_SLOC);
+      const dnCounts = {};
+      const slocCounts = {};
+
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r] || [];
+        const dn   = String(row[idxDN]   ?? '').trim();
+        const qty  = String(row[idxQty]  ?? '').trim();
+        const sloc = String(row[idxSLOC] ?? '').trim();
+        if (!dn || !qty) continue;
+        if (!allowed.has(sloc)) continue;
+        dnCounts[dn]     = (dnCounts[dn]     || 0) + 1;
+        slocCounts[sloc] = (slocCounts[sloc] || 0) + 1;
+      }
+
+      resultData = { dnCounts, slocCounts, sourceSheet: sheetName };
+      renderPreview();
+      document.getElementById('btnDl').disabled = false;
+      document.getElementById('resultCard').style.display = 'block';
+
+      const dnTotal = Object.keys(dnCounts).length;
+      if (!dnTotal) toast('필터 후 유효 데이터가 없습니다.', 'error');
+      else          toast(`✅ ${dnTotal}개 DN 집계 완료`);
+    } catch (err) {
+      console.error(err);
+      toast('변환 실패: ' + err.message, 'error');
+    }
+  }
+
+  function renderPreview() {
+    const { dnCounts, slocCounts } = resultData;
+    const dnList = Object.keys(dnCounts).sort();
+    const totalLines = dnList.reduce((s,k) => s + dnCounts[k], 0);
+
+    // 통계
+    document.getElementById('statsRow').innerHTML = `
+      <div class="stat"><div class="lbl">DN 건수</div><div class="val">${dnList.length}</div></div>
+      <div class="stat"><div class="lbl">총 라인 수</div><div class="val">${totalLines}</div></div>
+      <div class="stat"><div class="lbl">평균 라인/DN</div><div class="val">${dnList.length ? (totalLines/dnList.length).toFixed(1) : '0'}</div></div>
+      <div class="stat"><div class="lbl">출처 시트</div><div class="val" style="font-size:13px;">${resultData.sourceSheet}</div></div>
+    `;
+
+    // DN 테이블
+    document.getElementById('dnTbody').innerHTML = dnList.map((dn,i) =>
+      `<tr><td style="color:#94a3b8;">${i+1}</td><td><strong>${dn}</strong></td><td><strong>${dnCounts[dn]}</strong></td></tr>`
+    ).join('') || `<tr><td colspan="3" style="color:#94a3b8;padding:20px;">결과 없음</td></tr>`;
+
+    // SLOC 테이블 (허용 SLOC 전체 표시, 없는 건 0)
+    document.getElementById('slocTbody').innerHTML = ALLOWED_SLOC.map(s =>
+      `<tr><td><strong>${s}</strong></td><td>${slocCounts[s] || 0}</td></tr>`
+    ).join('');
+  }
+
+  /* ── 결과 엑셀 다운로드 ── */
+  function downloadResult() {
+    if (!resultData) return;
+    const { dnCounts, slocCounts } = resultData;
+    const dnList = Object.keys(dnCounts).sort();
+
+    // Summary 시트 데이터 — 원본 매크로 출력 형식 (A:DN B:LineCount D:Allowed SLOC E:LineCount)
+    const aoa = [['DN', 'Line Count', '', 'Allowed SLOC', 'Line Count']];
+    const maxRows = Math.max(dnList.length, ALLOWED_SLOC.length);
+    for (let i = 0; i < maxRows; i++) {
+      const dn  = dnList[i]   ?? '';
+      const cnt = dn ? dnCounts[dn] : '';
+      const sl  = ALLOWED_SLOC[i] ?? '';
+      const sc  = sl ? (slocCounts[sl] || 0) : '';
+      aoa.push([dn, cnt, '', sl, sc]);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [
+      { wch: 16 }, { wch: 12 }, { wch: 3 }, { wch: 14 }, { wch: 12 }
+    ];
+
+    // 헤더 스타일
+    ['A1','B1','D1','E1'].forEach(c => {
+      if (!ws[c]) ws[c] = { t: 's', v: '' };
+      ws[c].s = {
+        font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11, name: '맑은 고딕' },
+        fill: { patternType: 'solid', fgColor: { rgb: '1E3A8A' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top:    { style:'thin', color:{rgb:'1E3A8A'} },
+          bottom: { style:'thin', color:{rgb:'1E3A8A'} },
+          left:   { style:'thin', color:{rgb:'1E3A8A'} },
+          right:  { style:'thin', color:{rgb:'1E3A8A'} },
+        }
+      };
+    });
+    // 데이터 셀 테두리 + 정렬
+    for (let r = 2; r <= aoa.length; r++) {
+      ['A','B','D','E'].forEach(col => {
+        const addr = col + r;
+        if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+        ws[addr].s = {
+          font: { sz: 11, name: '맑은 고딕' },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          border: {
+            top:    { style:'thin', color:{rgb:'CBD5E0'} },
+            bottom: { style:'thin', color:{rgb:'CBD5E0'} },
+            left:   { style:'thin', color:{rgb:'CBD5E0'} },
+            right:  { style:'thin', color:{rgb:'CBD5E0'} },
+          }
+        };
+      });
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+
+    const base = inputFileName.replace(/\.[^.]+$/, '');
+    const stamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    XLSX.writeFile(wb, `${base}_Summary_${stamp}.xlsx`);
+    toast('✅ 결과 파일 다운로드 완료');
+  }
+
+  /* ── 유틸 ── */
+  function formatSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+    return (b/1024/1024).toFixed(1) + ' MB';
+  }
+  function toast(msg, type='success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.className = 'toast ' + type; el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 2600);
+  }
+</script>
+</body>
+</html>
