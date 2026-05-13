@@ -85,7 +85,7 @@
       </div>
       <div class="note">
         <b>📋 매크로 규칙</b> &nbsp;<code>Delivery</code> · <code>Actual delivery qty</code> · <code>Receiving SLOC</code> 헤더를 자동 인식 →
-        <b>허용 SLOC</b>(1000 / 1002 / 1003 / 1004 / 1008 / 1009)에 해당하는 라인만 카운트 →
+        파일에 기재된 <b>모든 SLOC</b>을 그대로 집계 (필터 없음) →
         Summary 시트로 DN별 라인수 + SLOC별 라인수 출력
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
@@ -197,7 +197,7 @@
       if (idxQty < 0)  { toast("헤더 'Actual delivery qty' 를 찾을 수 없습니다.", 'error'); return; }
       if (idxSLOC < 0) { toast("헤더 'Receiving SLOC' 를 찾을 수 없습니다.", 'error'); return; }
 
-      const allowed = new Set(ALLOWED_SLOC);
+      // 하드코딩 SLOC 필터 제거 — 파일에 기재된 모든 SLOC 그대로 카운트
       const dnCounts = {};
       const slocCounts = {};
 
@@ -207,9 +207,9 @@
         const qty  = String(row[idxQty]  ?? '').trim();
         const sloc = String(row[idxSLOC] ?? '').trim();
         if (!dn || !qty) continue;
-        if (!allowed.has(sloc)) continue;
-        dnCounts[dn]     = (dnCounts[dn]     || 0) + 1;
-        slocCounts[sloc] = (slocCounts[sloc] || 0) + 1;
+        // SLOC 필터 없음: 비어있지 않은 모든 SLOC을 그대로 집계
+        dnCounts[dn] = (dnCounts[dn] || 0) + 1;
+        if (sloc) slocCounts[sloc] = (slocCounts[sloc] || 0) + 1;
       }
 
       resultData = { dnCounts, slocCounts, sourceSheet: sheetName };
@@ -244,10 +244,11 @@
       `<tr><td style="color:#94a3b8;">${i+1}</td><td><strong>${dn}</strong></td><td><strong>${dnCounts[dn]}</strong></td></tr>`
     ).join('') || `<tr><td colspan="3" style="color:#94a3b8;padding:20px;">결과 없음</td></tr>`;
 
-    // SLOC 테이블 (허용 SLOC 전체 표시, 없는 건 0)
-    document.getElementById('slocTbody').innerHTML = ALLOWED_SLOC.map(s =>
-      `<tr><td><strong>${s}</strong></td><td>${slocCounts[s] || 0}</td></tr>`
-    ).join('');
+    // SLOC 테이블 (파일에 기재된 SLOC 전부 — 코드 오름차순)
+    const slocList = Object.keys(slocCounts).sort();
+    document.getElementById('slocTbody').innerHTML = slocList.length
+      ? slocList.map(s => `<tr><td><strong>${s}</strong></td><td>${slocCounts[s]}</td></tr>`).join('')
+      : `<tr><td colspan="2" style="color:#94a3b8;padding:20px;">SLOC 데이터 없음</td></tr>`;
   }
 
   /* ── 결과 엑셀 다운로드 ── */
@@ -256,14 +257,15 @@
     const { dnCounts, slocCounts } = resultData;
     const dnList = Object.keys(dnCounts).sort();
 
-    // Summary 시트 데이터 — 원본 매크로 출력 형식 (A:DN B:LineCount D:Allowed SLOC E:LineCount)
-    const aoa = [['DN', 'Line Count', '', 'Allowed SLOC', 'Line Count']];
-    const maxRows = Math.max(dnList.length, ALLOWED_SLOC.length);
+    // Summary 시트 데이터 — A:DN B:LineCount D:SLOC E:LineCount (파일 기재 SLOC 전부)
+    const slocListAll = Object.keys(slocCounts).sort();
+    const aoa = [['DN', 'Line Count', '', 'SLOC', 'Line Count']];
+    const maxRows = Math.max(dnList.length, slocListAll.length);
     for (let i = 0; i < maxRows; i++) {
       const dn  = dnList[i]   ?? '';
       const cnt = dn ? dnCounts[dn] : '';
-      const sl  = ALLOWED_SLOC[i] ?? '';
-      const sc  = sl ? (slocCounts[sl] || 0) : '';
+      const sl  = slocListAll[i] ?? '';
+      const sc  = sl ? slocCounts[sl] : '';
       aoa.push([dn, cnt, '', sl, sc]);
     }
 
