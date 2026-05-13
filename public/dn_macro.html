@@ -308,6 +308,20 @@
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Summary');
 
+    // 원본 시트도 함께 포함 (더블체크용) — 시트명 그대로 복사
+    try {
+      const srcName = resultData.sourceSheet;
+      const srcWs   = inputWB.Sheets[srcName];
+      if (srcWs) {
+        // 깊은 복사 (참조 공유 방지)
+        const cloned = JSON.parse(JSON.stringify(srcWs));
+        // 사용 시트명 결정: Summary와 충돌하면 RawData로
+        let outName = srcName;
+        if (outName.toLowerCase() === 'summary') outName = 'RawData';
+        XLSX.utils.book_append_sheet(wb, cloned, outName);
+      }
+    } catch (e) { console.warn('원본 시트 복사 실패:', e); }
+
     const base = inputFileName.replace(/\.[^.]+$/, '');
     const stamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
     XLSX.writeFile(wb, `${base}_Summary_${stamp}.xlsx`);
