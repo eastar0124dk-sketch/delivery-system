@@ -982,15 +982,20 @@ function exportExcel() {
               left:{style:'thin',color:{rgb:'BFBFBF'}}, right:{style:'thin',color:{rgb:'BFBFBF'}} }
   });
 
-  const S_TITLE = mkS('1F4E78','FFFFFF',true,14);
+  const CREAM = 'FFFEF0';   // 데이터 행 크림색 배경
+  const S_TITLE = mkS('1F4E78','FFFFFF',true,15);
+  const S_LABEL = mkS('DBEAFE','1E3A8A',true,10,'center');   // 청구연월/입력안내 라벨
+  const S_MONTH = mkS('FEF9C3','854D0E',true,12,'center');   // 연월 값 (노랑)
+  const S_NOTE  = mkS('FFFBEB','C2410C',false,9,'left');     // 안내문(주황 텍스트)
+  const S_GUIDE = mkS('F8FAFC','475569',false,9,'left');     // 입력안내 문구(회색)
   const S_GRP_INFO = mkS('1E293B','FFFFFF',true,11);
   const S_GRP_C    = mkS('1E40AF','FFFFFF',true,11);
   const S_GRP_S    = mkS('B91C1C','FFFFFF',true,11);
   const S_GRP_SUM  = mkS('7C3AED','FFFFFF',true,11);
-  const S_HDR  = mkS('F1F5F9','000000',true,10);
-  const S_TXT  = mkS(null,'000000',false,10);
-  const S_TXTL = mkS(null,'000000',false,10,'left');
-  const S_NUM  = { ...mkS(null,'000000',false,10,'right'), numFmt:'#,##0' };
+  const S_HDR  = mkS('DBEAFE','1E3A8A',true,10);
+  const S_TXT  = mkS(CREAM,'000000',false,10);
+  const S_TXTL = mkS(CREAM,'000000',false,10,'left');
+  const S_NUM  = { ...mkS(CREAM,'000000',false,10,'right'), numFmt:'#,##0' };
   const S_CALC = { ...mkS('F0FDF4','065F46',true,10,'right'), numFmt:'#,##0' };
 
   // 컬럼 헤더 (첨부 양식: 19컬럼)
@@ -1001,13 +1006,21 @@ function exportExcel() {
     '기본운임','추가비용',          // 화주 청구 운임
     '','','','',''                 // 운송사합계/화주합계/차액/Q'ty/비고 (그룹행과 세로병합)
   ];
+  const year = td.getFullYear();
   const aoa = [];
   // Row 1: 제목 (19 cols)
   aoa.push([`메틀러토레도 월별 운송비 청구서`, ...Array(18).fill('')]);
-  // Row 2: 청구기간
-  aoa.push([`청구 기간: ${f} ~ ${t}`, ...Array(18).fill('')]);
-  // Row 3: 빈 줄
-  aoa.push(Array(19).fill(''));
+  // Row 2: 청구 연월 + 안내문
+  const r2 = Array(19).fill('');
+  r2[0] = '청구 연월';
+  r2[2] = `${year}년 ${String(month).padStart(2,'0')}월`;
+  r2[3] = '※ 출발지 상호가 ACT인 경우 도착지(구/군)와 차종을 입력하면 운송사·화주 운임이 자동 조회됩니다. 그 외는 직접 입력하세요.';
+  aoa.push(r2);
+  // Row 3: 입력 안내
+  const r3 = Array(19).fill('');
+  r3[0] = '입력 안내';
+  r3[2] = '노란 셀: 직접 입력  |  초록 셀: 자동 조회(출발지 상호=ACT)  |  출발지 상호가 ACT가 아니면 운임 직접 입력';
+  aoa.push(r3);
   // Row 4: 그룹 헤더
   aoa.push([
     '기본 정보','','','','','','','','',
@@ -1077,8 +1090,11 @@ function exportExcel() {
   const COL = 19;
   // 병합: 제목/청구기간 + 그룹 헤더(가로) + 세로병합 5개 단독 컬럼
   ws['!merges'] = [
-    { s:{r:0,c:0}, e:{r:0,c:COL-1} },
-    { s:{r:1,c:0}, e:{r:1,c:COL-1} },
+    { s:{r:0,c:0}, e:{r:0,c:COL-1} },        // 제목
+    { s:{r:1,c:0}, e:{r:1,c:1} },            // "청구 연월" 라벨
+    { s:{r:1,c:3}, e:{r:1,c:COL-1} },        // 안내문구
+    { s:{r:2,c:0}, e:{r:2,c:1} },            // "입력 안내" 라벨
+    { s:{r:2,c:2}, e:{r:2,c:COL-1} },        // 입력안내 문구
     { s:{r:3,c:0},  e:{r:3,c:8} },    // 기본 정보 (9)
     { s:{r:3,c:9},  e:{r:3,c:10} },   // 운송사 운임 (2)
     { s:{r:3,c:11}, e:{r:4,c:11} },   // 운송사 실제 청구금액 (세로병합)
@@ -1090,21 +1106,26 @@ function exportExcel() {
     { s:{r:3,c:18}, e:{r:4,c:18} },   // 비고 (세로병합)
   ];
 
-  // 1행 제목 / 2행 청구기간 스타일
+  // 1행 제목
   for (let c=0; c<COL; c++) {
     const ref = XLSX.utils.encode_cell({r:0,c}); if (ws[ref]) ws[ref].s = S_TITLE;
-    const ref2 = XLSX.utils.encode_cell({r:1,c}); if (ws[ref2]) ws[ref2].s = mkS(null,'333333',false,11,'left');
   }
+  // 2행: 청구 연월 + 안내문
+  const setS = (r,c,st) => { const ref=XLSX.utils.encode_cell({r,c}); if(ws[ref]) ws[ref].s=st; };
+  setS(1,0,S_LABEL); setS(1,1,S_LABEL); setS(1,2,S_MONTH);
+  for (let c=3;c<COL;c++) setS(1,c,S_NOTE);
+  // 3행: 입력 안내
+  setS(2,0,S_LABEL); setS(2,1,S_LABEL);
+  for (let c=2;c<COL;c++) setS(2,c,S_GUIDE);
   // 그룹 헤더 (4행) — 컬럼별 색상
   // 0-8 기본정보 / 9-10 운송사운임 / 11 실제청구 / 12-13 화주청구 / 14 운송사합계 / 15 화주합계 / 16-18 기타
+  const S_GRP_LBLUE = mkS('BFDBFE','1E3A8A',true,11);   // 운송사 운임/실제청구 (연한 파랑)
+  const S_GRP_ORANGE = mkS('C2703C','FFFFFF',true,11);  // 화주 청구 운임 (주황)
   const grpColorOf = c => {
-    if (c <= 8) return S_GRP_INFO;
-    if (c <= 10) return S_GRP_C;
-    if (c === 11) return mkS('0E7490','FFFFFF',true,11);
-    if (c <= 13) return S_GRP_S;
-    if (c === 14) return S_GRP_C;
-    if (c === 15) return S_GRP_S;
-    return S_GRP_INFO;
+    if (c <= 8) return S_GRP_INFO;       // 기본 정보 (네이비)
+    if (c <= 11) return S_GRP_LBLUE;     // 운송사 운임 + 실제청구 (연파랑)
+    if (c <= 13) return S_GRP_ORANGE;    // 화주 청구 운임 (주황)
+    return S_GRP_INFO;                   // 운송사합계/화주합계/차액/Qty/비고 (네이비)
   };
   for (let c=0; c<COL; c++) {
     const ref = XLSX.utils.encode_cell({r:3,c}); if (ws[ref]) ws[ref].s = grpColorOf(c);
@@ -1144,7 +1165,7 @@ function exportExcel() {
     {wch:11},{wch:10},
     {wch:12},{wch:12},{wch:13},{wch:9},{wch:18}
   ];
-  ws['!rows'] = [{hpt:28},{hpt:18},{hpt:6},{hpt:22},{hpt:32},...rows.map(()=>({hpt:18})),{hpt:24}];
+  ws['!rows'] = [{hpt:30},{hpt:22},{hpt:20},{hpt:24},{hpt:34},...rows.map(()=>({hpt:18})),{hpt:24}];
 
   const wb = { SheetNames:['운송비청구서'], Sheets:{ '운송비청구서': ws } };
   const fname = `메틀러토레도_운송비청구서_${f}_${t}.xlsx`;
