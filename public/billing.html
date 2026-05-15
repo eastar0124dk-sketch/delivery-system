@@ -185,33 +185,6 @@
     </div>
   </div>
 
-  <!-- 차종별 단가 설정 -->
-  <div class="card rate-card">
-    <div class="card-title" style="cursor:pointer;margin-bottom:0;" onclick="toggleRatePanel()">
-      <i class="fas fa-cog"></i> 차종별 운임 단가 설정
-      <span style="margin-left:auto;font-size:11px;color:#a0aec0;" id="rateToggleHint">▼ 펼치기</span>
-    </div>
-    <div id="ratePanel" style="display:none;margin-top:14px;">
-      <p style="font-size:12px;color:#718096;margin-bottom:12px;">차종별 기본 운임을 설정하면 조회 시 자동 적용됩니다.</p>
-      <table class="rate-table" id="rateTable">
-        <thead>
-          <tr>
-            <th style="width:100px;">차종</th>
-            <th style="width:140px;color:#6b46c1;">기본운임 (운송사)</th>
-            <th style="width:140px;color:#c53030;">기본운임 (화주청구)</th>
-            <th style="width:70px;">삭제</th>
-          </tr>
-        </thead>
-        <tbody id="rateTbody"></tbody>
-      </table>
-      <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input type="text" id="newVehicle" placeholder="차종 (예: 1톤)" style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;width:140px;">
-        <button class="btn btn-secondary btn-sm" onclick="addRateRow()"><i class="fas fa-plus"></i> 차종 추가</button>
-        <button class="btn btn-primary btn-sm" onclick="saveRates()"><i class="fas fa-save"></i> 단가 저장</button>
-      </div>
-    </div>
-  </div>
-
   <!-- 초기 안내 -->
   <div class="card" id="initGuide">
     <div class="no-data">
@@ -362,7 +335,7 @@
 
   function initApp(){
     document.getElementById('mainWrap').style.display='block';
-    loadRates(); renderRateTable();
+    loadRates();
     setQuick('thismonth');
     // 화주 드롭다운 초기화
     if(typeof ClientsLib !== 'undefined'){
@@ -459,18 +432,15 @@
   }
   function removeRateRow(vt){ delete rates[vt]; renderRateTable(); }
   function renderRateTable(){
-    document.getElementById('rateTbody').innerHTML=Object.keys(rates).map(vt=>`
+    const tb=document.getElementById('rateTbody');
+    if(!tb) return;  // 차종별 단가 설정 UI 제거됨 — 운임표 메뉴 사용
+    tb.innerHTML=Object.keys(rates).map(vt=>`
       <tr data-vehicle="${vt}">
         <td><strong>${vt}</strong></td>
         <td><input class="inp-c" type="text" value="${(rates[vt].carrier||0).toLocaleString()}" onchange="fmtInput(this)"></td>
         <td><input class="inp-k" type="text" value="${(rates[vt].client||0).toLocaleString()}" onchange="fmtInput(this)"></td>
         <td><button class="btn btn-sm" style="background:#fed7d7;color:#c53030;" onclick="removeRateRow('${vt}')"><i class="fas fa-minus"></i></button></td>
       </tr>`).join('');
-  }
-  function toggleRatePanel(){
-    const p=document.getElementById('ratePanel'),h=document.getElementById('rateToggleHint');
-    p.style.display=p.style.display==='none'?'block':'none';
-    h.textContent=p.style.display==='none'?'▼ 펼치기':'▲ 접기';
   }
   function fmtInput(el){ el.value=(parseInt(el.value.replace(/[^0-9]/g,''))||0).toLocaleString(); }
 
