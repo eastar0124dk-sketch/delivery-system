@@ -784,60 +784,54 @@
     });
   }
 
-  // ── 저장 ──
-  function saveBillingData(){
-    syncDOMtoBillingRows(); // DOM 최신값 반영
-    const from=document.getElementById('dateFrom').value;
-    const to=document.getElementById('dateTo').value;
-    const key=`billing_save_${from}_${to}`;
-    const payload={
-      from, to,
-      billMonth:     document.getElementById('billMonth').value,
-      clientName:    document.getElementById('billClientDisp').value,
-      carrierName:   document.getElementById('carrierName').value,
-      rows:          billingRows,
-      savedAt:       new Date().toLocaleString('ko-KR')
+  // ── 공유 저장소 키/스키마 변환 (운송청구서와 동일 서버 DB 사용) ──
+  function billingPeriodKey(){
+    const f=document.getElementById('dateFrom').value;
+    const t=document.getElementById('dateTo').value;
+    if(!f||!t) return null;
+    return `${f}~${t}`;   // 운송청구서 periodKey()와 동일 포맷
+  }
+  // billing 행 → 공유 서버 스키마(운송청구서 형식)
+  function billingRowToShared(r){
+    const n=v=>parseInt(v)||0;
+    return {
+      no:r.no, date:r.delivery_date||'', dn:r.order_no||'',
+      src:r.origin||'', srcCode:r.origin_name||'',
+      dest:r.district||'', destCode:r.dest_name||'',
+      type:r.content||'', vehicle:r.vehicle_type||'',
+      cBase:n(r.carrier_base), cExtra:n(r.carrier_add), cActual:n(r.cActual),
+      cMemo:r.cMemo||'',
+      sBase:n(r.client_base), sExtra:n(r.client_add),
+      qty:r.quantity||'', memo:r.note||'',
+      _src: r.id ? 'auto' : 'manual'
     };
-    localStorage.setItem(key, JSON.stringify(payload));
-    localStorage.setItem('billing_last_key', key);
-    alert(`저장 완료!\n키: ${key}\n저장 시각: ${payload.savedAt}`);
   }
 
-  // ── 불러오기 ──
-  function loadBillingData(){
-    const lastKey=localStorage.getItem('billing_last_key');
-    // 저장된 목록 표시
-    const keys=Object.keys(localStorage).filter(k=>k.startsWith('billing_save_')).sort().reverse();
-    if(!keys.length){ alert('저장된 청구서 데이터가 없습니다.'); return; }
-
-    const list=keys.map((k,i)=>{
-      try{
-        const d=JSON.parse(localStorage.getItem(k));
-        return `${i+1}. ${d.from}~${d.to}  ${d.clientName||''}  (저장: ${d.savedAt||''})\n   → 키: ${k}`;
-      }catch{return `${i+1}. ${k}`;}
-    }).join('\n');
-
-    const sel=prompt(`불러올 청구서를 선택하세요 (번호 입력):\n\n${list}`);
-    if(!sel) return;
-    const idx=parseInt(sel)-1;
-    if(isNaN(idx)||idx<0||idx>=keys.length){ alert('잘못된 선택입니다.'); return; }
-
+  // ── 저장 (서버 DB — 운송청구서와 공유) ──
+  async function saveBillingData(){
+    syncDOMtoBillingRows();
+    const key=billingPeriodKey();
+    if(!key){ alert('청구 기간을 먼저 설정해 주세요.'); return; }
+    if(!billingRows.length){ alert('저장할 데이터가 없습니다.'); return; }
+    const sharedRows=billingRows.map(billingRowToShared);
     try{
-      const d=JSON.parse(localStorage.getItem(keys[idx]));
-      billingRows=d.rows||[];
-      document.getElementById('dateFrom').value=d.from||'';
-      document.getElementById('dateTo').value=d.to||'';
-      document.getElementById('billMonth').value=d.billMonth||'';
-      document.getElementById('billClientDisp').value=d.clientName||'';
-      document.getElementById('carrierName').value=d.carrierName||'';
-      document.getElementById('billTitleMain').textContent=(d.clientName||'화주')+' 월별 운송비 청구서';
-      document.getElementById('initGuide').style.display='none';
-      document.getElementById('billingSection').style.display='block';
-      document.getElementById('resultCount').textContent=billingRows.length;
-      renderBillingTable();
-      updateSummary();
-      alert(`불러오기 완료: ${d.from}~${d.to} (${billingRows.length}건)`);
-    }catch(e){ alert('불러오기 실패: 데이터가 손상되었습니다.'); }
+      const res=await fetch('/api/mettler-transport/'+encodeURIComponent(key),{
+        method:'PUT', headers:authH(),
+        body:JSON.stringify({ data:sharedRows, meta:{ carrier:document.getElementById('carrierName').value } })
+      });
+      if(!res.ok){ const t=await res.text(); throw new Error(`HTTP ${res.status}: ${t.slice(0,80)}`); }
+      alert(`저장 완료! (${billingRows.length}건)\n운송청구서와 동일한 서버에 저장되어 양쪽에서 공유됩니다.`);
+    }catch(e){
+      alert('저장 실패: '+(e.message||'알 수 없는 오류'));
+    }
+  }
+
+  // ── 불러오기 (현재 기간 서버 데이터 재조회) ──
+  function loadBillingData(){
+    if(!document.getElementById('dateFrom').value||!document.getElementById('dateTo').value){
+      alert('청구 기간을 먼저 설정해 주세요.'); return;
+    }
+    loadBilling();  // 서버 저장본 포함 재조회
   }
 
   // ── 주소에서 구/군/시 추출 ──
@@ -974,40 +968,59 @@
       }
     });
 
-    // ── 저장된 수정값 복원 ──────────────────────────────────────────
-    // 같은 기간에 저장된 데이터가 있으면 order_no 기준으로 운임값 자동 병합
-    const savedKey=`billing_save_${from}_${to}`;
+    // ── 저장본 복원 (서버 DB — 운송청구서와 공유) ──────────────────
+    // 운임 기본값은 항상 최신 운임표 자동계산값 우선, 수동 입력값만 저장본에서 복원
+    const _periodK = `${from}~${to}`;
     try{
-      const savedRaw=localStorage.getItem(savedKey);
-      if(savedRaw){
-        const savedData=JSON.parse(savedRaw);
-        const savedRows=savedData.rows||[];
-        // DB 행: order_no 매칭으로 저장된 운임/비고 복원
+      const _res = await fetch('/api/mettler-transport/'+encodeURIComponent(_periodK),{headers:authH()});
+      const _j = await _res.json();
+      const savedRows = _j.data || [];
+      if(savedRows.length){
+        const n = v => parseInt(v)||0;
         billingRows.forEach(row=>{
-          const sv=savedRows.find(s=>s.order_no&&s.order_no===row.order_no);
-          if(sv){
-            // ?? 대신 > 0 체크: 저장값 0이 정상 운임을 덮어쓰는 버그 방지
-            if(sv.carrier_base>0) row.carrier_base=sv.carrier_base;
-            if(sv.carrier_add >0) row.carrier_add =sv.carrier_add;
-            if(sv.client_base >0) row.client_base =sv.client_base;
-            if(sv.client_add  >0) row.client_add  =sv.client_add;
-            if(sv.note)           row.note        =sv.note;
-            // 텍스트 필드도 복원 (수동 수정된 경우)
-            if(sv.origin)       row.origin      =sv.origin;
-            if(sv.origin_name)  row.origin_name =sv.origin_name;
-            // district는 자동 매칭된 값을 우선 (저장값이 운임표에 없으면 자동값 유지)
-            if(sv.district && lookupRate(sv.district, row.vehicle_type)) row.district = sv.district;
-            if(sv.dest_name)    row.dest_name   =sv.dest_name;
-            if(sv.content)      row.content     =sv.content;
-            if(sv.vehicle_type) row.vehicle_type=sv.vehicle_type;
+          const sv = savedRows.find(s=>s.dn && s.dn===row.order_no);
+          if(!sv) return;
+          // (a) 사용자 수동 입력 필드 복원
+          if(sv.cExtra  != null && sv.cExtra  !== '') row.carrier_add = n(sv.cExtra);
+          if(sv.sExtra  != null && sv.sExtra  !== '') row.client_add  = n(sv.sExtra);
+          if(sv.cActual != null && sv.cActual !== '') row.cActual     = n(sv.cActual);
+          if(sv.cMemo)  row.cMemo = sv.cMemo;
+          if(sv.memo)   row.note  = sv.memo;
+          if(sv.qty)    row.quantity = sv.qty;
+          if(sv.type)   row.content = sv.type;
+          if(sv.vehicle) row.vehicle_type = sv.vehicle;
+          if(sv.src)     row.origin = sv.src;
+          if(sv.srcCode) row.origin_name = sv.srcCode;
+          if(sv.destCode) row.dest_name = sv.destCode;
+          // 도착지는 저장값이 운임표에 매칭될 때만 복원
+          if(sv.dest && lookupRate(sv.dest, row.vehicle_type)) row.district = sv.dest;
+          // (b) 운임 기본값은 최신 운임표 재계산 우선
+          const found = lookupRate(row.district, row.vehicle_type);
+          if(found){ row.carrier_base = found.carrier; row.client_base = found.client; row.rate_matched = true; }
+          else {
+            if(n(sv.cBase)>0) row.carrier_base = n(sv.cBase);
+            if(n(sv.sBase)>0) row.client_base  = n(sv.sBase);
           }
         });
-        // 수동 추가 행(id=null) 복원
-        savedRows.filter(s=>s.id===null).forEach(s=>{
-          billingRows.push({...s, no:billingRows.length+1});
+        // 저장본에만 있는 수동 입력행 추가
+        savedRows.forEach(sv=>{
+          if(billingRows.some(row=>row.order_no && row.order_no===sv.dn)) return;
+          const found = lookupRate(sv.dest, sv.vehicle);
+          billingRows.push({
+            no:billingRows.length+1, id:null,
+            delivery_date:sv.date||'', order_no:sv.dn||'',
+            origin:sv.src||'', origin_name:sv.srcCode||'',
+            district:sv.dest||'', dest_name:sv.destCode||'',
+            content:sv.type||'', vehicle_type:sv.vehicle||'',
+            carrier_base: found?found.carrier:n(sv.cBase), carrier_add:n(sv.cExtra),
+            client_base:  found?found.client :n(sv.sBase), client_add :n(sv.sExtra),
+            cActual:n(sv.cActual), cMemo:sv.cMemo||'',
+            quantity:sv.qty||'', note:sv.memo||'',
+            rate_matched:!!found, rate_info: found?`${found.sido} ${found.matched}`:''
+          });
         });
       }
-    }catch(e){}
+    }catch(e){ console.warn('저장본 로드 실패:', e); }
 
     // 차량사용일(delivery_date) 오름차순 + 같은 날짜는 id 오름차순 (등록 순서)
     billingRows.sort((a,b) => {
