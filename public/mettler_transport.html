@@ -641,25 +641,32 @@ async function loadBilling() {
       return row;
     });
 
-    // 3) 서버 저장본의 수동 수정값(메모, 비고, 추가 청구금액) 병합
-    //    DN(order_no) 기준 매칭, 자동계산값(cBase/sBase)은 덮어쓰지 않음
+    // 3) 서버 저장본 병합 — DN 기준 매칭 시 저장된 모든 편집값 복원
+    //    (사용자가 저장한 행은 저장본이 source of truth, 자동계산 결과를 덮어씀)
     if (serverRows.length) {
       let merged = 0;
+      // 매칭에 사용된 저장본 DN 추적 → 저장본에만 있는 행(삭제된 오더 등)도 유지
+      const usedDN = new Set();
       rows.forEach(row => {
-        const sv = serverRows.find(s => s.dn && s.dn === row.dn);
+        const sv = serverRows.find(s => s.dn && s.dn === row.dn && !usedDN.has(s));
         if (sv) {
-          if (sv.memo)    row.memo    = sv.memo;
-          if (sv.cMemo)   row.cMemo   = sv.cMemo;
-          if (sv.qty)     row.qty     = sv.qty;
-          if (sv.cActual) row.cActual = sv.cActual;
-          // 사용자가 직접 수정한 운임이 있으면 보존 (work_fee와 다른 값)
-          // 단 자동매칭값이 0인데 저장값이 있으면 사용
-          if (sv.cBase > 0 && row.cBase === 0) row.cBase = sv.cBase;
-          if (sv.sBase > 0 && row.sBase === 0) row.sBase = sv.sBase;
+          usedDN.add(sv);
+          // 저장본의 모든 편집 필드를 복원 (no, _src 제외)
+          Object.keys(sv).forEach(k => {
+            if (k === 'no' || k === '_src') return;
+            row[k] = sv[k];
+          });
           merged++;
         }
       });
-      console.log(`[병합] 저장본 ${serverRows.length}건 중 ${merged}건 병합`);
+      // 저장본에만 있고 fresh 오더에는 없는 행 추가 (수동 입력행 보존)
+      serverRows.forEach(sv => {
+        if (!usedDN.has(sv)) {
+          rows.push({ ...sv, no: rows.length + 1, _src: sv._src || 'manual' });
+        }
+      });
+      renumber();
+      console.log(`[병합] 저장본 ${serverRows.length}건 중 ${merged}건 병합, 추가 ${serverRows.length - merged}건`);
     }
 
     renderRows();
@@ -708,9 +715,11 @@ function isActSource(srcCode) {
 // 도착지/차종/출발지번호 변경 시 자동계산
 function autoCalcRow(row) {
   if (!row) return;
-  if (!isActSource(row.srcCode)) return;
-  row.cBase = lookupRate(row.dest, row.vehicle, 'carrier');
-  row.sBase = lookupRate(row.dest, row.vehicle, 'shipper');
+  // billing.html과 동일 — ACT 여부와 무관하게 도착지(구/군)+차종으로 운임 자동조회
+  const cb = lookupRate(row.dest, row.vehicle, 'carrier');
+  const sb = lookupRate(row.dest, row.vehicle, 'shipper');
+  if (cb > 0) row.cBase = cb;
+  if (sb > 0) row.sBase = sb;
 }
 
 /* ════════ 셀 변경 핸들러 ════════ */
@@ -931,6 +940,34 @@ function exportExcel() {
   ]);
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // ── 수식 삽입: 합계/차액은 값이 아닌 수식으로 출력 (엑셀에서 금액 수정 시 자동 재계산) ──
+  // 컬럼: J=기본운임(운송사) K=추가비용(운송사) L=실제청구 M=기본운임(화주) N=추가비용(화주)
+  //       O=운송사합계 P=화주합계 Q=차액
+  const firstDataRow = 6;                     // 엑셀 1-based 첫 데이터 행
+  const lastDataRow  = 5 + rows.length;       // 엑셀 1-based 마지막 데이터 행
+  rows.forEach((r, ri) => {
+    const xlRow = firstDataRow + ri;          // 엑셀 1-based 행번호
+    const sheetR = 5 + ri;                    // SheetJS 0-based 행 인덱스
+    const cBaseN = num(r.cBase) || 0, cExtraN = num(r.cExtra) || 0;
+    const sBaseN = num(r.sBase) || 0, sExtraN = num(r.sExtra) || 0;
+    // O 운송사합계 = J + K
+    ws[XLSX.utils.encode_cell({r:sheetR,c:14})] = { t:'n', f:`J${xlRow}+K${xlRow}`, v:cBaseN+cExtraN };
+    // P 화주합계 = M + N
+    ws[XLSX.utils.encode_cell({r:sheetR,c:15})] = { t:'n', f:`M${xlRow}+N${xlRow}`, v:sBaseN+sExtraN };
+    // Q 차액 = P - O
+    ws[XLSX.utils.encode_cell({r:sheetR,c:16})] = { t:'n', f:`P${xlRow}-O${xlRow}`, v:(sBaseN+sExtraN)-(cBaseN+cExtraN) };
+  });
+  // 합계 행 수식 (SUM)
+  if (rows.length) {
+    const totRow = 6 + rows.length;           // 엑셀 1-based 합계행
+    const totR   = 5 + rows.length;           // SheetJS 0-based
+    ws[XLSX.utils.encode_cell({r:totR,c:11})] = { t:'n', f:`SUM(L${firstDataRow}:L${lastDataRow})`, v:totalActual };
+    ws[XLSX.utils.encode_cell({r:totR,c:14})] = { t:'n', f:`SUM(O${firstDataRow}:O${lastDataRow})`, v:totalC };
+    ws[XLSX.utils.encode_cell({r:totR,c:15})] = { t:'n', f:`SUM(P${firstDataRow}:P${lastDataRow})`, v:totalS };
+    ws[XLSX.utils.encode_cell({r:totR,c:16})] = { t:'n', f:`P${totRow}-O${totRow}`, v:totalDiff };
+  }
+
   // 셀 스타일 적용
   const COL = 19;
   // 병합: 제목/청구기간 + 그룹 헤더(가로) + 세로병합 5개 단독 컬럼
