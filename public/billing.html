@@ -730,6 +730,10 @@
 
   // ── 저장 전 DOM 값 동기화 ──
   function syncDOMtoBillingRows(){
+    // 포커스된 입력의 onchange 미발화 방지
+    if(document.activeElement && (document.activeElement.tagName==='INPUT' || document.activeElement.tagName==='SELECT')){
+      try{ document.activeElement.blur(); }catch(_){}
+    }
     const tbody = document.getElementById('billingTbody');
     if(!tbody) return;
     billingRows.forEach((r,i)=>{

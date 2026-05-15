@@ -980,8 +980,34 @@ function renderRows() {
   `;
 }
 
+/* ════════ DOM → rows 강제 동기화 (저장 직전 호출) ════════
+   사용자가 입력 칸에서 포커스를 빼기 전(=onchange 미발화) 저장 버튼을 눌러도
+   현재 DOM의 모든 값을 rows에 반영해 데이터 손실을 방지 */
+function syncRowsFromDOM() {
+  // 현재 포커스된 입력의 onchange가 늦게 발화되는 것 방지
+  if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT')) {
+    try { document.activeElement.blur(); } catch(_) {}
+  }
+  const tbody = document.getElementById('billBody');
+  if (!tbody) return;
+  // 행 렌더링 순서와 동일 (renderRows 참조)
+  const FIELDS = ['date','dn','src','srcCode','dest','destCode','type','vehicle','cBase','cExtra','cActual','sBase','sExtra','qty','memo'];
+  const NUM_FIELDS = new Set(['cBase','cExtra','cActual','sBase','sExtra']);
+  tbody.querySelectorAll('tr').forEach((tr, idx) => {
+    if (!rows[idx]) return;
+    const inputs = tr.querySelectorAll('input, select');
+    inputs.forEach((el, i) => {
+      const f = FIELDS[i];
+      if (!f) return;
+      const v = el.value;
+      rows[idx][f] = NUM_FIELDS.has(f) ? num(v) : v;
+    });
+  });
+}
+
 /* ════════ 저장 ════════ */
 async function saveBilling() {
+  syncRowsFromDOM();   // 저장 직전 DOM의 현재 입력값을 모두 rows에 반영
   const key = periodKey();
   if (!key) { toast('청구 기간을 선택해주세요.', 'error'); return; }
   if (!rows.length) { toast('저장할 데이터가 없습니다.', 'error'); return; }
