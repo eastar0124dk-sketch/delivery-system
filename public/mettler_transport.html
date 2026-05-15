@@ -875,9 +875,19 @@ async function loadBilling() {
           rows.push({ ...sv, no: rows.length + 1, _src: sv._src || 'manual' });
         }
       });
-      renumber();
       console.log(`[병합] 저장본 ${serverRows.length}건 중 ${merged}건 병합, 추가 ${serverRows.length - merged}건`);
     }
+
+    // 차량사용일 오름차순 최종 정렬 (자동/수동 무관하게 날짜 순서대로)
+    rows.sort((a, b) => {
+      const da = (a.date || '').slice(0,10);
+      const db = (b.date || '').slice(0,10);
+      if (da !== db) return da.localeCompare(db);
+      // 같은 날짜는 자동(orders 원본 순서) 먼저, 그 다음 수동
+      if (a._src !== b._src) return a._src === 'auto' ? -1 : 1;
+      return 0;
+    });
+    renumber();
 
     renderRows();
     if (rows.length) {
