@@ -268,6 +268,9 @@
         <button class="btn btn-sm" style="background:linear-gradient(135deg,#f6ad55,#ed8936);color:#fff;" onclick="autoCalcAll()" title="운임표 기준으로 기본운임 자동계산">
           <i class="fas fa-calculator"></i> 운임 자동계산
         </button>
+        <button class="btn btn-sm" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;" onclick="openRateLookup()">
+          <i class="fas fa-search-dollar"></i> 운임 조회
+        </button>
         <button class="btn btn-sm" style="background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff;" onclick="openRateModal()">
           <i class="fas fa-table"></i> 운임표
         </button>
@@ -1332,6 +1335,64 @@
   }
 
   checkAuth();
+
+  // ── 운임 조회 (도착지 인식 오류 시 빠른 확인) ────────────────────────
+  function openRateLookup() {
+    const html = `
+    <div id="rateLookupModal" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px;overflow:auto;">
+      <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 12px 48px rgba(0,0,0,.25);overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#0ea5e9,#0284c7);padding:16px 22px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="color:#fff;font-size:16px;font-weight:700;"><i class="fas fa-search-dollar" style="margin-right:8px;"></i>운임 조회</div>
+          <button onclick="document.getElementById('rateLookupModal').remove()" style="background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">✕</button>
+        </div>
+        <div style="padding:18px 22px;">
+          <div style="display:flex;gap:8px;margin-bottom:6px;">
+            <input id="rlInput" type="text" placeholder="시/군/구 또는 주소 입력 (예: 강동구, 경기도 용인시)"
+              style="flex:1;padding:10px 12px;border:1.5px solid #cbd5e0;border-radius:8px;font-size:14px;font-family:inherit;"
+              onkeydown="if(event.key==='Enter')doRateLookup()">
+            <button onclick="doRateLookup()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0 18px;cursor:pointer;font-weight:700;font-size:14px;">조회</button>
+          </div>
+          <div style="font-size:11px;color:#94a3b8;margin-bottom:12px;">운임표와 동일하게 정규화·별칭 매칭됩니다 (수정값 반영)</div>
+          <div id="rlResult"></div>
+        </div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    setTimeout(() => document.getElementById('rlInput').focus(), 50);
+  }
+
+  function doRateLookup() {
+    const VT = ['다마스','1톤','2.5톤','5톤','11톤'];
+    const raw = document.getElementById('rlInput').value.trim();
+    const box = document.getElementById('rlResult');
+    if (!raw) { box.innerHTML = '<div style="color:#ef4444;font-size:13px;">시군구를 입력하세요.</div>'; return; }
+
+    let rowsHtml = '', anyMatch = false, matchedName = '';
+    VT.forEach(vt => {
+      const found = lookupRate(raw, vt);
+      const c = found ? found.carrier : 0;
+      const k = found ? found.client : 0;
+      if (found) { anyMatch = true; if (!matchedName) matchedName = `${found.sido} ${found.matched}`; }
+      rowsHtml += `<tr>
+        <td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">${vt}</td>
+        <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:right;color:#1e40af;font-weight:700;">${c>0?c.toLocaleString():'-'}</td>
+        <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:right;color:#166534;font-weight:700;">${k>0?k.toLocaleString():'-'}</td>
+      </tr>`;
+    });
+    box.innerHTML = `
+      <div style="font-size:13px;margin-bottom:8px;">
+        입력 <b>"${raw}"</b> → ${anyMatch ? `인식 시군구 <b style="color:#0284c7;">${matchedName}</b>` : '<b style="color:#ef4444;">운임표 미매칭</b>'}
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr>
+          <th style="padding:8px;border:1px solid #cbd5e0;background:#f1f5f9;">차종</th>
+          <th style="padding:8px;border:1px solid #cbd5e0;background:#ebf4ff;color:#1e40af;">운송사 운임</th>
+          <th style="padding:8px;border:1px solid #cbd5e0;background:#f0fff4;color:#166534;">화주 청구 운임</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      ${anyMatch ? '' : '<div style="font-size:12px;color:#d97706;margin-top:8px;">⚠ 별칭/구·동명을 다르게 입력하거나 시 이름(예: 용인, 화성)으로 시도해보세요.</div>'}`;
+  }
 
   // ── 운임표 팝업 ──────────────────────────────────────────────────────
   const RATE_OVERRIDE_KEY = 'rate_override';
