@@ -1043,6 +1043,30 @@ class Handler(BaseHTTPRequestHandler):
             rows = db_fetchall('SELECT period_key, updated_at FROM mettler_transport_billing ORDER BY period_key DESC')
             return self.send_json({'data': rows})
 
+        # ── 모든 기간의 저장본을 DN 단위로 평탄화 (최신 updated_at 우선) ──
+        if path == '/api/mettler-transport-by-dn':
+            if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
+            try:
+                periods = db_fetchall(
+                    'SELECT period_key, data, updated_at FROM mettler_transport_billing ORDER BY updated_at ASC'
+                )
+                dn_map = {}
+                for p_row in periods:
+                    try:
+                        data = json.loads(p_row.get('data') or '[]')
+                    except Exception:
+                        data = []
+                    for r in data:
+                        dn = (r.get('dn') if isinstance(r, dict) else None) or ''
+                        if not dn: continue
+                        # 더 늦은 updated_at으로 덮어쓰기 (정렬이 오름차순이므로 자연 덮어쓰기)
+                        dn_map[dn] = r
+                return self.send_json({'data': dn_map})
+            except Exception as e:
+                import traceback
+                print(f'[mettler-transport-by-dn] error: {e}\n{traceback.format_exc()}')
+                return self.send_json({'data': {}, 'error': str(e)}, 200)
+
         self._serve_static(p.path)
       except Exception as e:
         import traceback

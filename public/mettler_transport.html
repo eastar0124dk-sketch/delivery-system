@@ -657,12 +657,20 @@ async function loadBilling() {
   updatePeriodInfo();
 
   // 1) 서버 저장본 미리 가져오기 (메모/수동 수정값 병합용)
+  //    (a) 현재 기간 저장본 — 우선순위 1
+  //    (b) 전체 기간의 DN 단위 평탄화 — 우선순위 2 (다른 기간으로 저장된 건도 복원)
   const key = periodKey();
   let serverRows = [];
+  let allDnMap = {};
   try {
     const r = await fetchWithRetry('/api/mettler-transport/' + encodeURIComponent(key), { headers: authH() });
     const j = await r.json();
     serverRows = j.data || [];
+  } catch(e) {}
+  try {
+    const r2 = await fetchWithRetry('/api/mettler-transport-by-dn', { headers: authH() });
+    const j2 = await r2.json();
+    allDnMap = j2.data || {};
   } catch(e) {}
 
   // 2) 항상 admin 오더에서 fresh 로드 (billing.html과 동일 결과 보장)
@@ -786,13 +794,16 @@ async function loadBilling() {
     // 3) 서버 저장본 병합 — billing.html과 동일 원칙:
     //    운임 기본값(cBase/sBase)은 항상 최신 운임표 자동계산값을 우선,
     //    사용자 수동 입력 필드(추가비용/실제청구/메모/수량 등)만 저장본에서 복원
-    if (serverRows.length) {
+    //    매칭 우선순위: (a) 현재 기간 저장본 → (b) 전체 기간 DN맵 (조회기간과 무관)
+    if (serverRows.length || Object.keys(allDnMap).length) {
       let merged = 0;
       const usedDN = new Set();
       rows.forEach(row => {
-        const sv = serverRows.find(s => s.dn && s.dn === row.dn && !usedDN.has(s));
+        let sv = serverRows.find(s => s.dn && s.dn === row.dn && !usedDN.has(s));
+        // 현재 기간에 없으면 전체 기간 DN맵에서 fallback
+        if (!sv && row.dn && allDnMap[row.dn]) sv = allDnMap[row.dn];
         if (!sv) return;
-        usedDN.add(sv);
+        if (serverRows.includes(sv)) usedDN.add(sv);
 
         // (a) 사용자 수동 입력 필드 복원
         if (sv.cExtra  != null && sv.cExtra  !== '') row.cExtra  = num(sv.cExtra);

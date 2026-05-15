@@ -952,15 +952,26 @@
 
     // ── 저장본 복원 (서버 DB — 운송청구서와 공유) ──────────────────
     // 운임 기본값은 항상 최신 운임표 자동계산값 우선, 수동 입력값만 저장본에서 복원
+    // 매칭: (a) 현재 기간 저장본 → (b) 전체 기간 DN맵 fallback (조회 기간과 무관)
     const _periodK = `${from}~${to}`;
+    let savedRows = [];
+    let allDnMap = {};
     try{
       const _res = await fetch('/api/mettler-transport/'+encodeURIComponent(_periodK),{headers:authH()});
       const _j = await _res.json();
-      const savedRows = _j.data || [];
-      if(savedRows.length){
+      savedRows = _j.data || [];
+    }catch(e){}
+    try{
+      const _r2 = await fetch('/api/mettler-transport-by-dn',{headers:authH()});
+      const _j2 = await _r2.json();
+      allDnMap = _j2.data || {};
+    }catch(e){}
+    try{
+      if(savedRows.length || Object.keys(allDnMap).length){
         const n = v => parseInt(v)||0;
         billingRows.forEach(row=>{
-          const sv = savedRows.find(s=>s.dn && s.dn===row.order_no);
+          let sv = savedRows.find(s=>s.dn && s.dn===row.order_no);
+          if(!sv && row.order_no && allDnMap[row.order_no]) sv = allDnMap[row.order_no];
           if(!sv) return;
           // (a) 사용자 수동 입력 필드 복원
           if(sv.cExtra  != null && sv.cExtra  !== '') row.carrier_add = n(sv.cExtra);
