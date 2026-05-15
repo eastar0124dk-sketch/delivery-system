@@ -718,9 +718,10 @@ async function loadBilling() {
         destNameDisplay = o.customer_company || '';
       }
 
-      // 아라육로 95(번길) 배차 건 → 출발지 "김포" / 출발지 상호 "신한인비스타"로 통일
+      // 아라육로 95번길 배차 건만 → 출발지 "김포" / 출발지 상호 "신한인비스타"로 통일
+      // (ACT 창고 주소 "아라육로58번길"은 제외 — 정확히 "95"만 매칭)
       const _originRaw = `${o.origin||''} ${o.origin_address||''} ${originNameDisplay||''}`.replace(/\s+/g,'');
-      if (/아라육로9?5/.test(_originRaw) || _originRaw.includes('신한인비스타')) {
+      if (/아라육로95/.test(_originRaw) || _originRaw.includes('신한인비스타')) {
         originDisplay = '김포';
         originNameDisplay = '신한인비스타';
       }
