@@ -505,8 +505,9 @@ function lookupRate(sigungu, vehicle, side) {
   if (typeof RATE_TABLE === 'undefined') return 0;
   const RATE_VEHICLES = ['다마스','1톤','2.5톤','5톤','11톤'];
   if (!RATE_VEHICLES.includes(vehicle)) return 0;
-  const normalized = normalizeRegion(sigungu);
-  if (!normalized) return 0;
+  // billing.html과 동일한 매칭 순서: normalizeDistrict → 정확매칭 → aliasMatch → 부분매칭
+  const d = normalizeDistrict(sigungu);
+  if (!d) return 0;
 
   // 운임표 메뉴에서 수정한 단가(rate_override) 로드
   let overrides = {};
@@ -519,14 +520,22 @@ function lookupRate(sigungu, vehicle, side) {
     const ovKey = side === 'shipper' ? `k_${vehicle}` : `c_${vehicle}`;
     return (ov[ovKey] != null) ? ov[ovKey] : base;
   }
+  function tryExact(target) {
+    if (!target) return null;
+    for (const key in RATE_TABLE) {
+      if (RATE_TABLE[key].sigun === target) return rateOf(key, RATE_TABLE[key]) || 0;
+    }
+    return null;
+  }
 
   // 1차: 정확 매칭
-  for (const key in RATE_TABLE) {
-    const e = RATE_TABLE[key];
-    if (e.sigun === normalized) return rateOf(key, e) || 0;
-  }
-  // 2차: 부분 매칭 (시/군 제거 후)
-  const clean = normalized.replace(/[시도구군읍면동로길]/g,'');
+  let v = tryExact(d);
+  if (v != null) return v;
+  // 2차: 별칭 매핑 후 정확 매칭 (예: "분당구" → "성남")
+  v = tryExact(aliasMatch(d));
+  if (v != null) return v;
+  // 3차: 시/도/구/군 제거 후 부분 포함 매칭
+  const clean = d.replace(/[시도구군읍면동로길]/g,'');
   for (const key in RATE_TABLE) {
     const e = RATE_TABLE[key];
     const sc = e.sigun.replace(/[시도구군읍면동]/g,'');
@@ -535,10 +544,59 @@ function lookupRate(sigungu, vehicle, side) {
   return 0;
 }
 
-// 주소에서 시/군 추출 (정규화 적용)
-function extractSigungu(address) {
-  if (!address) return '';
-  return normalizeRegion(address);
+// 주소에서 시/군/구 토큰 추출 — billing.html extractSigun과 동일 알고리즘
+// (접미사 보존: "경기도 안산시 ..." → "안산시")
+function extractSigungu(addr) {
+  if (!addr) return '';
+  const parts = addr.trim().split(/[\s,]+/).filter(Boolean);
+  if (!parts.length) return '';
+  let start = 0;
+  if (/도$|특별시$|광역시$|특별자치시$|특별자치도$/.test(parts[0])) start = 1;
+  for (let i = start; i < parts.length; i++) {
+    if (/[시군구]$/.test(parts[i]) && parts[i].length >= 2) return parts[i];
+  }
+  return parts[start] || parts[0] || '';
+}
+
+// billing.html normalizeDistrict와 동일 — 시도 prefix/시·군 접미사 정리
+function normalizeDistrict(input) {
+  if (!input) return '';
+  let s = String(input).trim();
+  if (SIDO_TO_SIGUN[s]) return SIDO_TO_SIGUN[s];
+  for (const sido of SIDO_PREFIXES) {
+    if (s.startsWith(sido + ' ')) { s = s.substring(sido.length).trim(); break; }
+  }
+  const firstToken = s.split(/\s+/)[0];
+  if (firstToken.endsWith('시') && firstToken.length >= 3) {
+    const stripped = firstToken.slice(0, -1);
+    if (typeof RATE_TABLE !== 'undefined') {
+      for (const k in RATE_TABLE) if (RATE_TABLE[k].sigun === stripped) return stripped;
+    }
+  }
+  if (firstToken.endsWith('군') && firstToken.length >= 3) {
+    const stripped = firstToken.slice(0, -1);
+    if (typeof RATE_TABLE !== 'undefined') {
+      for (const k in RATE_TABLE) if (RATE_TABLE[k].sigun === stripped) return stripped;
+    }
+  }
+  return s;
+}
+
+// billing.html aliasMatch와 동일 — 별칭 키로 표준 시군 반환 (없으면 null)
+function aliasMatch(input) {
+  if (!input) return null;
+  const s = normalizeDistrict(input);
+  if (REGION_ALIAS[s]) return REGION_ALIAS[s];
+  for (const key of Object.keys(REGION_ALIAS)) {
+    if (s.includes(key)) return REGION_ALIAS[key];
+  }
+  const first = s.split(/\s+/)[0];
+  if (first.endsWith('시') || first.endsWith('군')) {
+    const cand = first.slice(0, -1);
+    if (REGION_ALIAS[cand]) return REGION_ALIAS[cand];
+    return cand;
+  }
+  return null;
 }
 
 // 도착지 상호로 시군구 추론 (특정 거래처는 고정 시군구)
@@ -608,21 +666,11 @@ async function loadBilling() {
       } else {
         billingDistrict = o.dest_sigun || extractSigungu(o.customer_address || '');
       }
-      // 자동정정: 운임 매칭 안되면 다양한 방법 시도
-      if (vt && (!billingDistrict || lookupRate(billingDistrict, vt, 'carrier') === 0)) {
-        // 1차: 도착지 상호로 추론 (메틀러토레도 → 송파구)
-        let alt = regionFromDestName(o.customer_company || '');
-        // 2차: customer_address 전체에서 별칭 매칭
-        if (!alt || lookupRate(alt, vt, 'carrier') === 0) {
-          alt = normalizeRegion(o.customer_address || '');
-        }
-        // 3차: 기존 billingDistrict 자체를 정규화
-        if ((!alt || lookupRate(alt, vt, 'carrier') === 0) && billingDistrict) {
-          alt = normalizeRegion(billingDistrict);
-        }
-        if (alt && lookupRate(alt, vt, 'carrier') > 0) {
-          console.log(`[자동정정] ${o.order_no}: ${billingDistrict || '(없음)'} → ${alt}`);
-          billingDistrict = alt;
+      // 인라인 정정 — billing.html과 동일: 매칭 실패 시 주소 별칭으로 1차 시도
+      if (vt && billingDistrict && lookupRate(billingDistrict, vt, 'carrier') === 0) {
+        const altDistrict = aliasMatch(o.customer_address || o.dest_sigun || '');
+        if (altDistrict && lookupRate(altDistrict, vt, 'carrier') > 0) {
+          billingDistrict = altDistrict;
         }
       }
 
@@ -667,6 +715,33 @@ async function loadBilling() {
       };
       autoCalcRow(row);
       return row;
+    });
+
+    // 2-1) 운임 매칭 실패 행 자동정정 — billing.html과 동일한 3-tier
+    rows.forEach(row => {
+      if (row._src !== 'auto' || !row.vehicle) return;
+      if (lookupRate(row.dest, row.vehicle, 'carrier') > 0) return;  // 이미 매칭됨
+      const o = orders.find(x => (x.order_no || '') === row.dn);
+      const fullAddr = o ? (o.customer_address || '') : '';
+      const destName = row.destCode || '';
+      // 1차: 도착지 상호로 추론 (메틀러토레도 → 송파구)
+      let alt = regionFromDestName(destName);
+      // 2차: customer_address 별칭 매칭
+      if (!alt || lookupRate(alt, row.vehicle, 'carrier') === 0) {
+        alt = aliasMatch(fullAddr);
+      }
+      // 3차: row.dest 정규화 → 별칭 매칭
+      if (!alt || lookupRate(alt, row.vehicle, 'carrier') === 0) {
+        alt = normalizeDistrict(row.dest || '');
+        if (alt && lookupRate(alt, row.vehicle, 'carrier') === 0) {
+          alt = aliasMatch(row.dest || '');
+        }
+      }
+      if (alt && alt !== row.dest && lookupRate(alt, row.vehicle, 'carrier') > 0) {
+        console.log(`[자동정정] ${row.dn}: ${row.dest || '(없음)'} → ${alt}`);
+        row.dest = alt;
+        autoCalcRow(row);
+      }
     });
 
     // 3) 서버 저장본 병합 — DN 기준 매칭 시 저장된 모든 편집값 복원
