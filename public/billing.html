@@ -868,6 +868,13 @@
         destNameDisplay=r.customer_company||'';
       }
 
+      // 아라육로 95(번길) 배차 건 → 출발지 "김포" / 출발지 상호 "신한인비스타"로 통일
+      const _originRaw=`${r.origin||''} ${r.origin_address||''} ${originNameDisplay||''}`.replace(/\s+/g,'');
+      if(/아라육로9?5/.test(_originRaw)||_originRaw.includes('신한인비스타')){
+        originDisplay='김포';
+        originNameDisplay='신한인비스타';
+      }
+
       // ── 내용 자동결정: 출발지상호=ACT→출고 / 도착지상호=ACT→입고 / 둘다아니면→이동
       let contentDisplay='';
       if(originNameDisplay==='ACT'){
