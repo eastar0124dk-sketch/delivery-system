@@ -833,6 +833,49 @@
     const res=await fetch(apiUrl,{headers:authH()}).then(r=>r.json()).catch(()=>({data:[]}));
     const data=res.data||[];
 
+    // 배차 등록만 되고 오더 등록이 안 된 건도 표시 — /api/dispatch 병합
+    try{
+      const dr=await fetch('/api/dispatch',{headers:authH()}).then(r=>r.json()).catch(()=>({data:[]}));
+      const CLIENT_MAP={'mettler':['메틀러토레도','mettler'],'canon':['캐논메디칼시스템즈','canon'],'chanel':['샤넬코리아','chanel']};
+      const acceptable=cc?(CLIENT_MAP[cc]||[]):null;  // 화주 선택했으면 그 화주만
+      const disps=(dr.data||[]).filter(d=>{
+        const c=(d.client||'').trim();
+        if(!acceptable) return true;
+        return acceptable.some(a=>a===c||a.toLowerCase()===c.toLowerCase());
+      }).filter(d=>{
+        const dt=(d.item_date||'').slice(0,10);
+        return dt && dt>=from && dt<=to;
+      });
+      const haveDNs=new Set(data.map(o=>o.order_no));
+      let added=0;
+      disps.forEach(d=>{
+        const synDN='DISP-'+d.id;
+        if(haveDNs.has(synDN)) return;
+        const o=(d.origin||'').toUpperCase();
+        const dst=(d.destination||'').toUpperCase();
+        const ttGuess=o.includes('ACT')?'출고':(dst.includes('ACT')?'입고':'이동');
+        const cw=String(d.carrier_work||'').replace(/[^\d]/g,'');
+        // CN_MAP — 한글명 → 코드
+        const CN={'메틀러토레도':'mettler','캐논메디칼시스템즈':'canon','샤넬코리아':'chanel'};
+        const cc2=CN[(d.client||'').trim()]||((d.client||'').toLowerCase().match(/mettler|canon|chanel/)?.[0])||'mettler';
+        data.push({
+          id:'D'+d.id, order_no:synDN,
+          delivery_date:d.item_date||'',
+          customer_company:d.destination||'',
+          customer_address:'',
+          vehicle_type:d.vehicle_type||'',
+          transport_type:ttGuess,
+          origin:d.origin||'', origin_address:'',
+          product_name:d.cargo||'', quantity:'',
+          notes:d.notes||'',
+          work_fee:cw?parseInt(cw):0,
+          client_code:cc2
+        });
+        added++;
+      });
+      if(added) console.log('[dispatch 병합]',added,'건 추가');
+    }catch(e){ console.warn('[dispatch fetch] 실패:',e); }
+
     billingRows=data.map((r,i)=>{
       const vt=r.vehicle_type||'';
       const tt=r.transport_type||'';

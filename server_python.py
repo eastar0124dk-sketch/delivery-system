@@ -1354,6 +1354,36 @@ class Handler(BaseHTTPRequestHandler):
                     f'DN번호: {body.get("dn_no","")}\n'
                     f'화주: {body.get("client","")}\n'
                     f'내용: {body.get("description","")}')
+            # 배차 등록 시 → delivery_records에도 자동 생성 (운송내역서에 자동 노출)
+            if p == '/api/dispatch':
+                try:
+                    client_raw = (body.get('client','') or '').strip()
+                    CN_MAP = {'메틀러토레도':'mettler','캐논메디칼시스템즈':'canon','샤넬코리아':'chanel'}
+                    cc = CN_MAP.get(client_raw, client_raw.lower() if client_raw.lower() in ('mettler','canon','chanel') else 'mettler')
+                    origin_s = (body.get('origin','') or '').upper()
+                    dest_s   = (body.get('destination','') or '').upper()
+                    if 'ACT' in origin_s: tt = '출고'
+                    elif 'ACT' in dest_s: tt = '입고'
+                    else: tt = '이동'
+                    cw = str(body.get('carrier_work','') or '').replace(',','')
+                    digits = ''.join(ch for ch in cw if ch.isdigit())
+                    wf = digits if digits else '0'
+                    order_no = (body.get('dn_no') or body.get('order_no') or f'DISP-{new_id}').strip()
+                    db_exec(
+                        '''INSERT INTO delivery_records
+                            (order_no,delivery_date,product_name,quantity,
+                             customer_company,customer_address,
+                             vehicle_type,notes,origin,origin_address,
+                             client_code,transport_type,work_fee)
+                           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                        (order_no, body.get('item_date',''), body.get('cargo',''), '',
+                         body.get('destination',''), '',
+                         body.get('vehicle_type',''), body.get('notes',''),
+                         body.get('origin',''), '',
+                         cc, tt, wf))
+                except Exception as e:
+                    import traceback
+                    print(f'[dispatch→record auto-create] {e}\n{traceback.format_exc()}')
             return self.send_json({'success': True, 'id': new_id})
 
         self.send_json({'error':'Not found'}, 404)

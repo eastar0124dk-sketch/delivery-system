@@ -685,6 +685,47 @@ async function loadBilling() {
     const orders = (j.data || j || []);
     console.log('[admin records]', orders.length, '건');
 
+    // 배차 등록만 되고 오더 등록이 안 된 건도 표시 — /api/dispatch 병합
+    try {
+      const dr = await fetchWithRetry('/api/dispatch', { headers: authH() });
+      const dj = await dr.json();
+      const disps = (dj.data || []).filter(d => {
+        const c = (d.client||'').trim();
+        return c === '메틀러토레도' || c.toLowerCase() === 'mettler';
+      }).filter(d => {
+        const dt = (d.item_date || '').slice(0,10);
+        return dt && dt >= f && dt <= t;
+      });
+      const haveDNs = new Set(orders.map(o => o.order_no));
+      let added = 0;
+      disps.forEach(d => {
+        const synDN = 'DISP-' + d.id;
+        if (haveDNs.has(synDN)) return;  // 이미 records에 자동 생성된 건은 스킵
+        const o = (d.origin||'').toUpperCase();
+        const dst = (d.destination||'').toUpperCase();
+        const ttGuess = o.includes('ACT') ? '출고' : (dst.includes('ACT') ? '입고' : '이동');
+        const cw = String(d.carrier_work||'').replace(/[^\d]/g,'');
+        orders.push({
+          id: 'D' + d.id,
+          order_no: synDN,
+          delivery_date: d.item_date || '',
+          customer_company: d.destination || '',
+          customer_address: '',
+          vehicle_type: d.vehicle_type || '',
+          transport_type: ttGuess,
+          origin: d.origin || '',
+          origin_address: '',
+          product_name: d.cargo || '',
+          quantity: '',
+          notes: d.notes || '',
+          work_fee: cw ? parseInt(cw) : 0,
+          client_code: 'mettler'
+        });
+        added++;
+      });
+      if (added) console.log('[dispatch 병합]', added, '건 추가');
+    } catch(e) { console.warn('[dispatch fetch] 실패:', e); }
+
     // 등록이 빠른 순(오래된 순) 정렬 — delivery_date asc, 같은 날짜는 id asc
     orders.sort((a, b) => {
       const da = (a.delivery_date || '').slice(0,10);
