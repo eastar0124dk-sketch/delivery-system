@@ -80,6 +80,7 @@
     }
     .grp-base    { background:#475569; }
     .grp-carrier { background:linear-gradient(135deg,#1e40af,#2563eb); }
+    .grp-actual  { background:linear-gradient(135deg,#0e7490,#0891b2); }
     .grp-shipper { background:linear-gradient(135deg,#b91c1c,#dc2626); }
     .grp-summary { background:linear-gradient(135deg,#7c3aed,#8b5cf6); }
     .grp-info    { background:#0f172a; }
@@ -218,32 +219,30 @@
       <thead>
         <tr class="grp-row">
           <th class="grp-info" colspan="10">기본 정보</th>
-          <th class="grp-carrier" colspan="5">운송사 운임</th>
-          <th class="grp-shipper" colspan="3">화주 청구 운임</th>
-          <th class="grp-info" colspan="3">기타</th>
+          <th class="grp-carrier" colspan="2">운송사 운임</th>
+          <th class="grp-actual" rowspan="2">운송사 실제<br>청구금액</th>
+          <th class="grp-shipper" colspan="2">화주 청구 운임</th>
+          <th class="grp-carrier" rowspan="2">운송사<br>합계</th>
+          <th class="grp-shipper" rowspan="2">화주<br>합계</th>
+          <th class="grp-info" rowspan="2">차액<br>(화주-운송사)</th>
+          <th class="grp-info" rowspan="2">Q'ty</th>
+          <th class="grp-info" rowspan="2">비고</th>
         </tr>
         <tr class="col-row">
           <th class="w-act"></th>
           <th class="w-no">No.</th>
-          <th class="w-date">출고일자</th>
+          <th class="w-date">차량사용일</th>
           <th class="w-dn">DN No.</th>
           <th class="w-text">출발지</th>
-          <th class="w-text">출발지<br>번호</th>
-          <th class="w-text">도착지<br>(시/군)</th>
-          <th class="w-text2">도착지번호</th>
-          <th class="w-text">형태</th>
+          <th class="w-text">출발지<br>상호</th>
+          <th class="w-text">도착지<br>(구/군)</th>
+          <th class="w-text2">도착지 상호</th>
+          <th class="w-text">내용</th>
           <th class="w-text">차종</th>
           <th class="w-num">기본운임</th>
-          <th class="w-num">추가운임</th>
-          <th class="w-num">실제청구<br>금액</th>
-          <th class="w-note">비고</th>
-          <th class="w-num">운송사<br>합계</th>
+          <th class="w-num">추가비용</th>
           <th class="w-num">기본운임</th>
-          <th class="w-num">추가운임</th>
-          <th class="w-num">화주<br>합계</th>
-          <th class="w-num">차액<br>(화주-운송사)</th>
-          <th class="w-text">Q'ty</th>
-          <th class="w-note">비고</th>
+          <th class="w-num">추가비용</th>
         </tr>
       </thead>
       <tbody id="billBody"></tbody>
@@ -754,7 +753,7 @@ function onCellChange(idx, field, value) {
 function renderRows() {
   const body = document.getElementById('billBody');
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="21" class="empty-state">
+    body.innerHTML = `<tr><td colspan="20" class="empty-state">
       <i class="fas fa-inbox"></i>
       <strong>등록된 청구 내역이 없습니다.</strong><br>
       청구 기간 선택 후 <strong>"데이터 조회"</strong>를 클릭하거나 <strong>"+ 행 추가"</strong> 버튼을 누르세요.
@@ -779,17 +778,16 @@ function renderRows() {
       <td><input type="text" value="${r.dn||''}" onchange="onCellChange(${idx},'dn',this.value)"></td>
       <td><input type="text" class="left" value="${r.src||''}" onchange="onCellChange(${idx},'src',this.value)"></td>
       <td class="${isACT?'src-code-act':''}"><input type="text" value="${r.srcCode||''}" onchange="onCellChange(${idx},'srcCode',this.value)" placeholder="ACT"></td>
-      <td><input type="text" value="${r.dest||''}" onchange="onCellChange(${idx},'dest',this.value)" placeholder="시/군"></td>
+      <td><input type="text" value="${r.dest||''}" onchange="onCellChange(${idx},'dest',this.value)" placeholder="구/군"></td>
       <td><input type="text" value="${r.destCode||''}" onchange="onCellChange(${idx},'destCode',this.value)"></td>
       <td><select onchange="onCellChange(${idx},'type',this.value)">${TYPE_OPTIONS.map(t=>`<option value="${t}" ${r.type===t?'selected':''}>${t}</option>`).join('')}</select></td>
       <td><select onchange="onCellChange(${idx},'vehicle',this.value)">${VEHICLE_OPTIONS.map(v=>`<option value="${v}" ${r.vehicle===v?'selected':''}>${v}</option>`).join('')}</select></td>
       <td><input type="number" class="right" value="${r.cBase||''}" onchange="onCellChange(${idx},'cBase',this.value)" placeholder="${isACT?'자동':'0'}"></td>
       <td><input type="number" class="right" value="${r.cExtra||''}" onchange="onCellChange(${idx},'cExtra',this.value)"></td>
       <td><input type="number" class="right" value="${r.cActual||''}" onchange="onCellChange(${idx},'cActual',this.value)" placeholder="0"></td>
-      <td><input type="text" class="left" value="${r.cMemo||''}" onchange="onCellChange(${idx},'cMemo',this.value)" placeholder="예: 155000+20000"></td>
-      <td class="calc">${cTotal?fmt(cTotal):'-'}</td>
       <td><input type="number" class="right" value="${r.sBase||''}" onchange="onCellChange(${idx},'sBase',this.value)" placeholder="${isACT?'자동':'0'}"></td>
       <td><input type="number" class="right" value="${r.sExtra||''}" onchange="onCellChange(${idx},'sExtra',this.value)"></td>
+      <td class="calc">${cTotal?fmt(cTotal):'-'}</td>
       <td class="calc">${sTotal?fmt(sTotal):'-'}</td>
       <td class="calc ${diffCls}">${diff?fmt(diff):'-'}</td>
       <td><input type="text" value="${r.qty||''}" onchange="onCellChange(${idx},'qty',this.value)"></td>
@@ -806,9 +804,8 @@ function renderRows() {
     <tr>
       <td class="lbl" colspan="12">합계 (${rows.length}건)</td>
       <td>${fmt(totalActual)}</td>
-      <td class="lbl"></td>
-      <td>${fmt(totalC)}</td>
       <td class="lbl" colspan="2"></td>
+      <td>${fmt(totalC)}</td>
       <td>${fmt(totalS)}</td>
       <td class="diff">${fmt(totalDiff)}</td>
       <td class="lbl" colspan="2"></td>
@@ -882,23 +879,31 @@ function exportExcel() {
   const S_NUM  = { ...mkS(null,'000000',false,10,'right'), numFmt:'#,##0' };
   const S_CALC = { ...mkS('F0FDF4','065F46',true,10,'right'), numFmt:'#,##0' };
 
+  // 컬럼 헤더 (첨부 양식: 19컬럼)
   const HDRS = [
-    ['No.','출고일자','DN No.','출발지','출발지\n번호','도착지\n(시/군)','도착지\n번호','형태','차종',
-     '기본운임','추가운임','실제청구\n금액','비고','운송사\n합계',
-     '기본운임','추가운임','화주\n합계',
-     '차액(화주-운송사)',"Q'ty",'비고']
+    'No.','차량사용일','DN No.','출발지','출발지\n상호','도착지\n(구/군)','도착지 상호','내용','차종',
+    '기본운임','추가비용',          // 운송사 운임
+    '',                            // 운송사 실제 청구금액 (그룹행과 세로병합)
+    '기본운임','추가비용',          // 화주 청구 운임
+    '','','','',''                 // 운송사합계/화주합계/차액/Q'ty/비고 (그룹행과 세로병합)
   ];
   const aoa = [];
-  // Row 1: 제목 (20 cols)
-  aoa.push([`메틀러토레도 ${month}월 운송비 청구서`, ...Array(19).fill('')]);
+  // Row 1: 제목 (19 cols)
+  aoa.push([`메틀러토레도 월별 운송비 청구서`, ...Array(18).fill('')]);
   // Row 2: 청구기간
-  aoa.push([`청구 기간: ${f} ~ ${t}`, ...Array(19).fill('')]);
+  aoa.push([`청구 기간: ${f} ~ ${t}`, ...Array(18).fill('')]);
   // Row 3: 빈 줄
-  aoa.push(Array(20).fill(''));
-  // Row 4: 그룹 헤더 (기본정보 9, 운송사 운임 5, 화주 청구 3, 기타 3)
-  aoa.push(['기본 정보','','','','','','','','', '운송사 운임','','','','', '화주 청구 운임','','', '기타','','']);
+  aoa.push(Array(19).fill(''));
+  // Row 4: 그룹 헤더
+  aoa.push([
+    '기본 정보','','','','','','','','',
+    '운송사 운임','',
+    '운송사 실제\n청구금액',
+    '화주 청구 운임','',
+    '운송사\n합계','화주\n합계','차액\n(화주-운송사)',"Q'ty",'비고'
+  ]);
   // Row 5: 컬럼 헤더
-  aoa.push(HDRS[0]);
+  aoa.push(HDRS);
   // Row 6+: 데이터
   rows.forEach(r => {
     const cBaseN  = num(r.cBase) || 0;
@@ -908,9 +913,9 @@ function exportExcel() {
     const diff    = sTotal - cTotal;
     aoa.push([
       r.no, r.date, r.dn, r.src, r.srcCode, r.dest, r.destCode, r.type, r.vehicle,
-      cBaseN, cExtraN, num(r.cActual), r.cMemo, cTotal,
-      num(r.sBase), num(r.sExtra), sTotal,
-      diff, r.qty, r.memo
+      cBaseN, cExtraN, num(r.cActual),
+      num(r.sBase), num(r.sExtra),
+      cTotal, sTotal, diff, r.qty, r.memo
     ]);
   });
   // 합계
@@ -919,52 +924,64 @@ function exportExcel() {
   const totalS = rows.reduce((s,r) => s + num(r.sBase) + num(r.sExtra), 0);
   const totalDiff = totalS - totalC;
   aoa.push([
-    `합계 (${rows.length}건)`,'','','','','','','','','','', totalActual, '', totalC, '','', totalS, totalDiff, '',''
+    `합계 (${rows.length}건)`,'','','','','','','','',
+    '','', totalActual,
+    '','',
+    totalC, totalS, totalDiff, '',''
   ]);
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   // 셀 스타일 적용
-  const COL = 20;
-  // 제목 (1행 1~20 병합)
+  const COL = 19;
+  // 병합: 제목/청구기간 + 그룹 헤더(가로) + 세로병합 5개 단독 컬럼
   ws['!merges'] = [
     { s:{r:0,c:0}, e:{r:0,c:COL-1} },
     { s:{r:1,c:0}, e:{r:1,c:COL-1} },
-    { s:{r:3,c:0}, e:{r:3,c:8} },     // 기본 정보 (9 cols)
-    { s:{r:3,c:9}, e:{r:3,c:13} },    // 운송사 운임 (5 cols: 기본/추가/실제청구/비고/합계)
-    { s:{r:3,c:14}, e:{r:3,c:16} },   // 화주 청구 (3 cols: 기본/추가/합계)
-    { s:{r:3,c:17}, e:{r:3,c:19} },   // 기타 (3 cols: 차액/Q'ty/비고)
+    { s:{r:3,c:0},  e:{r:3,c:8} },    // 기본 정보 (9)
+    { s:{r:3,c:9},  e:{r:3,c:10} },   // 운송사 운임 (2)
+    { s:{r:3,c:11}, e:{r:4,c:11} },   // 운송사 실제 청구금액 (세로병합)
+    { s:{r:3,c:12}, e:{r:3,c:13} },   // 화주 청구 운임 (2)
+    { s:{r:3,c:14}, e:{r:4,c:14} },   // 운송사 합계 (세로병합)
+    { s:{r:3,c:15}, e:{r:4,c:15} },   // 화주 합계 (세로병합)
+    { s:{r:3,c:16}, e:{r:4,c:16} },   // 차액 (세로병합)
+    { s:{r:3,c:17}, e:{r:4,c:17} },   // Q'ty (세로병합)
+    { s:{r:3,c:18}, e:{r:4,c:18} },   // 비고 (세로병합)
   ];
 
-  // 1행 제목 스타일
+  // 1행 제목 / 2행 청구기간 스타일
   for (let c=0; c<COL; c++) {
     const ref = XLSX.utils.encode_cell({r:0,c}); if (ws[ref]) ws[ref].s = S_TITLE;
     const ref2 = XLSX.utils.encode_cell({r:1,c}); if (ws[ref2]) ws[ref2].s = mkS(null,'333333',false,11,'left');
   }
-  // 그룹 헤더 (4그룹)
-  const grpStyles = [S_GRP_INFO, S_GRP_C, S_GRP_S, S_GRP_INFO];
-  const grpRanges = [[0,8],[9,13],[14,16],[17,19]];
-  grpRanges.forEach(([s,e], i) => {
-    for (let c=s; c<=e; c++) {
-      const ref = XLSX.utils.encode_cell({r:3,c}); if (ws[ref]) ws[ref].s = grpStyles[i];
-    }
-  });
+  // 그룹 헤더 (4행) — 컬럼별 색상
+  // 0-8 기본정보 / 9-10 운송사운임 / 11 실제청구 / 12-13 화주청구 / 14 운송사합계 / 15 화주합계 / 16-18 기타
+  const grpColorOf = c => {
+    if (c <= 8) return S_GRP_INFO;
+    if (c <= 10) return S_GRP_C;
+    if (c === 11) return mkS('0E7490','FFFFFF',true,11);
+    if (c <= 13) return S_GRP_S;
+    if (c === 14) return S_GRP_C;
+    if (c === 15) return S_GRP_S;
+    return S_GRP_INFO;
+  };
+  for (let c=0; c<COL; c++) {
+    const ref = XLSX.utils.encode_cell({r:3,c}); if (ws[ref]) ws[ref].s = grpColorOf(c);
+  }
   // 컬럼 헤더 (5행)
   for (let c=0; c<COL; c++) {
     const ref = XLSX.utils.encode_cell({r:4,c}); if (ws[ref]) ws[ref].s = S_HDR;
   }
-  // 숫자 컬럼: 9,10(운송사 기본/추가) + 11(실제청구금액) + 13(운송사 합계) + 14,15(화주 기본/추가) + 16(화주 합계) + 17(차액)
-  // 합계/차액 강조: 13, 16, 17
-  const numCols = [9,10,11,13,14,15,16,17];
+  // 숫자 컬럼: 9,10(운송사 기본/추가) 11(실제청구) 12,13(화주 기본/추가) 14(운송사합계) 15(화주합계) 16(차액)
+  const numCols = [9,10,11,12,13,14,15,16];
   rows.forEach((_, ri) => {
     for (let c=0; c<COL; c++) {
       const ref = XLSX.utils.encode_cell({r:5+ri,c});
       if (!ws[ref]) continue;
       if (numCols.includes(c)) {
-        // 합계 컬럼(13=운송사합계, 16=화주합계, 17=차액)은 강조 스타일
-        if ([13,16,17].includes(c)) ws[ref].s = S_CALC;
+        if ([14,15,16].includes(c)) ws[ref].s = S_CALC;   // 합계/차액 강조
         else ws[ref].s = S_NUM;
-      } else if (c === 12 || c === 19 || c === 3 || c === 5) {
-        ws[ref].s = S_TXTL;
+      } else if (c === 3 || c === 18) {
+        ws[ref].s = S_TXTL;   // 출발지 / 비고 좌측정렬
       } else {
         ws[ref].s = S_TXT;
       }
@@ -976,14 +993,14 @@ function exportExcel() {
     const ref = XLSX.utils.encode_cell({r:totalRow,c});
     if (!ws[ref]) ws[ref] = { v:'' };
     ws[ref].s = mkS('FEF3C7','9A3412',true,11, c>=9?'right':'center');
-    if ([11,13,16,17].includes(c)) ws[ref].s = { ...ws[ref].s, numFmt:'#,##0' };
+    if ([11,14,15,16].includes(c)) ws[ref].s = { ...ws[ref].s, numFmt:'#,##0' };
   }
 
   ws['!cols'] = [
-    {wch:5},{wch:11},{wch:13},{wch:9},{wch:7},{wch:9},{wch:11},{wch:7},{wch:8},
-    {wch:11},{wch:10},{wch:13},{wch:14},{wch:12},
-    {wch:11},{wch:10},{wch:12},
-    {wch:14},{wch:9},{wch:18}
+    {wch:5},{wch:12},{wch:16},{wch:8},{wch:13},{wch:11},{wch:16},{wch:7},{wch:8},
+    {wch:11},{wch:10},{wch:16},
+    {wch:11},{wch:10},
+    {wch:12},{wch:12},{wch:13},{wch:9},{wch:18}
   ];
   ws['!rows'] = [{hpt:28},{hpt:18},{hpt:6},{hpt:22},{hpt:32},...rows.map(()=>({hpt:18})),{hpt:24}];
 
