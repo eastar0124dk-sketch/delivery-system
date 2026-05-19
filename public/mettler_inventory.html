@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script>window.AUTH_REQUIRE="admin";</script>
+  <script src="auth-guard.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>메틀러토레도 재고실사 변환</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;font-size:13px;display:flex;min-height:100vh;}
+    #sidebar{flex-shrink:0;}
+    .main-wrap{flex:1;min-width:0;}
+    .wrap{padding:24px 28px;max-width:1400px;margin:0 auto;}
+    .card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:22px;margin-bottom:18px;}
+    .card-title{font-size:15px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:2px solid #f0f4f8;}
+    .card-title i{color:#6366f1;}
+
+    /* 드롭존 */
+    .dropzone{border:2.5px dashed #cbd5e1;border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .18s;background:#fafbfc;}
+    .dropzone:hover, .dropzone.dragover{border-color:#6366f1;background:#eef2ff;}
+    .dropzone .icon{font-size:38px;color:#94a3b8;margin-bottom:10px;}
+    .dropzone:hover .icon, .dropzone.dragover .icon{color:#6366f1;}
+    .dropzone .lbl{font-size:14px;font-weight:700;color:#334155;}
+    .dropzone .sub{font-size:11px;color:#94a3b8;margin-top:5px;}
+    .dropzone input{display:none;}
+
+    .btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .12s;}
+    .btn:disabled{opacity:.45;cursor:not-allowed;}
+    .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;}
+    .btn-primary:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(102,126,234,.4);}
+    .btn-green{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+    .btn-green:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(16,185,129,.4);}
+    .btn-gray{background:#e2e8f0;color:#475569;}
+    .btn-red{background:#fee2e2;color:#b91c1c;padding:5px 10px;font-size:11px;}
+
+    .info-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f8fafc;border-radius:10px;margin-top:12px;}
+    .info-row .fname{flex:1;font-weight:700;color:#0f172a;font-size:13px;}
+    .info-row .fsize{font-size:11px;color:#94a3b8;}
+
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0;}
+    .stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;}
+    .stat .lbl{font-size:11px;color:#64748b;font-weight:600;}
+    .stat .val{font-size:18px;font-weight:800;color:#1e293b;margin-top:3px;}
+
+    /* 변환 사전 테이블 */
+    .conv-table{width:100%;border-collapse:collapse;font-size:12px;}
+    .conv-table th{background:#1e293b;color:#e2e8f0;padding:8px;text-align:center;font-weight:700;}
+    .conv-table td{padding:5px 8px;border-bottom:1px solid #e2e8f0;}
+    .conv-table tr:hover td{background:#f8fafc;}
+    .conv-table input{width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:inherit;}
+
+    /* 결과 테이블 */
+    .res-wrap{overflow:auto;max-height:600px;border:1px solid #e2e8f0;border-radius:8px;}
+    table.res{width:100%;border-collapse:collapse;font-size:12px;min-width:900px;}
+    table.res thead th{background:#4472C4;color:#fff;padding:9px 8px;font-weight:700;border:1px solid #2e5499;position:sticky;top:0;z-index:2;}
+    table.res tbody td{padding:6px 8px;border:1px solid #e2e8f0;}
+    table.res tbody td.num{text-align:right;font-variant-numeric:tabular-nums;}
+    table.res tbody td.text{text-align:left;}
+    table.res tbody tr.zone-end td{border-bottom:3px double #1e293b !important;}
+    table.res tbody tr.total td{background:#FFF2CC !important;font-weight:800;color:#7c5e10;border-color:#d4af37;}
+
+    .note{font-size:11px;color:#64748b;background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:10px 14px;margin-top:10px;}
+    .note b{color:#854d0e;}
+
+    .actions-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+    .actions-bar .spacer{flex:1;}
+
+    .toast{position:fixed;top:80px;right:20px;padding:12px 18px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.15);font-size:13px;font-weight:700;z-index:9999;display:none;color:#fff;}
+    .toast.success{background:#10b981;}.toast.error{background:#ef4444;}
+  </style>
+</head>
+<body>
+<script src="hub-nav.js"></script>
+<div id="sidebar"></div>
+
+<main class="hub-main">
+  <h1 class="hub-page-title">📦 메틀러토레도 재고실사 변환</h1>
+
+  <div class="wrap">
+
+    <!-- 1. 파일 업로드 -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-file-upload"></i> 로우데이터 업로드 (.xlsx / .xlsm)</div>
+      <label class="dropzone" id="dropzone">
+        <div class="icon"><i class="fas fa-cloud-upload-alt"></i></div>
+        <div class="lbl">엑셀 파일을 끌어다 놓거나 클릭하여 업로드</div>
+        <div class="sub">"Sheet1"(로우데이터) + "변환"(변환단가) 시트가 포함된 파일</div>
+        <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls">
+      </label>
+      <div class="info-row" id="fileInfo" style="display:none;">
+        <i class="fas fa-file-excel" style="color:#10b981;font-size:18px;"></i>
+        <span class="fname" id="fileName">—</span>
+        <span class="fsize" id="fileSize">—</span>
+        <button class="btn btn-gray" onclick="clearFile()" style="padding:5px 10px;font-size:11px;">✕</button>
+      </div>
+      <div class="note">
+        <b>📋 매크로 규칙</b> &nbsp; Sheet1의 Material(A)·Description(B)·Storage Bin(E)·Unrestricted(F)·Unit(G)·Value(J) 자동 인식 →
+        Material+Bin 기준으로 집계, 빈 Bin은 같은 Material의 유일 Bin으로 자동 보정 →
+        변환 시트(A:Material, F:변환계수)로 나눈 값을 "변환" 열에 출력 → Bin·Material 오름차순 정렬, Zone(Bin 첫 영문자) 변경 시 이중 밑줄.
+      </div>
+    </div>
+
+    <!-- 2. 변환 사전 (편집 가능) -->
+    <div class="card" id="convCard" style="display:none;">
+      <div class="card-title">
+        <i class="fas fa-table"></i> 변환 사전 (Material → 변환 계수)
+        <span style="margin-left:auto;font-size:11px;color:#94a3b8;font-weight:600;" id="convCount"></span>
+      </div>
+      <div class="actions-bar">
+        <button class="btn btn-primary" style="padding:6px 12px;font-size:12px;" onclick="addConvRow()"><i class="fas fa-plus"></i> 행 추가</button>
+        <span class="spacer"></span>
+        <span style="font-size:11px;color:#94a3b8;">값 수정/추가/삭제 시 결과가 즉시 재계산됩니다</span>
+      </div>
+      <div style="max-height:280px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">
+        <table class="conv-table">
+          <thead><tr>
+            <th style="width:60px;">#</th>
+            <th>Material</th>
+            <th style="width:140px;">변환 계수 (나누기)</th>
+            <th style="width:60px;">삭제</th>
+          </tr></thead>
+          <tbody id="convTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 3. 결과 -->
+    <div class="card" id="resultCard" style="display:none;">
+      <div class="card-title">
+        <i class="fas fa-chart-bar"></i> 재고실사 변환 결과
+      </div>
+      <div class="stats" id="statsRow"></div>
+      <div class="actions-bar" style="margin-top:8px;">
+        <span class="spacer"></span>
+        <button class="btn btn-green" onclick="downloadResult()"><i class="fas fa-download"></i> 엑셀 다운로드</button>
+      </div>
+      <div class="res-wrap">
+        <table class="res" id="resTable">
+          <thead><tr>
+            <th>Material</th>
+            <th>Material Description</th>
+            <th>Storage Bin</th>
+            <th>Unrestricted</th>
+            <th>Base Unit of Measure</th>
+            <th>변환</th>
+            <th>Value Unrestricted</th>
+          </tr></thead>
+          <tbody id="resBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script>
+  initNav('mettler_inventory.html');
+
+  /* 상태 */
+  let inputWB = null;       // 업로드된 워크북
+  let inputFileName = '';
+  let rawRows = [];         // Sheet1 데이터 (header 제외) [{material, desc, bin, unr, unit, val}]
+  let convMap = [];         // [{material, factor}] — 편집 가능
+  let resultRows = [];      // 변환 결과
+
+  /* ── 파일 업로드 ── */
+  const dz = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); }));
+  dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handleFile(f); });
+  fileInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) handleFile(f); });
+
+  function handleFile(file) {
+    inputFileName = file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        inputWB = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        document.getElementById('fileInfo').style.display = 'flex';
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatSize(file.size);
+        parseWorkbook();
+      } catch (err) {
+        toast('파일 읽기 실패: ' + err.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function clearFile() {
+    inputWB = null; inputFileName = ''; rawRows = []; convMap = []; resultRows = [];
+    fileInput.value = '';
+    document.getElementById('fileInfo').style.display = 'none';
+    document.getElementById('convCard').style.display = 'none';
+    document.getElementById('resultCard').style.display = 'none';
+  }
+
+  /* ── 워크북 파싱: Sheet1(로우데이터) + 변환 시트 ── */
+  function parseWorkbook() {
+    if (!inputWB) return;
+    // 시트명 탐색 — Sheet1 우선, 없으면 첫 시트
+    const sheetNames = inputWB.SheetNames;
+    let rawName = sheetNames.find(n => n.toLowerCase() === 'sheet1') || sheetNames[0];
+    let convName = sheetNames.find(n => n === '변환' || n.toLowerCase() === 'conversion');
+
+    // 로우데이터
+    const rawWs = inputWB.Sheets[rawName];
+    const rawArr = XLSX.utils.sheet_to_json(rawWs, { header: 1, defval: '' });
+    if (!rawArr.length) { toast('로우데이터 시트가 비어 있습니다.', 'error'); return; }
+    // 헤더 1행 스킵
+    rawRows = [];
+    for (let i = 1; i < rawArr.length; i++) {
+      const r = rawArr[i] || [];
+      const mat = String(r[0] ?? '').trim();
+      if (!mat) continue;
+      const unr = Number(r[5]) || 0;
+      if (unr === 0) continue;
+      rawRows.push({
+        material: mat,
+        desc: r[1] || '',
+        bin: String(r[4] ?? '').trim(),
+        unr: unr,
+        unit: r[6] || '',
+        val: Number(r[9]) || 0
+      });
+    }
+
+    // 변환 시트 (없으면 빈 배열로 시작)
+    convMap = [];
+    if (convName) {
+      const convWs = inputWB.Sheets[convName];
+      const convArr = XLSX.utils.sheet_to_json(convWs, { header: 1, defval: '' });
+      for (let i = 1; i < convArr.length; i++) {
+        const r = convArr[i] || [];
+        const mat = String(r[0] ?? '').trim();
+        const factor = Number(r[5]);
+        if (mat && factor > 0) {
+          convMap.push({ material: mat, factor: factor });
+        }
+      }
+    }
+
+    document.getElementById('convCard').style.display = 'block';
+    renderConvTable();
+    runConversion();
+    toast(`✅ 로우데이터 ${rawRows.length}건, 변환사전 ${convMap.length}건 로드`);
+  }
+
+  /* ── 변환 사전 테이블 렌더링 & 편집 ── */
+  function renderConvTable() {
+    const tb = document.getElementById('convTbody');
+    document.getElementById('convCount').textContent = `${convMap.length}건`;
+    if (!convMap.length) {
+      tb.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:18px;">변환 사전이 비어 있습니다. + 행 추가로 입력하세요.</td></tr>`;
+      return;
+    }
+    tb.innerHTML = convMap.map((c, i) => `
+      <tr>
+        <td style="text-align:center;color:#94a3b8;">${i+1}</td>
+        <td><input type="text" value="${escHtml(c.material)}" oninput="updateConv(${i},'material',this.value)"></td>
+        <td><input type="number" step="any" min="0" value="${c.factor || ''}" oninput="updateConv(${i},'factor',this.value)" style="text-align:right;"></td>
+        <td style="text-align:center;"><button class="btn btn-red" onclick="removeConv(${i})">✕</button></td>
+      </tr>
+    `).join('');
+  }
+  function updateConv(idx, field, val) {
+    if (!convMap[idx]) return;
+    if (field === 'factor') convMap[idx].factor = parseFloat(val) || 0;
+    else convMap[idx][field] = val;
+    runConversion();   // 즉시 재계산
+  }
+  function addConvRow() {
+    convMap.push({ material: '', factor: 1 });
+    renderConvTable();
+  }
+  function removeConv(idx) {
+    convMap.splice(idx, 1);
+    renderConvTable();
+    runConversion();
+  }
+
+  /* ── 변환 실행 (VBA 재고실사_변환 포팅) ── */
+  function runConversion() {
+    if (!rawRows.length) return;
+
+    // 1차: Material 별 non-empty bin 수집
+    const matBins = {};       // {mat: Set(bin)}
+    const matFirstBin = {};   // {mat: firstBin}
+    rawRows.forEach(r => {
+      if (!r.bin) return;
+      if (!matBins[r.material]) matBins[r.material] = new Set();
+      matBins[r.material].add(r.bin);
+      if (!matFirstBin[r.material]) matFirstBin[r.material] = r.bin;
+    });
+
+    // 2차: 집계 (Material+Bin)
+    const agg = {};        // {key: {unr, val}}
+    const descDict = {};
+    const unitDict = {};
+    rawRows.forEach(r => {
+      let bin = r.bin;
+      if (!bin && matBins[r.material] && matBins[r.material].size === 1) {
+        bin = matFirstBin[r.material];
+      }
+      const key = r.material + '|' + bin;
+      if (agg[key]) {
+        agg[key].unr += r.unr;
+        agg[key].val += r.val;
+      } else {
+        agg[key] = { unr: r.unr, val: r.val };
+        descDict[key] = r.desc;
+        unitDict[key] = r.unit;
+      }
+    });
+
+    // 변환 사전 → 객체로
+    const convDict = {};
+    convMap.forEach(c => {
+      if (c.material && c.factor > 0) convDict[c.material] = c.factor;
+    });
+
+    // 결과 생성
+    resultRows = Object.keys(agg).map(key => {
+      const [mat, bin] = key.split('|');
+      const a = agg[key];
+      const factor = convDict[mat] || 0;
+      const converted = factor > 0 ? (a.unr / factor) : a.unr;
+      // Material이 숫자면 숫자로 변환 (정렬용)
+      const matNum = isNaN(Number(mat)) ? mat : Number(mat);
+      return {
+        material: matNum,
+        materialStr: String(mat),
+        desc: descDict[key],
+        bin: bin,
+        unr: a.unr,
+        unit: unitDict[key],
+        conv: converted,
+        val: a.val
+      };
+    });
+
+    // Bin 오름차순 → Material 오름차순
+    resultRows.sort((a, b) => {
+      const bc = String(a.bin).localeCompare(String(b.bin), 'ko');
+      if (bc !== 0) return bc;
+      // Material 비교 (숫자 우선, 문자열 fallback)
+      if (typeof a.material === 'number' && typeof b.material === 'number') return a.material - b.material;
+      return String(a.materialStr).localeCompare(String(b.materialStr), 'ko');
+    });
+
+    renderResult();
+  }
+
+  /* ── 결과 테이블 렌더링 ── */
+  function renderResult() {
+    const body = document.getElementById('resBody');
+    const card = document.getElementById('resultCard');
+    if (!resultRows.length) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+
+    // Zone 구분 (Bin 첫 영문자) — 마지막 행에 이중 밑줄
+    const zoneOf = s => { const m = String(s).match(/[A-Za-z]/); return m ? m[0].toUpperCase() : ''; };
+    let zoneCount = 0;
+    let totalUnr = 0, totalConv = 0, totalVal = 0;
+    let html = '';
+    resultRows.forEach((r, i) => {
+      const curZ = zoneOf(r.bin);
+      const nextZ = i < resultRows.length - 1 ? zoneOf(resultRows[i+1].bin) : '';
+      const isZoneEnd = (curZ !== nextZ);
+      if (isZoneEnd) zoneCount++;
+      totalUnr += r.unr; totalConv += r.conv; totalVal += r.val;
+      html += `<tr class="${isZoneEnd ? 'zone-end' : ''}">
+        <td class="text">${escHtml(r.materialStr)}</td>
+        <td class="text">${escHtml(r.desc)}</td>
+        <td class="text">${escHtml(r.bin)}</td>
+        <td class="num">${fmtInt(r.unr)}</td>
+        <td class="text">${escHtml(r.unit)}</td>
+        <td class="num">${fmt2(r.conv)}</td>
+        <td class="num">${fmtInt(r.val)}</td>
+      </tr>`;
+    });
+    // 총합계 행
+    html += `<tr class="total">
+      <td class="text">총합계</td>
+      <td></td><td></td>
+      <td class="num">${fmtInt(totalUnr)}</td>
+      <td></td>
+      <td class="num">${fmt2(totalConv)}</td>
+      <td class="num">${fmtInt(totalVal)}</td>
+    </tr>`;
+    body.innerHTML = html;
+
+    // 통계
+    document.getElementById('statsRow').innerHTML = `
+      <div class="stat"><div class="lbl">출력 행 수</div><div class="val">${resultRows.length}</div></div>
+      <div class="stat"><div class="lbl">Zone 수</div><div class="val">${zoneCount}</div></div>
+      <div class="stat"><div class="lbl">총 Unrestricted</div><div class="val">${fmtInt(totalUnr)}</div></div>
+      <div class="stat"><div class="lbl">총 변환</div><div class="val">${fmt2(totalConv)}</div></div>
+      <div class="stat"><div class="lbl">총 Value</div><div class="val">${fmtInt(totalVal)}</div></div>
+    `;
+  }
+
+  /* ── 엑셀 다운로드 ── */
+  function downloadResult() {
+    if (!resultRows.length) { toast('변환 결과가 없습니다.', 'error'); return; }
+    const zoneOf = s => { const m = String(s).match(/[A-Za-z]/); return m ? m[0].toUpperCase() : ''; };
+
+    const aoa = [['Material','Material Description','Storage Bin',' Unrestricted','Base Unit of Measure','변환','Value Unrestricted']];
+    resultRows.forEach(r => {
+      aoa.push([r.material, r.desc, r.bin, r.unr, r.unit, r.conv, r.val]);
+    });
+    // 총합계 (수식)
+    const last = resultRows.length + 1;  // 엑셀 1-based 마지막 데이터 행
+    aoa.push(['총합계','','',{f:`SUM(D2:D${last})`},'',{f:`SUM(F2:F${last})`},{f:`SUM(G2:G${last})`}]);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // 스타일
+    const HDR = {
+      font:{bold:true,color:{rgb:'FFFFFF'},sz:11,name:'맑은 고딕'},
+      fill:{patternType:'solid',fgColor:{rgb:'4472C4'}},
+      alignment:{horizontal:'center',vertical:'center'},
+      border:thinBorder()
+    };
+    const TXT = { font:{sz:10,name:'맑은 고딕'}, alignment:{horizontal:'left',vertical:'center'}, border:thinBorder() };
+    const NUM_INT = { font:{sz:10,name:'맑은 고딕'}, alignment:{horizontal:'right',vertical:'center'}, border:thinBorder(), numFmt:'#,##0' };
+    const NUM_DEC = { font:{sz:10,name:'맑은 고딕'}, alignment:{horizontal:'right',vertical:'center'}, border:thinBorder(), numFmt:'#,##0.##' };
+    const TOTAL = {
+      font:{bold:true,color:{rgb:'7C5E10'},sz:11,name:'맑은 고딕'},
+      fill:{patternType:'solid',fgColor:{rgb:'FFF2CC'}},
+      alignment:{horizontal:'center',vertical:'center'},
+      border:thinBorder()
+    };
+    const TOTAL_NUM_INT = { ...TOTAL, alignment:{horizontal:'right',vertical:'center'}, numFmt:'#,##0' };
+    const TOTAL_NUM_DEC = { ...TOTAL, alignment:{horizontal:'right',vertical:'center'}, numFmt:'#,##0.##' };
+
+    function thinBorder() {
+      return {
+        top:{style:'thin',color:{rgb:'BFBFBF'}},
+        bottom:{style:'thin',color:{rgb:'BFBFBF'}},
+        left:{style:'thin',color:{rgb:'BFBFBF'}},
+        right:{style:'thin',color:{rgb:'BFBFBF'}},
+      };
+    }
+    function doubleBottom(base) {
+      return {
+        ...base,
+        border:{
+          ...(base.border||{}),
+          bottom:{style:'double',color:{rgb:'000000'}}
+        }
+      };
+    }
+
+    // 헤더 행 (행 0)
+    for (let c = 0; c < 7; c++) {
+      const ref = XLSX.utils.encode_cell({r:0,c});
+      if (ws[ref]) ws[ref].s = HDR;
+    }
+    // 데이터 행
+    resultRows.forEach((r, ri) => {
+      const sheetR = 1 + ri;
+      const curZ = zoneOf(r.bin);
+      const nextZ = ri < resultRows.length - 1 ? zoneOf(resultRows[ri+1].bin) : '';
+      const isZoneEnd = (curZ !== nextZ);
+      const colStyles = [TXT, TXT, TXT, NUM_INT, TXT, NUM_DEC, NUM_INT];
+      for (let c = 0; c < 7; c++) {
+        const ref = XLSX.utils.encode_cell({r:sheetR,c});
+        if (!ws[ref]) ws[ref] = { v:'' };
+        ws[ref].s = isZoneEnd ? doubleBottom(colStyles[c]) : colStyles[c];
+      }
+    });
+    // 총합계 행
+    const totR = 1 + resultRows.length;
+    const totalCols = [TOTAL, TOTAL, TOTAL, TOTAL_NUM_INT, TOTAL, TOTAL_NUM_DEC, TOTAL_NUM_INT];
+    for (let c = 0; c < 7; c++) {
+      const ref = XLSX.utils.encode_cell({r:totR,c});
+      if (!ws[ref]) ws[ref] = { v:'' };
+      ws[ref].s = totalCols[c];
+    }
+
+    ws['!cols'] = [
+      {wch:14},{wch:36},{wch:14},{wch:14},{wch:8},{wch:14},{wch:16}
+    ];
+    ws['!freeze'] = { xSplit:0, ySplit:1 };
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '재고실사');
+    const stamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const base = (inputFileName || '재고실사').replace(/\.[^.]+$/, '');
+    XLSX.writeFile(wb, `${base}_변환_${stamp}.xlsx`);
+    toast('✅ 엑셀 다운로드 완료');
+  }
+
+  /* ── 유틸 ── */
+  function formatSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+    return (b/1024/1024).toFixed(1) + ' MB';
+  }
+  function fmtInt(n) { return (Math.round(n||0)).toLocaleString('ko-KR'); }
+  function fmt2(n) {
+    const v = n || 0;
+    return v.toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+  }
+  function escHtml(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function toast(msg, type='success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.className = 'toast ' + type; el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 2600);
+  }
+</script>
+</body>
+</html>

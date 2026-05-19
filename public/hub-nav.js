@@ -120,6 +120,7 @@ function initNav(currentPage) {
     { href: 'admin.html', icon: '🗂️', label: '오더 관리' },          // 직원도 가능
     { href: 'list.html',  icon: '🔍', label: '조회/출력' },          // 직원도 가능
     { href: 'dn_macro.html', icon: '⚡', label: 'DN Line 매크로', adminOnly: true },
+    { href: 'mettler_inventory.html', icon: '📦', label: '메틀러 재고실사 변환', adminOnly: true },
     { section: '👥 직원 관리', adminOnly: true },
     { href: 'staff_management.html?client=mettler', icon: '⚖️', label: '메틀러토레도 직원',     adminOnly: true },
     { href: 'staff_management.html?client=canon',   icon: '📷', label: '캐논메디칼 직원',       adminOnly: true },
