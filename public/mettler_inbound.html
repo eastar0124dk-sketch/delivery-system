@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script>window.AUTH_REQUIRE="admin";</script>
+  <script src="auth-guard.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>메틀러토레도 입고파일 분석</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;font-size:13px;display:flex;min-height:100vh;}
+    #sidebar{flex-shrink:0;}
+    .main-wrap{flex:1;min-width:0;}
+    .wrap{padding:24px 28px;max-width:1200px;margin:0 auto;}
+    .card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:22px;margin-bottom:18px;}
+    .card-title{font-size:15px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:2px solid #f0f4f8;}
+    .card-title i{color:#6366f1;}
+
+    .dropzone{border:2.5px dashed #cbd5e1;border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .18s;background:#fafbfc;}
+    .dropzone:hover,.dropzone.dragover{border-color:#6366f1;background:#eef2ff;}
+    .dropzone .icon{font-size:38px;color:#94a3b8;margin-bottom:10px;}
+    .dropzone:hover .icon,.dropzone.dragover .icon{color:#6366f1;}
+    .dropzone .lbl{font-size:14px;font-weight:800;color:#334155;}
+    .dropzone .sub{font-size:11px;color:#94a3b8;margin-top:5px;}
+    .dropzone input{display:none;}
+
+    .btn{padding:8px 14px;border:none;border-radius:9px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+    .btn-gray{background:#e2e8f0;color:#475569;}
+    .btn-green{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+
+    /* 파일별 결과 카드 */
+    .file-card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:18px;overflow:hidden;}
+    .file-head{background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px;}
+    .file-head .fname{font-weight:800;font-size:14px;flex:1;word-break:break-all;}
+    .file-head .fmeta{font-size:11px;opacity:.85;}
+    .file-body{padding:18px 20px;}
+
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+    @media(max-width:680px){.stats{grid-template-columns:1fr;}}
+    .stat{border-radius:10px;padding:14px;text-align:center;color:#fff;}
+    .stat.a{background:linear-gradient(135deg,#7c3aed,#a855f7);}
+    .stat.b{background:linear-gradient(135deg,#0891b2,#06b6d4);}
+    .stat.c{background:linear-gradient(135deg,#d97706,#f59e0b);}
+    .stat .lbl{font-size:11px;opacity:.85;font-weight:600;}
+    .stat .val{font-size:26px;font-weight:900;margin-top:3px;}
+
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    @media(max-width:760px){.grid2{grid-template-columns:1fr;}}
+    .sec-title{font-size:13px;font-weight:800;color:#334155;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+
+    table{width:100%;border-collapse:collapse;font-size:12px;}
+    th{background:#1e293b;color:#e2e8f0;padding:7px 8px;font-weight:700;text-align:center;}
+    td{padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:center;}
+    tr:hover td{background:#f8fafc;}
+    tfoot td{background:#f1f5f9;font-weight:800;color:#0f172a;border-top:2px solid #cbd5e1;}
+    .tbl-wrap{max-height:340px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;}
+
+    .err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:8px;padding:10px 14px;font-size:12px;margin:8px 0;}
+
+    .toast{position:fixed;top:80px;right:20px;padding:12px 18px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.15);font-size:13px;font-weight:700;z-index:9999;display:none;color:#fff;}
+    .toast.success{background:#10b981;}.toast.error{background:#ef4444;}
+  </style>
+</head>
+<body>
+<script src="hub-nav.js"></script>
+<div id="sidebar"></div>
+
+<main class="hub-main">
+  <h1 class="hub-page-title">📥 메틀러토레도 입고파일 분석</h1>
+
+  <div class="wrap">
+
+    <div class="card">
+      <div class="card-title"><i class="fas fa-file-upload"></i> 입고 엑셀 업로드</div>
+      <label class="dropzone" id="dropzone">
+        <div class="icon"><i class="fas fa-cloud-upload-alt"></i></div>
+        <div class="lbl">입고 엑셀 파일을 끌어다 놓거나 클릭</div>
+        <div class="sub">여러 파일을 한 번에 올리면 파일별로 분리해서 분석합니다 (.xlsx / .xls)</div>
+        <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls" multiple>
+      </label>
+      <div style="font-size:11px;color:#64748b;background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:9px 13px;margin-top:12px;">
+        💡 <b>Delivery</b>(DN) · <b>Receiving SLOC</b> · <b>Delivery quantity</b> 헤더를 자동 인식 →
+        ① DN별 라인수 &nbsp; ② SLOC별 수량 &nbsp; ③ Delivery quantity 총합계 산출.
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button class="btn btn-gray" onclick="clearAll()"><i class="fas fa-trash"></i> 전체 지우기</button>
+      </div>
+    </div>
+
+    <div id="results"></div>
+
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script>
+  initNav('mettler_inbound.html');
+
+  let analyses = [];  // [{fileName, dnCounts, slocQty, totalQty, lineTotal, error}]
+
+  /* ── 드롭존 ── */
+  const dz = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); }));
+  dz.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+  fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  function handleFiles(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    files.forEach(f => readFile(f));
+  }
+
+  function clearAll() {
+    analyses = [];
+    fileInput.value = '';
+    document.getElementById('results').innerHTML = '';
+  }
+
+  /* ── 파일 분석 ── */
+  function readFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const result = analyzeWorkbook(wb, file.name);
+        analyses.push(result);
+        renderAll();
+        if (result.error) toast(`"${file.name}" — ${result.error}`, 'error');
+        else toast(`✅ "${file.name}" 분석 완료`);
+      } catch (err) {
+        analyses.push({ fileName: file.name, error: '파일 읽기 실패: ' + err.message });
+        renderAll();
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  /* 헤더가 있는 시트를 찾아 분석 */
+  function analyzeWorkbook(wb, fileName) {
+    let targetSheet = null, headerRow = -1, cols = null;
+    // 모든 시트에서 표준 헤더 탐색
+    for (const sn of wb.SheetNames) {
+      const arr = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '' });
+      for (let r = 0; r < Math.min(arr.length, 5); r++) {
+        const hdr = (arr[r] || []).map(h => String(h||'').trim().toLowerCase());
+        const idxDN   = hdr.indexOf('delivery');
+        const idxSLOC = hdr.indexOf('receiving sloc');
+        const idxQty  = hdr.indexOf('delivery quantity');
+        if (idxDN >= 0 && idxQty >= 0) {
+          targetSheet = arr; headerRow = r;
+          cols = { dn: idxDN, sloc: idxSLOC, qty: idxQty };
+          break;
+        }
+      }
+      if (targetSheet) break;
+    }
+    if (!targetSheet) {
+      return { fileName, error: "'Delivery' / 'Delivery quantity' 헤더를 찾을 수 없습니다." };
+    }
+
+    const dnCounts = {};   // DN → 라인수
+    const slocQty  = {};   // SLOC → 수량합
+    let totalQty = 0, lineTotal = 0;
+
+    for (let r = headerRow + 1; r < targetSheet.length; r++) {
+      const row = targetSheet[r] || [];
+      const dn = String(row[cols.dn] ?? '').trim();
+      if (!dn) continue;  // 빈 행 스킵
+      const sloc = cols.sloc >= 0 ? String(row[cols.sloc] ?? '').trim() : '';
+      const qty = Number(row[cols.qty]) || 0;
+
+      dnCounts[dn] = (dnCounts[dn] || 0) + 1;
+      if (sloc) slocQty[sloc] = (slocQty[sloc] || 0) + qty;
+      totalQty += qty;
+      lineTotal++;
+    }
+    return { fileName, dnCounts, slocQty, totalQty, lineTotal };
+  }
+
+  /* ── 렌더링 ── */
+  function renderAll() {
+    const box = document.getElementById('results');
+    box.innerHTML = analyses.map((a, i) => renderCard(a, i)).join('');
+  }
+
+  function renderCard(a, idx) {
+    if (a.error) {
+      return `<div class="file-card">
+        <div class="file-head"><span class="fname">📄 ${escHtml(a.fileName)}</span></div>
+        <div class="file-body"><div class="err">⚠ ${escHtml(a.error)}</div></div>
+      </div>`;
+    }
+    const dnList = Object.keys(a.dnCounts).sort();
+    const slocList = Object.keys(a.slocQty).sort();
+    const dnRows = dnList.map((dn,i) =>
+      `<tr><td style="color:#94a3b8;">${i+1}</td><td><strong>${escHtml(dn)}</strong></td><td>${a.dnCounts[dn].toLocaleString()}</td></tr>`
+    ).join('');
+    const slocSum = slocList.reduce((s,k)=>s+a.slocQty[k],0);
+    const slocRows = slocList.map(s =>
+      `<tr><td><strong>${escHtml(s)}</strong></td><td>${a.slocQty[s].toLocaleString()}</td></tr>`
+    ).join('');
+
+    return `<div class="file-card">
+      <div class="file-head">
+        <span class="fname">📄 ${escHtml(a.fileName)}</span>
+        <span class="fmeta">DN ${dnList.length}건 · 라인 ${a.lineTotal}건</span>
+        <button class="btn btn-green" onclick="downloadOne(${idx})"><i class="fas fa-download"></i> 엑셀</button>
+      </div>
+      <div class="file-body">
+        <div class="stats">
+          <div class="stat a"><div class="lbl">DN 건수</div><div class="val">${dnList.length}</div></div>
+          <div class="stat b"><div class="lbl">총 라인수</div><div class="val">${a.lineTotal.toLocaleString()}</div></div>
+          <div class="stat c"><div class="lbl">Delivery quantity 총합계</div><div class="val">${a.totalQty.toLocaleString()}</div></div>
+        </div>
+        <div class="grid2">
+          <div>
+            <div class="sec-title"><i class="fas fa-list-ol"></i> ① DN별 라인수</div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th style="width:44px;">#</th><th>DN</th><th style="width:80px;">라인수</th></tr></thead>
+                <tbody>${dnRows || '<tr><td colspan="3" style="color:#94a3b8;padding:16px;">데이터 없음</td></tr>'}</tbody>
+                <tfoot><tr><td colspan="2">합계</td><td>${a.lineTotal.toLocaleString()}</td></tr></tfoot>
+              </table>
+            </div>
+          </div>
+          <div>
+            <div class="sec-title"><i class="fas fa-warehouse"></i> ② SLOC별 수량 (Delivery quantity)</div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Receiving SLOC</th><th style="width:100px;">수량</th></tr></thead>
+                <tbody>${slocRows || '<tr><td colspan="2" style="color:#94a3b8;padding:16px;">SLOC 데이터 없음</td></tr>'}</tbody>
+                <tfoot><tr><td>합계</td><td>${slocSum.toLocaleString()}</td></tr></tfoot>
+              </table>
+            </div>
+            <div style="margin-top:8px;font-size:12px;color:#64748b;">
+              ③ <b>Delivery quantity 총합계</b> = <b style="color:#d97706;font-size:14px;">${a.totalQty.toLocaleString()}</b>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  /* ── 파일별 엑셀 다운로드 ── */
+  function downloadOne(idx) {
+    const a = analyses[idx];
+    if (!a || a.error) return;
+    const wb = XLSX.utils.book_new();
+    const border = {top:{style:'thin',color:{rgb:'BFBFBF'}},bottom:{style:'thin',color:{rgb:'BFBFBF'}},left:{style:'thin',color:{rgb:'BFBFBF'}},right:{style:'thin',color:{rgb:'BFBFBF'}}};
+    const HDR = {font:{bold:true,color:{rgb:'FFFFFF'},sz:11,name:'맑은 고딕'},fill:{patternType:'solid',fgColor:{rgb:'1E293B'}},alignment:{horizontal:'center',vertical:'center'},border};
+    const CELL = {font:{sz:10,name:'맑은 고딕'},alignment:{horizontal:'center',vertical:'center'},border,numFmt:'#,##0'};
+    const TOT = {font:{bold:true,sz:11,name:'맑은 고딕'},fill:{patternType:'solid',fgColor:{rgb:'FEF3C7'}},alignment:{horizontal:'center',vertical:'center'},border,numFmt:'#,##0'};
+    const styleSheet = (ws, nrows, ncols) => {
+      for(let c=0;c<ncols;c++){const ref=XLSX.utils.encode_cell({r:0,c});if(ws[ref])ws[ref].s=HDR;}
+      for(let r=1;r<nrows-1;r++)for(let c=0;c<ncols;c++){const ref=XLSX.utils.encode_cell({r,c});if(ws[ref])ws[ref].s=CELL;}
+      for(let c=0;c<ncols;c++){const ref=XLSX.utils.encode_cell({r:nrows-1,c});if(ws[ref])ws[ref].s=TOT;}
+    };
+
+    // DN별 라인수
+    const dnList = Object.keys(a.dnCounts).sort();
+    const dnAoa = [['DN','라인수'], ...dnList.map(d=>[d,a.dnCounts[d]]), ['합계',a.lineTotal]];
+    const wsDN = XLSX.utils.aoa_to_sheet(dnAoa);
+    wsDN['!cols']=[{wch:18},{wch:12}];
+    styleSheet(wsDN, dnAoa.length, 2);
+    XLSX.utils.book_append_sheet(wb, wsDN, 'DN별 라인수');
+
+    // SLOC별 수량
+    const slocList = Object.keys(a.slocQty).sort();
+    const slocSum = slocList.reduce((s,k)=>s+a.slocQty[k],0);
+    const slocAoa = [['Receiving SLOC','수량'], ...slocList.map(s=>[s,a.slocQty[s]]), ['합계',slocSum]];
+    const wsSL = XLSX.utils.aoa_to_sheet(slocAoa);
+    wsSL['!cols']=[{wch:18},{wch:14}];
+    styleSheet(wsSL, slocAoa.length, 2);
+    XLSX.utils.book_append_sheet(wb, wsSL, 'SLOC별 수량');
+
+    // 요약
+    const sumAoa = [['항목','값'],
+      ['DN 건수', dnList.length],
+      ['총 라인수', a.lineTotal],
+      ['Delivery quantity 총합계', a.totalQty]];
+    const wsSum = XLSX.utils.aoa_to_sheet(sumAoa);
+    wsSum['!cols']=[{wch:26},{wch:16}];
+    for(let c=0;c<2;c++){const ref=XLSX.utils.encode_cell({r:0,c});if(wsSum[ref])wsSum[ref].s=HDR;}
+    for(let r=1;r<sumAoa.length;r++)for(let c=0;c<2;c++){const ref=XLSX.utils.encode_cell({r,c});if(wsSum[ref])wsSum[ref].s=CELL;}
+    XLSX.utils.book_append_sheet(wb, wsSum, '요약');
+
+    const base = a.fileName.replace(/\.[^.]+$/,'');
+    XLSX.writeFile(wb, `${base}_입고분석.xlsx`);
+    toast('✅ 엑셀 다운로드 완료');
+  }
+  window.downloadOne = downloadOne;
+
+  /* ── 유틸 ── */
+  function escHtml(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function toast(msg, type='success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.className = 'toast ' + type; el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 2600);
+  }
+</script>
+</body>
+</html>
