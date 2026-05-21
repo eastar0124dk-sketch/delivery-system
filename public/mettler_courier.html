@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script>window.AUTH_REQUIRE="admin";</script>
+  <script src="auth-guard.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>메틀러토레도 택배 출고건수</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;font-size:13px;display:flex;min-height:100vh;}
+    #sidebar{flex-shrink:0;}
+    .main-wrap{flex:1;min-width:0;}
+    .wrap{padding:24px 28px;max-width:1100px;margin:0 auto;}
+    .card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:22px;margin-bottom:18px;}
+    .card-title{font-size:15px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:2px solid #f0f4f8;}
+    .card-title i{color:#6366f1;}
+
+    .upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    @media(max-width:680px){.upload-grid{grid-template-columns:1fr;}}
+
+    .dropzone{border:2.5px dashed #cbd5e1;border-radius:14px;padding:26px 16px;text-align:center;cursor:pointer;transition:all .18s;background:#fafbfc;}
+    .dropzone:hover, .dropzone.dragover{border-color:#6366f1;background:#eef2ff;}
+    .dropzone.cj:hover,.dropzone.cj.dragover{border-color:#ef4444;background:#fef2f2;}
+    .dropzone.kd:hover,.dropzone.kd.dragover{border-color:#f59e0b;background:#fffbeb;}
+    .dropzone .icon{font-size:32px;color:#94a3b8;margin-bottom:8px;}
+    .dropzone.cj .icon{color:#ef4444;}
+    .dropzone.kd .icon{color:#f59e0b;}
+    .dropzone .lbl{font-size:14px;font-weight:800;color:#334155;}
+    .dropzone .sub{font-size:11px;color:#94a3b8;margin-top:4px;}
+    .dropzone .fn{font-size:11px;color:#10b981;font-weight:700;margin-top:8px;word-break:break-all;}
+    .dropzone input{display:none;}
+
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:6px;}
+    @media(max-width:680px){.stats{grid-template-columns:1fr;}}
+    .stat{border-radius:12px;padding:18px;text-align:center;color:#fff;}
+    .stat.cj{background:linear-gradient(135deg,#dc2626,#ef4444);}
+    .stat.kd{background:linear-gradient(135deg,#d97706,#f59e0b);}
+    .stat.total{background:linear-gradient(135deg,#4338ca,#6366f1);}
+    .stat .lbl{font-size:12px;opacity:.85;font-weight:600;}
+    .stat .val{font-size:34px;font-weight:900;margin-top:4px;letter-spacing:-1px;}
+    .stat .unit{font-size:14px;font-weight:700;opacity:.85;}
+
+    table{width:100%;border-collapse:collapse;font-size:12px;}
+    th{background:#1e293b;color:#e2e8f0;padding:9px 8px;font-weight:700;text-align:center;}
+    td{padding:7px 8px;border-bottom:1px solid #e2e8f0;text-align:center;}
+    tr:hover td{background:#f8fafc;}
+    tfoot td{background:#f1f5f9;font-weight:800;color:#0f172a;border-top:2px solid #cbd5e1;}
+
+    .btn{padding:9px 16px;border:none;border-radius:9px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+    .btn-gray{background:#e2e8f0;color:#475569;padding:5px 10px;font-size:11px;}
+    .btn-green{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+
+    .toast{position:fixed;top:80px;right:20px;padding:12px 18px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.15);font-size:13px;font-weight:700;z-index:9999;display:none;color:#fff;}
+    .toast.success{background:#10b981;}.toast.error{background:#ef4444;}
+  </style>
+</head>
+<body>
+<script src="hub-nav.js"></script>
+<div id="sidebar"></div>
+
+<main class="hub-main">
+  <h1 class="hub-page-title">🚚 메틀러토레도 택배 출고건수</h1>
+
+  <div class="wrap">
+
+    <div class="card">
+      <div class="card-title"><i class="fas fa-file-upload"></i> 출고내역 엑셀 업로드</div>
+      <div class="upload-grid">
+        <label class="dropzone cj" id="dzCJ">
+          <div class="icon"><i class="fas fa-truck"></i></div>
+          <div class="lbl">CJ 택배 출고내역</div>
+          <div class="sub">파일을 끌어다 놓거나 클릭</div>
+          <div class="fn" id="fnCJ"></div>
+          <input type="file" id="fileCJ" accept=".xlsx,.xlsm,.xls">
+        </label>
+        <label class="dropzone kd" id="dzKD">
+          <div class="icon"><i class="fas fa-truck-fast"></i></div>
+          <div class="lbl">경동택배 출고내역</div>
+          <div class="sub">파일을 끌어다 놓거나 클릭</div>
+          <div class="fn" id="fnKD"></div>
+          <input type="file" id="fileKD" accept=".xlsx,.xlsm,.xls">
+        </label>
+      </div>
+      <div style="font-size:11px;color:#64748b;background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:9px 13px;margin-top:12px;">
+        💡 각 시트(날짜별)의 <b>첫 행(헤더)은 제외</b>하고 2행부터 출고 건수를 집계합니다. 모든 시트 합산.
+      </div>
+    </div>
+
+    <div class="card" id="resultCard" style="display:none;">
+      <div class="card-title">
+        <i class="fas fa-calculator"></i> 출고 건수 집계
+        <button class="btn btn-green" style="margin-left:auto;padding:6px 12px;font-size:12px;" onclick="downloadSummary()">
+          <i class="fas fa-download"></i> 엑셀 다운로드
+        </button>
+      </div>
+      <div class="stats">
+        <div class="stat cj"><div class="lbl">CJ 택배</div><div class="val"><span id="cntCJ">0</span><span class="unit"> 건</span></div></div>
+        <div class="stat kd"><div class="lbl">경동택배</div><div class="val"><span id="cntKD">0</span><span class="unit"> 건</span></div></div>
+        <div class="stat total"><div class="lbl">합계</div><div class="val"><span id="cntTotal">0</span><span class="unit"> 건</span></div></div>
+      </div>
+      <div style="margin-top:16px;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">📅 날짜별 상세</div>
+      <div style="max-height:420px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">
+        <table>
+          <thead><tr><th style="width:120px;">날짜(시트)</th><th>CJ 택배</th><th>경동택배</th><th>일 합계</th></tr></thead>
+          <tbody id="dailyBody"></tbody>
+          <tfoot><tr><td>합계</td><td id="ftCJ">0</td><td id="ftKD">0</td><td id="ftTotal">0</td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script>
+  initNav('mettler_courier.html');
+
+  // perSheet: { CJ: {sheetName: count}, KD: {sheetName: count} }
+  const data = { CJ: null, KD: null };
+  const fileNames = { CJ: '', KD: '' };
+
+  /* ── 드롭존 바인딩 ── */
+  bindDrop('dzCJ', 'fileCJ', 'CJ');
+  bindDrop('dzKD', 'fileKD', 'KD');
+
+  function bindDrop(dzId, inputId, kind) {
+    const dz = document.getElementById(dzId);
+    const inp = document.getElementById(inputId);
+    ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); }));
+    dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) readFile(f, kind); });
+    inp.addEventListener('change', e => { const f = e.target.files[0]; if (f) readFile(f, kind); });
+  }
+
+  /* ── 파일 읽기 → 시트별 건수 집계 ── */
+  function readFile(file, kind) {
+    fileNames[kind] = file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const perSheet = {};
+        wb.SheetNames.forEach(sn => {
+          const ws = wb.Sheets[sn];
+          const arr = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+          // 1행(헤더) 제외, 2행부터 — 비어있지 않은 행만 카운트
+          let cnt = 0;
+          for (let i = 1; i < arr.length; i++) {
+            const row = arr[i] || [];
+            if (row.some(c => c !== '' && c != null)) cnt++;
+          }
+          perSheet[sn] = cnt;
+        });
+        data[kind] = perSheet;
+        document.getElementById(kind === 'CJ' ? 'fnCJ' : 'fnKD').textContent = '✓ ' + file.name;
+        render();
+        toast(`✅ ${kind === 'CJ' ? 'CJ' : '경동'} — ${wb.SheetNames.length}개 시트 집계 완료`);
+      } catch (err) {
+        toast('파일 읽기 실패: ' + err.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  /* ── 결과 렌더링 ── */
+  function render() {
+    if (!data.CJ && !data.KD) return;
+    document.getElementById('resultCard').style.display = 'block';
+
+    const cj = data.CJ || {}, kd = data.KD || {};
+    const totCJ = Object.values(cj).reduce((s,v) => s+v, 0);
+    const totKD = Object.values(kd).reduce((s,v) => s+v, 0);
+
+    document.getElementById('cntCJ').textContent    = totCJ.toLocaleString();
+    document.getElementById('cntKD').textContent    = totKD.toLocaleString();
+    document.getElementById('cntTotal').textContent = (totCJ+totKD).toLocaleString();
+
+    // 날짜별 — 두 파일의 시트명 합집합, 정렬
+    const allDates = [...new Set([...Object.keys(cj), ...Object.keys(kd)])].sort();
+    document.getElementById('dailyBody').innerHTML = allDates.map(d => {
+      const a = cj[d] || 0, b = kd[d] || 0;
+      return `<tr>
+        <td><strong>${escHtml(d)}</strong></td>
+        <td>${a ? a.toLocaleString() : '-'}</td>
+        <td>${b ? b.toLocaleString() : '-'}</td>
+        <td><strong>${(a+b).toLocaleString()}</strong></td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="4" style="color:#94a3b8;padding:18px;">데이터 없음</td></tr>`;
+
+    document.getElementById('ftCJ').textContent    = totCJ.toLocaleString();
+    document.getElementById('ftKD').textContent    = totKD.toLocaleString();
+    document.getElementById('ftTotal').textContent = (totCJ+totKD).toLocaleString();
+  }
+
+  /* ── 엑셀 다운로드 ── */
+  function downloadSummary() {
+    if (!data.CJ && !data.KD) { toast('집계된 데이터가 없습니다.', 'error'); return; }
+    const cj = data.CJ || {}, kd = data.KD || {};
+    const allDates = [...new Set([...Object.keys(cj), ...Object.keys(kd)])].sort();
+    const totCJ = Object.values(cj).reduce((s,v)=>s+v,0);
+    const totKD = Object.values(kd).reduce((s,v)=>s+v,0);
+
+    const aoa = [['날짜(시트)','CJ 택배','경동택배','일 합계']];
+    allDates.forEach(d => {
+      const a = cj[d]||0, b = kd[d]||0;
+      aoa.push([d, a, b, a+b]);
+    });
+    aoa.push(['합계', totCJ, totKD, totCJ+totKD]);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const border = {
+      top:{style:'thin',color:{rgb:'BFBFBF'}},bottom:{style:'thin',color:{rgb:'BFBFBF'}},
+      left:{style:'thin',color:{rgb:'BFBFBF'}},right:{style:'thin',color:{rgb:'BFBFBF'}}
+    };
+    const HDR = { font:{bold:true,color:{rgb:'FFFFFF'},sz:11,name:'맑은 고딕'}, fill:{patternType:'solid',fgColor:{rgb:'1E293B'}}, alignment:{horizontal:'center',vertical:'center'}, border };
+    const CELL = { font:{sz:10,name:'맑은 고딕'}, alignment:{horizontal:'center',vertical:'center'}, border, numFmt:'#,##0' };
+    const TOT  = { font:{bold:true,sz:11,name:'맑은 고딕'}, fill:{patternType:'solid',fgColor:{rgb:'FEF3C7'}}, alignment:{horizontal:'center',vertical:'center'}, border, numFmt:'#,##0' };
+    for (let c=0;c<4;c++){ const ref=XLSX.utils.encode_cell({r:0,c}); if(ws[ref]) ws[ref].s=HDR; }
+    for (let r=1;r<=allDates.length;r++) for(let c=0;c<4;c++){ const ref=XLSX.utils.encode_cell({r,c}); if(ws[ref]) ws[ref].s=CELL; }
+    const tr=allDates.length+1;
+    for(let c=0;c<4;c++){ const ref=XLSX.utils.encode_cell({r:tr,c}); if(ws[ref]) ws[ref].s=TOT; }
+    ws['!cols']=[{wch:14},{wch:12},{wch:12},{wch:12}];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '택배출고건수');
+    const stamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    XLSX.writeFile(wb, `메틀러토레도_택배출고건수_${stamp}.xlsx`);
+    toast('✅ 엑셀 다운로드 완료');
+  }
+  window.downloadSummary = downloadSummary;
+
+  /* ── 유틸 ── */
+  function escHtml(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function toast(msg, type='success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.className = 'toast ' + type; el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 2600);
+  }
+</script>
+</body>
+</html>
