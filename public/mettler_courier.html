@@ -95,12 +95,15 @@
           <i class="fas fa-download"></i> 엑셀 다운로드
         </button>
       </div>
+      <div style="font-size:12px;color:#64748b;font-weight:600;margin-bottom:8px;">
+        🗓️ 가장 마지막 시트(최근 날짜) 기준 출고 건수
+      </div>
       <div class="stats">
-        <div class="stat cj"><div class="lbl">CJ 택배</div><div class="val"><span id="cntCJ">0</span><span class="unit"> 건</span></div></div>
-        <div class="stat kd"><div class="lbl">경동택배</div><div class="val"><span id="cntKD">0</span><span class="unit"> 건</span></div></div>
+        <div class="stat cj"><div class="lbl">CJ 택배 <span id="dtCJ"></span></div><div class="val"><span id="cntCJ">0</span><span class="unit"> 건</span></div></div>
+        <div class="stat kd"><div class="lbl">경동택배 <span id="dtKD"></span></div><div class="val"><span id="cntKD">0</span><span class="unit"> 건</span></div></div>
         <div class="stat total"><div class="lbl">합계</div><div class="val"><span id="cntTotal">0</span><span class="unit"> 건</span></div></div>
       </div>
-      <div style="margin-top:16px;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">📅 날짜별 상세</div>
+      <div style="margin-top:16px;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">📅 날짜별 상세 (전체 시트)</div>
       <div style="max-height:420px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">
         <table>
           <thead><tr><th style="width:120px;">날짜(시트)</th><th>CJ 택배</th><th>경동택배</th><th>일 합계</th></tr></thead>
@@ -155,7 +158,8 @@
           }
           perSheet[sn] = cnt;
         });
-        data[kind] = perSheet;
+        // perSheet + 시트 순서(마지막 시트 판별용)
+        data[kind] = { perSheet: perSheet, order: wb.SheetNames.slice() };
         document.getElementById(kind === 'CJ' ? 'fnCJ' : 'fnKD').textContent = '✓ ' + file.name;
         render();
         toast(`✅ ${kind === 'CJ' ? 'CJ' : '경동'} — ${wb.SheetNames.length}개 시트 집계 완료`);
@@ -167,17 +171,28 @@
   }
 
   /* ── 결과 렌더링 ── */
+  // 마지막 시트의 이름/건수 반환
+  function lastSheetOf(d) {
+    if (!d || !d.order || !d.order.length) return { name: '', count: 0 };
+    const name = d.order[d.order.length - 1];
+    return { name: name, count: d.perSheet[name] || 0 };
+  }
+
   function render() {
     if (!data.CJ && !data.KD) return;
     document.getElementById('resultCard').style.display = 'block';
 
-    const cj = data.CJ || {}, kd = data.KD || {};
-    const totCJ = Object.values(cj).reduce((s,v) => s+v, 0);
-    const totKD = Object.values(kd).reduce((s,v) => s+v, 0);
+    const cj = (data.CJ && data.CJ.perSheet) || {};
+    const kd = (data.KD && data.KD.perSheet) || {};
 
-    document.getElementById('cntCJ').textContent    = totCJ.toLocaleString();
-    document.getElementById('cntKD').textContent    = totKD.toLocaleString();
-    document.getElementById('cntTotal').textContent = (totCJ+totKD).toLocaleString();
+    // 가장 마지막 시트(최근 날짜) 기준 건수
+    const lastCJ = lastSheetOf(data.CJ);
+    const lastKD = lastSheetOf(data.KD);
+    document.getElementById('cntCJ').textContent    = lastCJ.count.toLocaleString();
+    document.getElementById('cntKD').textContent    = lastKD.count.toLocaleString();
+    document.getElementById('cntTotal').textContent = (lastCJ.count + lastKD.count).toLocaleString();
+    document.getElementById('dtCJ').textContent = lastCJ.name ? `(${lastCJ.name})` : '';
+    document.getElementById('dtKD').textContent = lastKD.name ? `(${lastKD.name})` : '';
 
     // 날짜별 — 두 파일의 시트명 합집합, 정렬
     const allDates = [...new Set([...Object.keys(cj), ...Object.keys(kd)])].sort();
@@ -191,6 +206,8 @@
       </tr>`;
     }).join('') || `<tr><td colspan="4" style="color:#94a3b8;padding:18px;">데이터 없음</td></tr>`;
 
+    const totCJ = Object.values(cj).reduce((s,v) => s+v, 0);
+    const totKD = Object.values(kd).reduce((s,v) => s+v, 0);
     document.getElementById('ftCJ').textContent    = totCJ.toLocaleString();
     document.getElementById('ftKD').textContent    = totKD.toLocaleString();
     document.getElementById('ftTotal').textContent = (totCJ+totKD).toLocaleString();
@@ -199,10 +216,13 @@
   /* ── 엑셀 다운로드 ── */
   function downloadSummary() {
     if (!data.CJ && !data.KD) { toast('집계된 데이터가 없습니다.', 'error'); return; }
-    const cj = data.CJ || {}, kd = data.KD || {};
+    const cj = (data.CJ && data.CJ.perSheet) || {};
+    const kd = (data.KD && data.KD.perSheet) || {};
     const allDates = [...new Set([...Object.keys(cj), ...Object.keys(kd)])].sort();
     const totCJ = Object.values(cj).reduce((s,v)=>s+v,0);
     const totKD = Object.values(kd).reduce((s,v)=>s+v,0);
+    const lastCJ = lastSheetOf(data.CJ);
+    const lastKD = lastSheetOf(data.KD);
 
     const aoa = [['날짜(시트)','CJ 택배','경동택배','일 합계']];
     allDates.forEach(d => {
@@ -210,6 +230,8 @@
       aoa.push([d, a, b, a+b]);
     });
     aoa.push(['합계', totCJ, totKD, totCJ+totKD]);
+    aoa.push([`최근 시트 (CJ:${lastCJ.name||'-'} / 경동:${lastKD.name||'-'})`,
+              lastCJ.count, lastKD.count, lastCJ.count+lastKD.count]);
 
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const border = {
@@ -221,8 +243,10 @@
     const TOT  = { font:{bold:true,sz:11,name:'맑은 고딕'}, fill:{patternType:'solid',fgColor:{rgb:'FEF3C7'}}, alignment:{horizontal:'center',vertical:'center'}, border, numFmt:'#,##0' };
     for (let c=0;c<4;c++){ const ref=XLSX.utils.encode_cell({r:0,c}); if(ws[ref]) ws[ref].s=HDR; }
     for (let r=1;r<=allDates.length;r++) for(let c=0;c<4;c++){ const ref=XLSX.utils.encode_cell({r,c}); if(ws[ref]) ws[ref].s=CELL; }
-    const tr=allDates.length+1;
-    for(let c=0;c<4;c++){ const ref=XLSX.utils.encode_cell({r:tr,c}); if(ws[ref]) ws[ref].s=TOT; }
+    // 합계 행 + 최근 시트 행
+    for(const tr of [allDates.length+1, allDates.length+2]){
+      for(let c=0;c<4;c++){ const ref=XLSX.utils.encode_cell({r:tr,c}); if(ws[ref]) ws[ref].s=TOT; }
+    }
     ws['!cols']=[{wch:14},{wch:12},{wch:12},{wch:12}];
 
     const wb = XLSX.utils.book_new();
