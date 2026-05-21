@@ -31,6 +31,9 @@
     .dropzone .sub{font-size:11px;color:#94a3b8;margin-top:4px;}
     .dropzone .fn{font-size:11px;color:#10b981;font-weight:700;margin-top:8px;word-break:break-all;}
     .dropzone input{display:none;}
+    .fn-chip{font-size:11px;font-weight:700;padding:5px 12px;border-radius:8px;display:none;}
+    .fn-chip.cj{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+    .fn-chip.kd{background:#fffbeb;color:#d97706;border:1px solid #fde68a;}
 
     .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:6px;}
     @media(max-width:680px){.stats{grid-template-columns:1fr;}}
@@ -67,24 +70,19 @@
 
     <div class="card">
       <div class="card-title"><i class="fas fa-file-upload"></i> 출고내역 엑셀 업로드</div>
-      <div class="upload-grid">
-        <label class="dropzone cj" id="dzCJ">
-          <div class="icon"><i class="fas fa-truck"></i></div>
-          <div class="lbl">CJ 택배 출고내역</div>
-          <div class="sub">파일을 끌어다 놓거나 클릭</div>
-          <div class="fn" id="fnCJ"></div>
-          <input type="file" id="fileCJ" accept=".xlsx,.xlsm,.xls">
-        </label>
-        <label class="dropzone kd" id="dzKD">
-          <div class="icon"><i class="fas fa-truck-fast"></i></div>
-          <div class="lbl">경동택배 출고내역</div>
-          <div class="sub">파일을 끌어다 놓거나 클릭</div>
-          <div class="fn" id="fnKD"></div>
-          <input type="file" id="fileKD" accept=".xlsx,.xlsm,.xls">
-        </label>
+      <label class="dropzone" id="dzAll">
+        <div class="icon"><i class="fas fa-cloud-upload-alt"></i></div>
+        <div class="lbl">출고내역 엑셀을 끌어다 놓거나 클릭</div>
+        <div class="sub">CJ·경동택배 파일을 한 번에 올리면 파일명으로 자동 분류됩니다 (여러 개 동시 가능)</div>
+        <input type="file" id="fileAll" accept=".xlsx,.xlsm,.xls" multiple>
+      </label>
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+        <span class="fn-chip cj" id="fnCJ"></span>
+        <span class="fn-chip kd" id="fnKD"></span>
       </div>
       <div style="font-size:11px;color:#64748b;background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:9px 13px;margin-top:12px;">
-        💡 각 시트(날짜별)의 <b>첫 행(헤더)은 제외</b>하고 2행부터 출고 건수를 집계합니다. 모든 시트 합산.
+        💡 파일명에 <b>"CJ"</b> 포함 → CJ 택배, <b>"경동"</b> 포함 → 경동택배로 자동 분류됩니다.
+        각 시트(날짜별)의 첫 행(헤더)은 제외하고 2행부터 집계합니다.
       </div>
     </div>
 
@@ -126,17 +124,28 @@
   const data = { CJ: null, KD: null };
   const fileNames = { CJ: '', KD: '' };
 
-  /* ── 드롭존 바인딩 ── */
-  bindDrop('dzCJ', 'fileCJ', 'CJ');
-  bindDrop('dzKD', 'fileKD', 'KD');
+  /* ── 단일 드롭존 — 파일명으로 자동 분류 ── */
+  const dz = document.getElementById('dzAll');
+  const inp = document.getElementById('fileAll');
+  ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); }));
+  dz.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
+  inp.addEventListener('change', e => { handleFiles(e.target.files); });
 
-  function bindDrop(dzId, inputId, kind) {
-    const dz = document.getElementById(dzId);
-    const inp = document.getElementById(inputId);
-    ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); }));
-    ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); }));
-    dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) readFile(f, kind); });
-    inp.addEventListener('change', e => { const f = e.target.files[0]; if (f) readFile(f, kind); });
+  function handleFiles(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    files.forEach(f => {
+      const name = f.name;
+      let kind = null;
+      if (/cj/i.test(name)) kind = 'CJ';
+      else if (/경동/.test(name)) kind = 'KD';
+      if (!kind) {
+        toast(`"${name}" — CJ/경동 구분 불가 (파일명에 'CJ' 또는 '경동' 필요)`, 'error');
+        return;
+      }
+      readFile(f, kind);
+    });
   }
 
   /* ── 파일 읽기 → 시트별 건수 집계 ── */
@@ -160,7 +169,9 @@
         });
         // perSheet + 시트 순서(마지막 시트 판별용)
         data[kind] = { perSheet: perSheet, order: wb.SheetNames.slice() };
-        document.getElementById(kind === 'CJ' ? 'fnCJ' : 'fnKD').textContent = '✓ ' + file.name;
+        const chip = document.getElementById(kind === 'CJ' ? 'fnCJ' : 'fnKD');
+        chip.textContent = (kind === 'CJ' ? '🔴 CJ: ' : '🟠 경동: ') + file.name;
+        chip.style.display = 'inline-block';
         render();
         toast(`✅ ${kind === 'CJ' ? 'CJ' : '경동'} — ${wb.SheetNames.length}개 시트 집계 완료`);
       } catch (err) {
