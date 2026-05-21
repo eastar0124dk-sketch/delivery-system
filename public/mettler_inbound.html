@@ -45,8 +45,7 @@
     .stat .lbl{font-size:11px;opacity:.85;font-weight:600;}
     .stat .val{font-size:26px;font-weight:900;margin-top:3px;}
 
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-    @media(max-width:760px){.grid2{grid-template-columns:1fr;}}
+    .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;}
     .sec-title{font-size:13px;font-weight:800;color:#334155;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
 
     table{width:100%;border-collapse:collapse;font-size:12px;}
@@ -151,9 +150,10 @@
         const idxDN   = hdr.indexOf('delivery');
         const idxSLOC = hdr.indexOf('receiving sloc');
         const idxQty  = hdr.indexOf('delivery quantity');
+        const idxMat  = hdr.indexOf('material');
         if (idxDN >= 0 && idxQty >= 0) {
           targetSheet = arr; headerRow = r;
-          cols = { dn: idxDN, sloc: idxSLOC, qty: idxQty };
+          cols = { dn: idxDN, sloc: idxSLOC, qty: idxQty, mat: idxMat };
           break;
         }
       }
@@ -165,6 +165,7 @@
 
     const dnCounts = {};   // DN → 라인수
     const slocQty  = {};   // SLOC → 수량합
+    const matCounts = {};  // Material → 라인수
     let totalQty = 0, lineTotal = 0;
 
     for (let r = headerRow + 1; r < targetSheet.length; r++) {
@@ -172,14 +173,16 @@
       const dn = String(row[cols.dn] ?? '').trim();
       if (!dn) continue;  // 빈 행 스킵
       const sloc = cols.sloc >= 0 ? String(row[cols.sloc] ?? '').trim() : '';
+      const mat  = cols.mat  >= 0 ? String(row[cols.mat]  ?? '').trim() : '';
       const qty = Number(row[cols.qty]) || 0;
 
       dnCounts[dn] = (dnCounts[dn] || 0) + 1;
       if (sloc) slocQty[sloc] = (slocQty[sloc] || 0) + qty;
+      if (mat)  matCounts[mat] = (matCounts[mat] || 0) + 1;
       totalQty += qty;
       lineTotal++;
     }
-    return { fileName, dnCounts, slocQty, totalQty, lineTotal };
+    return { fileName, dnCounts, slocQty, matCounts, totalQty, lineTotal };
   }
 
   /* ── 렌더링 ── */
@@ -197,12 +200,17 @@
     }
     const dnList = Object.keys(a.dnCounts).sort();
     const slocList = Object.keys(a.slocQty).sort();
+    const matList = Object.keys(a.matCounts || {}).sort();
     const dnRows = dnList.map((dn,i) =>
       `<tr><td style="color:#94a3b8;">${i+1}</td><td><strong>${escHtml(dn)}</strong></td><td>${a.dnCounts[dn].toLocaleString()}</td></tr>`
     ).join('');
     const slocSum = slocList.reduce((s,k)=>s+a.slocQty[k],0);
     const slocRows = slocList.map(s =>
       `<tr><td><strong>${escHtml(s)}</strong></td><td>${a.slocQty[s].toLocaleString()}</td></tr>`
+    ).join('');
+    const matSum = matList.reduce((s,k)=>s+a.matCounts[k],0);
+    const matRows = matList.map((m,i) =>
+      `<tr><td style="color:#94a3b8;">${i+1}</td><td><strong>${escHtml(m)}</strong></td><td>${a.matCounts[m].toLocaleString()}</td></tr>`
     ).join('');
 
     return `<div class="file-card">
@@ -239,6 +247,16 @@
             </div>
             <div style="margin-top:8px;font-size:12px;color:#64748b;">
               ③ <b>Delivery quantity 총합계</b> = <b style="color:#d97706;font-size:14px;">${a.totalQty.toLocaleString()}</b>
+            </div>
+          </div>
+          <div>
+            <div class="sec-title"><i class="fas fa-cubes"></i> ④ Material별 라인 합계</div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th style="width:44px;">#</th><th>Material</th><th style="width:80px;">라인수</th></tr></thead>
+                <tbody>${matRows || '<tr><td colspan="3" style="color:#94a3b8;padding:16px;">Material 데이터 없음</td></tr>'}</tbody>
+                <tfoot><tr><td colspan="2">합계 (${matList.length}종)</td><td>${matSum.toLocaleString()}</td></tr></tfoot>
+              </table>
             </div>
           </div>
         </div>
@@ -278,10 +296,20 @@
     styleSheet(wsSL, slocAoa.length, 2);
     XLSX.utils.book_append_sheet(wb, wsSL, 'SLOC별 수량');
 
+    // Material별 라인 합계
+    const matList = Object.keys(a.matCounts || {}).sort();
+    const matSum = matList.reduce((s,k)=>s+a.matCounts[k],0);
+    const matAoa = [['Material','라인수'], ...matList.map(m=>[m,a.matCounts[m]]), ['합계',matSum]];
+    const wsMat = XLSX.utils.aoa_to_sheet(matAoa);
+    wsMat['!cols']=[{wch:18},{wch:12}];
+    styleSheet(wsMat, matAoa.length, 2);
+    XLSX.utils.book_append_sheet(wb, wsMat, 'Material별 라인수');
+
     // 요약
     const sumAoa = [['항목','값'],
       ['DN 건수', dnList.length],
       ['총 라인수', a.lineTotal],
+      ['Material 종류수', matList.length],
       ['Delivery quantity 총합계', a.totalQty]];
     const wsSum = XLSX.utils.aoa_to_sheet(sumAoa);
     wsSum['!cols']=[{wch:26},{wch:16}];
