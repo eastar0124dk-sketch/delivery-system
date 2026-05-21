@@ -12,6 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script>
     if (window.pdfjsLib) {
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -355,6 +356,7 @@
 
     <div class="mode-toggle">
       <button id="mTabPdf"   class="active" onclick="setMode('pdf')">📄 PDF 업로드</button>
+      <button id="mTabExcel" onclick="setMode('excel')">📊 엑셀 업로드</button>
       <button id="mTabImage" onclick="setMode('image')">📸 화면 캡쳐 (이미지)</button>
     </div>
 
@@ -370,6 +372,20 @@
       </div>
       <input type="file" id="pdfFile" accept="application/pdf,.pdf" style="display:none" multiple onchange="onPdfFiles(this.files)">
       <div id="pdfResult"></div>
+    </div>
+
+    <div id="modeExcel" style="display:none;">
+      <div class="uploader" id="excelDrop"
+        ondragover="event.preventDefault();this.classList.add('drag');"
+        ondragleave="this.classList.remove('drag');"
+        ondrop="onExcelDrop(event)"
+        onclick="document.getElementById('excelFile').click()">
+        <i class="fas fa-file-excel" style="color:#10b981;"></i>
+        <p>여기에 <strong>엑셀 파일을 드래그</strong>하거나 클릭하여 선택</p>
+        <p class="hint">청구내역 엑셀(.xlsx)에서 자동으로 금액 추출 (여러 파일 동시 가능)</p>
+      </div>
+      <input type="file" id="excelFile" accept=".xlsx,.xlsm,.xls" style="display:none" multiple onchange="onExcelFiles(this.files)">
+      <div id="excelResult"></div>
     </div>
 
     <div id="modeImage" style="display:none;">
@@ -486,8 +502,10 @@ function restoreSeed() {
 function setMode(m) {
   mode = m;
   document.getElementById('modePdf').style.display   = m==='pdf'   ? 'block' : 'none';
+  document.getElementById('modeExcel').style.display = m==='excel' ? 'block' : 'none';
   document.getElementById('modeImage').style.display = m==='image' ? 'block' : 'none';
   document.getElementById('mTabPdf').classList.toggle('active', m==='pdf');
+  document.getElementById('mTabExcel').classList.toggle('active', m==='excel');
   document.getElementById('mTabImage').classList.toggle('active', m==='image');
 }
 
@@ -568,10 +586,12 @@ async function extractPdf(file) {
 }
 
 function parseBilling(text) {
-  const typeMatch = text.match(/(\d+월)\s*(운송료|창고료)/);
+  // 종류: 운송료/창고료 (운송비/창고비/보관료도 인식)
+  const typeMatch = text.match(/(\d+)\s*월\s*(운송료|창고료|운송비|창고비|보관료)/);
   if (!typeMatch) return null;
   const monthNum = parseInt(typeMatch[1]);
-  const type = typeMatch[2];
+  const rawType = typeMatch[2];
+  const type = /운송/.test(rawType) ? '운송료' : '창고료';
   const periodMatch = text.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*~\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
   let periodFrom='', periodTo='', year=new Date().getFullYear();
   if (periodMatch) {
@@ -594,6 +614,66 @@ function parseBilling(text) {
   return { yearMonth: `${year}-${String(monthNum).padStart(2,'0')}`,
            type, periodFrom, periodTo,
            supplyAmount: supply, taxAmount: tax, totalAmount: total };
+}
+
+/* ════════════ 엑셀 업로드 ════════════ */
+function onExcelDrop(e) {
+  e.preventDefault(); e.currentTarget.classList.remove('drag');
+  if (e.dataTransfer.files.length) onExcelFiles(e.dataTransfer.files);
+}
+async function onExcelFiles(files) {
+  const result = document.getElementById('excelResult');
+  result.innerHTML = '';
+  for (const f of files) {
+    if (!/\.(xlsx|xlsm|xls)$/i.test(f.name)) continue;
+    try {
+      const data = await extractExcel(f);
+      if (data) {
+        const rec = { id: 'xls-' + Date.now() + Math.random().toString(36).slice(2,6),
+          ...data, sourceFile: f.name, uploadDate: todayKST() };
+        const dupIdx = records.findIndex(r => r.yearMonth === rec.yearMonth && r.type === rec.type);
+        if (dupIdx >= 0) {
+          if (confirm(`${rec.yearMonth} ${rec.type} 데이터가 이미 있습니다. 덮어쓸까요?`)) {
+            records[dupIdx] = { ...records[dupIdx], ...rec };
+          } else continue;
+        } else records.push(rec);
+        result.innerHTML += `
+          <div class="extracted">
+            <h4>✅ ${f.name} 추출 완료</h4>
+            <div class="row"><span class="lbl">청구 연월</span><span class="val">${rec.yearMonth}</span></div>
+            <div class="row"><span class="lbl">종류</span><span class="val">${rec.type}</span></div>
+            <div class="row"><span class="lbl">청구 기간</span><span class="val">${rec.periodFrom} ~ ${rec.periodTo}</span></div>
+            <div class="row"><span class="lbl">공급가액</span><span class="val">${fmt(rec.supplyAmount)}원</span></div>
+            <div class="row"><span class="lbl">세액</span><span class="val">${fmt(rec.taxAmount)}원</span></div>
+            <div class="row"><span class="lbl">합계 (VAT 포함)</span><span class="val">${fmt(rec.totalAmount)}원</span></div>
+          </div>`;
+      } else {
+        result.innerHTML += `<div class="extracted" style="background:#fef2f2;border-color:#fca5a5;"><h4 style="color:#b91c1c;">⚠️ ${f.name} - 데이터 추출 실패</h4><p style="font-size:11px;color:#475569;">엑셀에서 "N월 운송료/창고료" 및 금액을 찾지 못했습니다. 화면 캡쳐 모드로 직접 입력해주세요.</p></div>`;
+      }
+    } catch(err) {
+      result.innerHTML += `<div class="extracted" style="background:#fef2f2;border-color:#fca5a5;"><h4 style="color:#b91c1c;">⚠️ ${f.name} - ${err.message}</h4></div>`;
+    }
+  }
+  saveData(); refresh();
+  toast('엑셀 처리 완료');
+}
+
+async function extractExcel(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+  // 모든 시트의 셀을 텍스트로 평탄화 → PDF와 동일 파서 사용
+  let text = '';
+  wb.SheetNames.forEach(sn => {
+    const arr = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '' });
+    arr.forEach(row => { text += (row || []).join(' ') + '\n'; });
+  });
+  let data = parseBilling(text);
+  // 파일명에서 연월 보정 (예: "2026-04", "4월")
+  if (data && !data.yearMonth.match(/^\d{4}-\d{2}$/)) {
+    const fm = file.name.match(/(\d{4})[-_.]?(\d{1,2})/);
+    if (fm) data.yearMonth = `${fm[1]}-${String(fm[2]).padStart(2,'0')}`;
+  }
+  return data;
 }
 
 /* ════════════ 이미지 업로드 ════════════ */
