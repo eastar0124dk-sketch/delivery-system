@@ -661,19 +661,77 @@ async function onExcelFiles(files) {
 async function extractExcel(file) {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
-  // 모든 시트의 셀을 텍스트로 평탄화 → PDF와 동일 파서 사용
-  let text = '';
-  wb.SheetNames.forEach(sn => {
-    const arr = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '' });
-    arr.forEach(row => { text += (row || []).join(' ') + '\n'; });
-  });
-  let data = parseBilling(text);
-  // 파일명에서 연월 보정 (예: "2026-04", "4월")
-  if (data && !data.yearMonth.match(/^\d{4}-\d{2}$/)) {
-    const fm = file.name.match(/(\d{4})[-_.]?(\d{1,2})/);
+  // "요약" 시트만 분석 (없으면 첫 시트)
+  let sn = wb.SheetNames.find(n => String(n).trim() === '요약')
+        || wb.SheetNames.find(n => /요약|summary/i.test(String(n)))
+        || wb.SheetNames[0];
+  const arr = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '' });
+
+  // 1차: 요약 시트 전용 파서
+  let data = parseSummarySheet(arr);
+  // 2차: 일반 텍스트 파서 fallback
+  if (!data) {
+    const text = arr.map(r => (r || []).join(' ')).join('\n');
+    data = parseBilling(text);
+  }
+  // 파일명에서 연월 보정
+  if (data && !/^\d{4}-\d{2}$/.test(data.yearMonth || '')) {
+    const fm = file.name.match(/(\d{4})[-_. ]?(\d{1,2})/);
     if (fm) data.yearMonth = `${fm[1]}-${String(fm[2]).padStart(2,'0')}`;
   }
   return data;
+}
+
+/* 요약 시트 전용 파서 (메틀러토레도 청구내역서 양식) */
+function parseSummarySheet(arr) {
+  const pad = v => String(v).padStart(2,'0');
+  const numOf = c => {
+    if (typeof c === 'number') return c;
+    const n = parseFloat(String(c ?? '').replace(/[^\d.-]/g,''));
+    return isNaN(n) ? 0 : n;
+  };
+  const maxNumInRow = row => (row || []).reduce((mx,c) => Math.max(mx, numOf(c)), 0);
+
+  const flat = (arr || []).map(r => (r || []).map(c => c==null?'':String(c)).join(' ')).join('\n');
+  // 종류 + 월 — "제목 : 5월 운송료" 등
+  const tm = flat.match(/(\d+)\s*월\s*(운송료|창고료|운송비|창고비|보관료)/);
+  if (!tm) return null;
+  const monthNum = parseInt(tm[1]);
+  const type = /운송/.test(tm[2]) ? '운송료' : '창고료';
+
+  // 청구 기간 — "2026년 04월 16일 ~ 2026년 05월 15일"
+  let periodFrom = '', periodTo = '', year = new Date().getFullYear();
+  const pm = flat.match(/(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일\s*~\s*(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+  if (pm) {
+    periodFrom = `${pm[1]}-${pad(pm[2])}-${pad(pm[3])}`;
+    periodTo   = `${pm[4]}-${pad(pm[5])}-${pad(pm[6])}`;
+    year = parseInt(pm[4]);
+  }
+
+  // 금액 — 행 단위 탐색
+  let total = 0, supply = 0;
+  (arr || []).forEach(row => {
+    const rowText = (row || []).map(c => c==null?'':String(c)).join(' ');
+    if (/청구\s*합계\s*금액/.test(rowText)) {
+      // 청구합계금액 = VAT 포함 총액
+      total = maxNumInRow(row);
+    } else if (/합\s*계/.test(rowText)) {
+      // 상세청구내역의 "합계" 행 = 공급가액
+      const m = maxNumInRow(row);
+      if (m > 0) supply = m;
+    }
+  });
+  if (!total && !supply) return null;
+  if (!total && supply) total = Math.round(supply * 1.1);
+  if (!supply && total) supply = Math.round(total / 1.1);
+  total = Math.round(total); supply = Math.round(supply);
+  const tax = total - supply;
+
+  return {
+    yearMonth: `${year}-${pad(monthNum)}`,
+    type, periodFrom, periodTo,
+    supplyAmount: supply, taxAmount: tax, totalAmount: total
+  };
 }
 
 /* ════════════ 이미지 업로드 ════════════ */
