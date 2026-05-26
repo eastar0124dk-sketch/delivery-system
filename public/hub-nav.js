@@ -123,6 +123,7 @@ function initNav(currentPage) {
     { href: 'mettler_inventory.html', icon: '📦', label: '메틀러 재고실사 변환', adminOnly: true },
     { href: 'mettler_courier.html', icon: '🚚', label: '메틀러 택배 출고건수', adminOnly: true },
     { href: 'mettler_inbound.html', icon: '📥', label: '메틀러 입고파일 분석', adminOnly: true },
+    { href: 'bonded_inout.html', icon: '📋', label: '보세 반·출입 내역', adminOnly: true },
     { section: '👥 직원 관리', adminOnly: true },
     { href: 'staff_management.html?client=mettler', icon: '⚖️', label: '메틀러토레도 직원',     adminOnly: true },
     { href: 'staff_management.html?client=canon',   icon: '📷', label: '캐논메디칼 직원',       adminOnly: true },

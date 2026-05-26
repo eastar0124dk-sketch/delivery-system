@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script>window.AUTH_REQUIRE="admin";</script>
+  <script src="auth-guard.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>보세 반·출입 내역</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;font-size:13px;display:flex;min-height:100vh;}
+    #sidebar{flex-shrink:0;}
+    .main-wrap{flex:1;min-width:0;}
+    .wrap{padding:24px 28px;max-width:1320px;margin:0 auto;}
+    .card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:22px;margin-bottom:18px;}
+    .card-title{font-size:15px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:2px solid #f0f4f8;}
+    .card-title i{color:#6366f1;}
+
+    .meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+    @media(max-width:680px){.meta-grid{grid-template-columns:1fr;}}
+    .field label{display:block;font-size:11px;color:#475569;font-weight:700;margin-bottom:5px;}
+    .field input{width:100%;padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;background:#fafafa;}
+    .field input:focus{outline:none;border-color:#6366f1;background:#fff;}
+
+    /* 섹션 헤더 (반입/반출) */
+    .sec-head{display:flex;align-items:center;gap:10px;margin:6px 0 12px;}
+    .sec-head .badge{font-size:13px;font-weight:800;padding:6px 14px;border-radius:8px;color:#fff;}
+    .sec-head .badge.in{background:linear-gradient(135deg,#10b981,#059669);}
+    .sec-head .badge.out{background:linear-gradient(135deg,#dc2626,#ef4444);}
+    .sec-head .count{font-size:12px;color:#64748b;font-weight:600;}
+    .sec-head .add{margin-left:auto;}
+
+    /* 캡쳐 업로드 — 참고용 */
+    .cap-wrap{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px;}
+    @media(max-width:760px){.cap-wrap{grid-template-columns:1fr;}}
+    .cap-zone{border:2px dashed #cbd5e1;border-radius:10px;padding:14px;text-align:center;cursor:pointer;background:#fafbfc;transition:all .18s;}
+    .cap-zone:hover{border-color:#6366f1;background:#eef2ff;}
+    .cap-zone .lbl{font-size:12px;font-weight:700;color:#334155;}
+    .cap-zone .sub{font-size:10px;color:#94a3b8;margin-top:3px;}
+    .cap-zone img{max-width:100%;max-height:180px;border-radius:6px;margin-top:6px;}
+    .cap-zone input{display:none;}
+
+    table.bd{width:100%;border-collapse:collapse;font-size:12px;}
+    table.bd th{background:#1e293b;color:#e2e8f0;padding:8px 6px;font-weight:700;text-align:center;border:1px solid #334155;}
+    table.bd td{padding:0;border:1px solid #e2e8f0;}
+    table.bd input{width:100%;height:32px;padding:0 6px;border:none;background:transparent;font-size:12px;font-family:inherit;color:#1e293b;text-align:center;}
+    table.bd input.left{text-align:left;padding:0 8px;}
+    table.bd input.right{text-align:right;padding:0 8px;font-variant-numeric:tabular-nums;}
+    table.bd input:focus{background:#fef3c7;outline:none;}
+    table.bd td.del{width:34px;text-align:center;background:#fef2f2;}
+    table.bd td.del button{width:24px;height:24px;border:none;background:#fee2e2;color:#b91c1c;border-radius:5px;cursor:pointer;font-size:11px;}
+
+    .btn{padding:9px 16px;border:none;border-radius:9px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+    .btn-add{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:6px 12px;font-size:12px;}
+    .btn-green{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+    .btn-gray{background:#e2e8f0;color:#475569;padding:6px 12px;font-size:12px;}
+
+    .toast{position:fixed;top:80px;right:20px;padding:12px 18px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.15);font-size:13px;font-weight:700;z-index:9999;display:none;color:#fff;}
+    .toast.success{background:#10b981;}.toast.error{background:#ef4444;}
+  </style>
+</head>
+<body>
+<script src="hub-nav.js"></script>
+<div id="sidebar"></div>
+
+<main class="hub-main">
+  <h1 class="hub-page-title">📋 2창고 보세 반·출입 내역</h1>
+
+  <div class="wrap">
+
+    <!-- 기본 정보 -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-info-circle"></i> 기본 정보</div>
+      <div class="meta-grid">
+        <div class="field"><label>창고 코드</label><input id="whCode" value="02006040" readonly style="background:#f1f5f9;color:#0f172a;font-weight:700;"></div>
+        <div class="field"><label>날짜</label><input type="date" id="mDate"></div>
+        <div class="field"><label>작성자</label><input type="text" id="mAuthor" placeholder="예: 최동규"></div>
+      </div>
+    </div>
+
+    <!-- 캡쳐 업로드 (참고용) -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-image"></i> 캡쳐 화면 (참고용 — 데이터 직접 입력)</div>
+      <div class="cap-wrap">
+        <label class="cap-zone" id="capIn">
+          <div class="lbl">📥 반입등록 화면</div>
+          <div class="sub">화면 캡쳐 이미지를 끌어다 놓거나 클릭 (선택 사항)</div>
+          <img id="imgIn" style="display:none;">
+          <input type="file" id="fileIn" accept="image/*">
+        </label>
+        <label class="cap-zone" id="capOut">
+          <div class="lbl">📤 반출등록 화면</div>
+          <div class="sub">화면 캡쳐 이미지를 끌어다 놓거나 클릭 (선택 사항)</div>
+          <img id="imgOut" style="display:none;">
+          <input type="file" id="fileOut" accept="image/*">
+        </label>
+      </div>
+    </div>
+
+    <!-- 반입 -->
+    <div class="card">
+      <div class="sec-head">
+        <span class="badge in">📥 반입</span>
+        <span class="count" id="cntIn">0건</span>
+        <button class="btn btn-add add" onclick="addRow('in')"><i class="fas fa-plus"></i> 행 추가</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="bd">
+          <thead><tr>
+            <th style="width:34px;"></th>
+            <th style="width:50px;">건수</th>
+            <th style="min-width:140px;">화주</th>
+            <th style="min-width:140px;">BL번호</th>
+            <th style="min-width:130px;">컨테이너번호</th>
+            <th style="min-width:80px;">규격</th>
+            <th style="width:70px;">수량</th>
+            <th style="width:90px;">중량(kg)</th>
+            <th style="width:90px;">작업내용</th>
+            <th style="min-width:110px;">제품종류</th>
+          </tr></thead>
+          <tbody id="tbIn"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 반출 -->
+    <div class="card">
+      <div class="sec-head">
+        <span class="badge out">📤 반출</span>
+        <span class="count" id="cntOut">0건</span>
+        <button class="btn btn-add add" onclick="addRow('out')"><i class="fas fa-plus"></i> 행 추가</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="bd">
+          <thead><tr>
+            <th style="width:34px;"></th>
+            <th style="width:50px;">건수</th>
+            <th style="min-width:140px;">화주</th>
+            <th style="min-width:140px;">BL번호</th>
+            <th style="min-width:130px;">컨테이너번호</th>
+            <th style="min-width:80px;">규격</th>
+            <th style="width:70px;">수량</th>
+            <th style="width:90px;">중량(kg)</th>
+            <th style="width:90px;">작업내용</th>
+            <th style="min-width:110px;">제품종류</th>
+          </tr></thead>
+          <tbody id="tbOut"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:20px;">
+      <button class="btn btn-gray" onclick="clearAll()"><i class="fas fa-trash"></i> 전체 지우기</button>
+      <button class="btn btn-green" onclick="downloadExcel()"><i class="fas fa-file-excel"></i> 엑셀 다운로드</button>
+    </div>
+
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script>
+  initNav('bonded_inout.html');
+
+  /* 행 상태 */
+  let rowsIn = [], rowsOut = [];
+
+  /* 초기 날짜 */
+  document.getElementById('mDate').value = new Date().toISOString().slice(0,10);
+
+  /* ── 캡쳐 업로드 (드래그&드롭, 표시만) ── */
+  bindCap('capIn','fileIn','imgIn');
+  bindCap('capOut','fileOut','imgOut');
+  function bindCap(zoneId, inputId, imgId) {
+    const z = document.getElementById(zoneId);
+    const inp = document.getElementById(inputId);
+    const img = document.getElementById(imgId);
+    ['dragenter','dragover'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.style.borderColor='#6366f1'; }));
+    ['dragleave','drop'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.style.borderColor=''; }));
+    z.addEventListener('drop', e => { const f=e.dataTransfer.files[0]; if(f) showImg(f); });
+    inp.addEventListener('change', e => { const f=e.target.files[0]; if(f) showImg(f); });
+    function showImg(f) {
+      const r = new FileReader();
+      r.onload = e => { img.src = e.target.result; img.style.display='block'; };
+      r.readAsDataURL(f);
+    }
+  }
+
+  /* ── 행 추가/삭제/렌더 ── */
+  function addRow(kind) {
+    const arr = kind==='in' ? rowsIn : rowsOut;
+    arr.push({ count:1, shipper:'', bl:'', container:'', spec:'', qty:'', weight:'', work:'PLT', product:'' });
+    render(kind);
+  }
+  function delRow(kind, i) {
+    const arr = kind==='in' ? rowsIn : rowsOut;
+    arr.splice(i,1);
+    render(kind);
+  }
+  function updRow(kind, i, field, val) {
+    const arr = kind==='in' ? rowsIn : rowsOut;
+    if (!arr[i]) return;
+    if (field==='count' || field==='qty') arr[i][field] = parseInt(String(val).replace(/[^\d]/g,'')) || '';
+    else if (field==='weight') arr[i][field] = parseFloat(String(val).replace(/[^\d.]/g,'')) || '';
+    else arr[i][field] = val;
+  }
+  function render(kind) {
+    const arr = kind==='in' ? rowsIn : rowsOut;
+    const tb = document.getElementById(kind==='in' ? 'tbIn' : 'tbOut');
+    document.getElementById(kind==='in' ? 'cntIn' : 'cntOut').textContent = `${arr.length}건`;
+    if (!arr.length) {
+      tb.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:18px;">행이 없습니다. "+ 행 추가" 버튼을 누르세요.</td></tr>`;
+      return;
+    }
+    tb.innerHTML = arr.map((r,i) => `<tr>
+      <td class="del"><button onclick="delRow('${kind}',${i})" title="삭제">✕</button></td>
+      <td><input type="number" min="0" value="${r.count!==''?r.count:''}" oninput="updRow('${kind}',${i},'count',this.value)"></td>
+      <td><input type="text" class="left" value="${esc(r.shipper)}" oninput="updRow('${kind}',${i},'shipper',this.value)" placeholder="예: 샤넬코리아"></td>
+      <td><input type="text" value="${esc(r.bl)}" oninput="updRow('${kind}',${i},'bl',this.value)" placeholder="BL번호"></td>
+      <td><input type="text" value="${esc(r.container)}" oninput="updRow('${kind}',${i},'container',this.value)"></td>
+      <td><input type="text" value="${esc(r.spec)}" oninput="updRow('${kind}',${i},'spec',this.value)"></td>
+      <td><input type="number" class="right" value="${r.qty!==''?r.qty:''}" oninput="updRow('${kind}',${i},'qty',this.value)"></td>
+      <td><input type="number" class="right" step="0.01" value="${r.weight!==''?r.weight:''}" oninput="updRow('${kind}',${i},'weight',this.value)"></td>
+      <td><input type="text" value="${esc(r.work)}" oninput="updRow('${kind}',${i},'work',this.value)"></td>
+      <td><input type="text" class="left" value="${esc(r.product)}" oninput="updRow('${kind}',${i},'product',this.value)" placeholder="예: 냉각기"></td>
+    </tr>`).join('');
+  }
+  render('in'); render('out');
+
+  function clearAll() {
+    if (!confirm('입력된 모든 행을 지울까요?')) return;
+    rowsIn = []; rowsOut = [];
+    render('in'); render('out');
+    toast('전체 초기화');
+  }
+
+  /* ── 엑셀 다운로드 (첨부 양식 동일) ── */
+  function downloadExcel() {
+    const date = document.getElementById('mDate').value || '';
+    const author = document.getElementById('mAuthor').value || '';
+
+    // 9열: A=건수 B=화주 C=BL번호 D=컨테이너 E=규격 F=수량 G=중량 H=작업 I=제품
+    const aoa = [];
+    // Row 1: 제목 (A~D 병합) + 우측 회사명
+    aoa.push(['2창고(02006040) 반,출입 내역','','','','','','ACTLOGISTICS Co., Ltd.','','']);
+    // Row 2: 날짜 | date | 작성자 | name
+    aoa.push(['날짜', date, '', '', '', '작성자', author, '', '']);
+    // Row 3: 반입 섹션 라벨
+    aoa.push(['반입','','','','','','','','']);
+    // Row 4: 반입 헤더
+    aoa.push(['건수','화주','BL번호','컨테이너번호','규격','수량','중량(kg)','작업내용','제품종류']);
+    // 반입 데이터
+    rowsIn.forEach(r => aoa.push([
+      r.count||'', r.shipper||'', r.bl||'', r.container||'', r.spec||'',
+      r.qty||'', r.weight||'', r.work||'', r.product||''
+    ]));
+    // 빈 줄 1
+    aoa.push(['','','','','','','','','']);
+    // 빈 줄 2
+    aoa.push(['','','','','','','','','']);
+    // 반출 섹션
+    const outLblRow = aoa.length;
+    aoa.push(['반출','','','','','','','','']);
+    // 반출 헤더
+    const outHdrRow = aoa.length;
+    aoa.push(['건수','화주','BL번호','컨테이너번호','규격','수량','중량(kg)','작업내용','제품종류']);
+    rowsOut.forEach(r => aoa.push([
+      r.count||'', r.shipper||'', r.bl||'', r.container||'', r.spec||'',
+      r.qty||'', r.weight||'', r.work||'', r.product||''
+    ]));
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // 병합
+    ws['!merges'] = [
+      { s:{r:0,c:0}, e:{r:0,c:4} },                 // 제목 (A1:E1)
+      { s:{r:0,c:6}, e:{r:0,c:8} },                 // 회사명 (G1:I1)
+      { s:{r:1,c:1}, e:{r:1,c:4} },                 // 날짜 값 (B2:E2)
+      { s:{r:1,c:6}, e:{r:1,c:8} },                 // 작성자 값 (G2:I2)
+      { s:{r:2,c:0}, e:{r:2,c:8} },                 // 반입 라벨 (A3:I3)
+      { s:{r:outLblRow,c:0}, e:{r:outLblRow,c:8} }, // 반출 라벨
+    ];
+
+    // 스타일
+    const border = {
+      top:{style:'thin',color:{rgb:'808080'}},bottom:{style:'thin',color:{rgb:'808080'}},
+      left:{style:'thin',color:{rgb:'808080'}},right:{style:'thin',color:{rgb:'808080'}}
+    };
+    const TITLE = { font:{bold:true,sz:18,name:'맑은 고딕'}, alignment:{horizontal:'center',vertical:'center'}, border };
+    const COMPANY = { font:{bold:true,sz:14,color:{rgb:'C00000'},name:'맑은 고딕'}, alignment:{horizontal:'center',vertical:'center'}, border };
+    const META_LBL = { font:{bold:true,sz:12,name:'맑은 고딕'}, fill:{patternType:'solid',fgColor:{rgb:'D9E1F2'}}, alignment:{horizontal:'center',vertical:'center'}, border };
+    const META_VAL = { font:{sz:12,name:'맑은 고딕'}, alignment:{horizontal:'center',vertical:'center'}, border };
+    const SEC = { font:{bold:true,sz:13,name:'맑은 고딕'}, fill:{patternType:'solid',fgColor:{rgb:'D9E1F2'}}, alignment:{horizontal:'left',vertical:'center',indent:1}, border };
+    const HDR = { font:{bold:true,sz:11,name:'맑은 고딕'}, fill:{patternType:'solid',fgColor:{rgb:'BDD7EE'}}, alignment:{horizontal:'center',vertical:'center'}, border };
+    const CELL = { font:{sz:11,name:'맑은 고딕'}, alignment:{horizontal:'center',vertical:'center'}, border };
+    const CELL_L = { ...CELL, alignment:{horizontal:'left',vertical:'center',indent:1} };
+    const CELL_R = { ...CELL, alignment:{horizontal:'right',vertical:'center',indent:1}, numFmt:'#,##0' };
+    const CELL_R2 = { ...CELL_R, numFmt:'#,##0.00' };
+
+    function setS(r,c,style) {
+      const ref = XLSX.utils.encode_cell({r,c});
+      if (!ws[ref]) ws[ref] = { v:'' };
+      ws[ref].s = style;
+    }
+
+    // Row 0: 제목
+    for(let c=0;c<5;c++) setS(0,c,TITLE);
+    for(let c=6;c<9;c++) setS(0,c,COMPANY);
+    // Row 1: 메타
+    setS(1,0,META_LBL); setS(1,1,META_VAL); setS(1,2,META_VAL); setS(1,3,META_VAL); setS(1,4,META_VAL);
+    setS(1,5,META_LBL); setS(1,6,META_VAL); setS(1,7,META_VAL); setS(1,8,META_VAL);
+    // Row 2: 반입 라벨
+    for(let c=0;c<9;c++) setS(2,c,SEC);
+    // Row 3: 반입 헤더
+    for(let c=0;c<9;c++) setS(3,c,HDR);
+    // 반입 데이터
+    rowsIn.forEach((r,i)=>{
+      const rr=4+i;
+      for(let c=0;c<9;c++) setS(rr,c, c===0?CELL: c===1||c===8?CELL_L: c===6?CELL_R2: c===5?CELL_R: CELL);
+    });
+    // 반출 라벨
+    for(let c=0;c<9;c++) setS(outLblRow,c,SEC);
+    // 반출 헤더
+    for(let c=0;c<9;c++) setS(outHdrRow,c,HDR);
+    // 반출 데이터
+    rowsOut.forEach((r,i)=>{
+      const rr=outHdrRow+1+i;
+      for(let c=0;c<9;c++) setS(rr,c, c===0?CELL: c===1||c===8?CELL_L: c===6?CELL_R2: c===5?CELL_R: CELL);
+    });
+
+    ws['!cols'] = [
+      {wch:8},{wch:18},{wch:22},{wch:20},{wch:12},
+      {wch:8},{wch:12},{wch:12},{wch:14}
+    ];
+    ws['!rows'] = [{hpt:36},{hpt:24},{hpt:22},{hpt:22}];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '반출입 내역');
+    const stamp = (date || new Date().toISOString().slice(0,10)).replace(/-/g,'');
+    XLSX.writeFile(wb, `2창고 보세 반·출입 내역_${stamp}.xlsx`);
+    toast('✅ 엑셀 다운로드 완료');
+  }
+
+  /* 유틸 */
+  function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function toast(msg, type='success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.className = 'toast ' + type; el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 2600);
+  }
+</script>
+</body>
+</html>
