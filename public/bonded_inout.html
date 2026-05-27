@@ -226,15 +226,18 @@
 
   /* 워크북의 모든 시트에서 헤더가 있는 시트를 찾아 행 구성 */
   function parseSheetForRows(wb) {
-    // 후보 시트 — 헤더 행에 BL/화주/수량 등이 있는 시트 우선
     for (const sn of wb.SheetNames) {
       const arr = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '' });
-      // 헤더 행 탐색 (최대 5행 내)
       for (let r = 0; r < Math.min(arr.length, 8); r++) {
         const hdr = (arr[r] || []).map(c => String(c||'').trim());
         const map = mapHeaders(hdr);
         if (map.bl != null || map.shipper != null) {
-          // 데이터 행 시작
+          // 디버그 — 어떤 헤더가 어떤 컬럼에 매칭됐는지 표시
+          const dbg = Object.fromEntries(
+            Object.entries(map).filter(([k,v])=>v!=null).map(([k,v]) => [k, `[${v}] ${hdr[v]}`])
+          );
+          console.log(`[보세 매핑 — 시트:${sn}, 헤더행:${r+1}]`, dbg);
+
           const out = [];
           for (let i = r + 1; i < arr.length; i++) {
             const row = arr[i] || [];
@@ -274,21 +277,29 @@
     const at = i => i==null ? '' : (row[i] ?? '');
     const shipper = String(at(map.shipper)||'').trim();
     const bl      = String(at(map.bl)||'').trim();
-    // 화주·BL 둘 다 없으면 빈 행으로 간주
     if (!shipper && !bl) return null;
     const cnt = parseInt(String(at(map.count)).replace(/[^\d]/g,''));
     const qty = parseInt(String(at(map.qty)).replace(/[^\d]/g,''));
     const wt  = parseFloat(String(at(map.weight)).replace(/[^\d.]/g,''));
+
+    // 제품종류 — 컬럼이 잘못 매칭되어 순수 숫자 코드(예: "99")가 들어오는 경우 빈 칸 처리
+    let product = String(at(map.product)||'').trim();
+    if (product && /^\d+$/.test(product) && product.length <= 4) product = '';
+
+    // 작업내용 — 마찬가지로 순수 숫자면 PLT 기본값
+    let work = String(at(map.work)||'').trim();
+    if (!work || /^\d+$/.test(work)) work = 'PLT';
+
     return {
       count:   isNaN(cnt) || !cnt ? 1 : cnt,
       shipper,
       bl,
-      container: '',                 // 사용자 요청 — 비워둠
-      spec: '',                      // 사용자 요청 — 비워둠
+      container: '',
+      spec: '',
       qty:    isNaN(qty) ? '' : qty,
       weight: isNaN(wt)  ? '' : wt,
-      work:   String(at(map.work)||'PLT').trim() || 'PLT',
-      product: String(at(map.product)||'').trim()
+      work,
+      product
     };
   }
 
