@@ -83,31 +83,26 @@
       </div>
     </div>
 
-    <!-- 캡쳐 업로드 (참고용) -->
+    <!-- 엑셀 업로드 (반입/반출) -->
     <div class="card">
-      <div class="card-title"><i class="fas fa-image"></i> 캡쳐 화면 (참고용 — 데이터 직접 입력)</div>
+      <div class="card-title"><i class="fas fa-file-excel"></i> 엑셀 파일 업로드</div>
       <div style="font-size:11px;color:#475569;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:10px;">
-        💡 영역을 클릭하여 선택한 뒤 <b>Ctrl+V</b>로 캡쳐 이미지를 붙여넣기 하세요. 붙여넣은 후 아래 <b>"이미지에서 BL 자동추출"</b> 버튼을 누르면 BL번호가 자동 인식되어 행이 생성됩니다.
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:10px;flex-wrap:wrap;">
-        <button class="btn" id="btnOcr" onclick="runOcr()" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;" disabled>
-          <i class="fas fa-magic"></i> <span id="btnOcrLbl">이미지에서 BL 자동추출</span>
-        </button>
+        💡 각 영역에 엑셀 파일을 드래그하면 자동으로 분석되어 표가 채워집니다. <b>컨테이너번호·규격은 비워둠</b>, 나머지(화주·BL번호·수량·중량·작업내용·제품종류)는 헤더를 자동 인식해 입력됩니다.
       </div>
       <div class="cap-wrap">
         <div class="cap-zone" id="capIn" data-kind="in">
-          <button type="button" class="clear-btn" onclick="clearImg(event,'in')">✕</button>
-          <div class="lbl">📥 반입등록 화면</div>
-          <div class="sub">영역 클릭 후 Ctrl+V · 파일 드래그 · <a href="#" onclick="event.preventDefault();event.stopPropagation();document.getElementById('fileIn').click();" style="color:#6366f1;text-decoration:underline;font-weight:700;">파일 선택</a></div>
-          <img id="imgIn" style="display:none;">
-          <input type="file" id="fileIn" accept="image/*">
+          <button type="button" class="clear-btn" onclick="clearXlsx(event,'in')">✕</button>
+          <div class="lbl">📥 반입 엑셀</div>
+          <div class="sub">엑셀 파일을 끌어다 놓거나 <a href="#" onclick="event.preventDefault();event.stopPropagation();document.getElementById('fileIn').click();" style="color:#6366f1;text-decoration:underline;font-weight:700;">파일 선택</a></div>
+          <div id="fnIn" style="font-size:11px;color:#10b981;font-weight:700;margin-top:8px;"></div>
+          <input type="file" id="fileIn" accept=".xlsx,.xlsm,.xls">
         </div>
         <div class="cap-zone" id="capOut" data-kind="out">
-          <button type="button" class="clear-btn" onclick="clearImg(event,'out')">✕</button>
-          <div class="lbl">📤 반출등록 화면</div>
-          <div class="sub">영역 클릭 후 Ctrl+V · 파일 드래그 · <a href="#" onclick="event.preventDefault();event.stopPropagation();document.getElementById('fileOut').click();" style="color:#6366f1;text-decoration:underline;font-weight:700;">파일 선택</a></div>
-          <img id="imgOut" style="display:none;">
-          <input type="file" id="fileOut" accept="image/*">
+          <button type="button" class="clear-btn" onclick="clearXlsx(event,'out')">✕</button>
+          <div class="lbl">📤 반출 엑셀</div>
+          <div class="sub">엑셀 파일을 끌어다 놓거나 <a href="#" onclick="event.preventDefault();event.stopPropagation();document.getElementById('fileOut').click();" style="color:#6366f1;text-decoration:underline;font-weight:700;">파일 선택</a></div>
+          <div id="fnOut" style="font-size:11px;color:#10b981;font-weight:700;margin-top:8px;"></div>
+          <input type="file" id="fileOut" accept=".xlsx,.xlsm,.xls">
         </div>
       </div>
     </div>
@@ -175,7 +170,6 @@
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-<script src="https://unpkg.com/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
 <script>
   initNav('bonded_inout.html');
 
@@ -185,149 +179,117 @@
   /* 초기 날짜 */
   document.getElementById('mDate').value = new Date().toISOString().slice(0,10);
 
-  /* ── 캡쳐 업로드: Ctrl+V 붙여넣기 + 드래그&드롭 + 파일선택 ── */
-  let activeKind = 'in';   // 현재 선택된 영역 (Ctrl+V 대상)
-  bindCap('capIn','fileIn','imgIn','in');
-  bindCap('capOut','fileOut','imgOut','out');
-  setActive('in');  // 기본: 반입 영역
+  /* ── 엑셀 업로드: 드래그&드롭 + 파일선택, 헤더 자동 인식 ── */
+  bindXlsx('capIn','fileIn','in');
+  bindXlsx('capOut','fileOut','out');
 
-  function bindCap(zoneId, inputId, imgId, kind) {
+  function bindXlsx(zoneId, inputId, kind) {
     const z = document.getElementById(zoneId);
     const inp = document.getElementById(inputId);
-    const img = document.getElementById(imgId);
-    // 클릭 — 영역 활성화 (Ctrl+V 대상). 파일 선택은 별도 링크에서.
-    z.addEventListener('click', e => setActive(kind));
-    // 드래그&드롭
     ['dragenter','dragover'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.classList.add('dragover'); }));
     ['dragleave','drop'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.classList.remove('dragover'); }));
-    z.addEventListener('drop', e => { const f=e.dataTransfer.files[0]; if(f && f.type.startsWith('image/')) showImgFor(kind, f); });
-    inp.addEventListener('change', e => { const f=e.target.files[0]; if(f) showImgFor(kind, f); });
+    z.addEventListener('drop', e => { const f=e.dataTransfer.files[0]; if(f) readXlsx(f, kind); });
+    inp.addEventListener('change', e => { const f=e.target.files[0]; if(f) readXlsx(f, kind); });
   }
 
-  function setActive(kind) {
-    activeKind = kind;
-    document.getElementById('capIn').classList.toggle('active', kind==='in');
-    document.getElementById('capOut').classList.toggle('active', kind==='out');
-  }
-
-  function showImgFor(kind, file) {
-    const img = document.getElementById(kind==='in' ? 'imgIn' : 'imgOut');
-    const zone = document.getElementById(kind==='in' ? 'capIn' : 'capOut');
-    const r = new FileReader();
-    r.onload = e => {
-      img.src = e.target.result;
-      img.style.display = 'block';
-      zone.classList.add('has-img');
-      updateOcrBtn();
-    };
-    r.readAsDataURL(file);
-  }
-  function updateOcrBtn() {
-    const has = document.getElementById('imgIn').src || document.getElementById('imgOut').src;
-    document.getElementById('btnOcr').disabled = !has;
-  }
-
-  function clearImg(e, kind) {
+  function clearXlsx(e, kind) {
     e.stopPropagation();
-    const img = document.getElementById(kind==='in' ? 'imgIn' : 'imgOut');
-    const zone = document.getElementById(kind==='in' ? 'capIn' : 'capOut');
-    img.src = ''; img.style.display = 'none';
-    zone.classList.remove('has-img');
     const inp = document.getElementById(kind==='in' ? 'fileIn' : 'fileOut');
     inp.value = '';
-    updateOcrBtn();
+    document.getElementById(kind==='in' ? 'fnIn' : 'fnOut').textContent = '';
+    if (kind==='in') rowsIn = []; else rowsOut = [];
+    render(kind);
   }
-  window.clearImg = clearImg;
+  window.clearXlsx = clearXlsx;
 
-  /* ── OCR: 캡쳐 이미지에서 BL번호 자동 추출 ── */
-  async function runOcr() {
-    const btn = document.getElementById('btnOcr');
-    const lbl = document.getElementById('btnOcrLbl');
-    btn.disabled = true;
-    const counts = { in: 0, out: 0 };
-    let ocrText = { in: '', out: '' };
-    for (const kind of ['in','out']) {
-      const img = document.getElementById(kind==='in' ? 'imgIn' : 'imgOut');
-      if (!img.src) continue;
-      lbl.textContent = `${kind==='in'?'반입':'반출'} 이미지 분석 중...`;
+  /* ── 엑셀 파일 → 행 자동 채움 ── */
+  function readXlsx(file, kind) {
+    const r = new FileReader();
+    r.onload = e => {
       try {
-        // 작은 이미지 → 2배 업스케일로 인식률 향상
-        const upscaled = await upscaleImage(img.src, 2);
-        const { data:{ text } } = await Tesseract.recognize(upscaled, 'eng', {
-          logger: m => { if (m.status === 'recognizing text') lbl.textContent = `${kind==='in'?'반입':'반출'} 분석 ${Math.round((m.progress||0)*100)}%`; }
-        });
-        ocrText[kind] = text;
-        const bls = extractBLs(text);
-        const arr = kind==='in' ? rowsIn : rowsOut;
-        bls.forEach(bl => {
-          if (arr.some(r => r.bl === bl)) return;
-          arr.push({ count:1, shipper:'', bl, container:'', spec:'', qty:'', weight:'', work:'PLT', product:'' });
-          counts[kind]++;
-        });
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+        const parsed = parseSheetForRows(wb);
+        if (!parsed.length) {
+          toast('헤더 또는 데이터를 인식하지 못했습니다.', 'error');
+          return;
+        }
+        if (kind === 'in') rowsIn = parsed; else rowsOut = parsed;
         render(kind);
-      } catch(e) {
-        console.warn('[OCR]', kind, e);
-        toast(`${kind==='in'?'반입':'반출'} 이미지 분석 실패: ${e.message}`, 'error');
+        document.getElementById(kind==='in' ? 'fnIn' : 'fnOut').textContent = `✓ ${file.name} (${parsed.length}건)`;
+        toast(`✅ ${kind==='in'?'반입':'반출'} ${parsed.length}건 자동 입력`);
+      } catch(err) {
+        toast('파일 읽기 실패: ' + err.message, 'error');
+      }
+    };
+    r.readAsArrayBuffer(file);
+  }
+
+  /* 워크북의 모든 시트에서 헤더가 있는 시트를 찾아 행 구성 */
+  function parseSheetForRows(wb) {
+    // 후보 시트 — 헤더 행에 BL/화주/수량 등이 있는 시트 우선
+    for (const sn of wb.SheetNames) {
+      const arr = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '' });
+      // 헤더 행 탐색 (최대 5행 내)
+      for (let r = 0; r < Math.min(arr.length, 8); r++) {
+        const hdr = (arr[r] || []).map(c => String(c||'').trim());
+        const map = mapHeaders(hdr);
+        if (map.bl != null || map.shipper != null) {
+          // 데이터 행 시작
+          const out = [];
+          for (let i = r + 1; i < arr.length; i++) {
+            const row = arr[i] || [];
+            const obj = buildRow(row, map);
+            if (obj) out.push(obj);
+          }
+          if (out.length) return out;
+        }
       }
     }
-    lbl.textContent = '이미지에서 BL 자동추출';
-    btn.disabled = false;
-    console.log('[OCR raw text — 반입]', ocrText.in);
-    console.log('[OCR raw text — 반출]', ocrText.out);
-    const msg = `반입 ${counts.in}건 · 반출 ${counts.out}건 추출`;
-    if (counts.in + counts.out > 0) toast(`✅ ${msg}`);
-    else toast(`⚠ BL을 인식하지 못했습니다. 캡쳐를 더 크게 찍거나 직접 입력해주세요. (콘솔 F12에서 OCR 원문 확인 가능)`, 'error');
-  }
-  window.runOcr = runOcr;
-
-  /* 이미지 업스케일 (Canvas) — 작은 캡쳐 인식률 향상 */
-  function upscaleImage(src, scale) {
-    return new Promise((resolve, reject) => {
-      const im = new Image();
-      im.onload = () => {
-        const c = document.createElement('canvas');
-        c.width = im.naturalWidth * scale;
-        c.height = im.naturalHeight * scale;
-        const ctx = c.getContext('2d');
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(im, 0, 0, c.width, c.height);
-        resolve(c.toDataURL('image/png'));
-      };
-      im.onerror = reject;
-      im.src = src;
-    });
+    return [];
   }
 
-  /* 텍스트에서 BL번호 패턴 추출 — 라인 단위로 컨텍스트 필터링 */
-  function extractBLs(text) {
-    const out = new Set();
-    const lines = String(text).split(/\r?\n/);
-    // BL 패턴: 알파벳 2~5자 + 숫자 7~13자 (가장 신뢰도 높음)
-    const reAlphaNum = /\b[A-Z]{2,5}\s?\d{7,13}\b/g;
-    // 순수 숫자 10~12자 (한국 선사 등)
-    const rePureNum = /\b\d{10,12}\b/g;
-    lines.forEach(line => {
-      // 승인번호·신고번호·문서번호 줄은 스킵 (혼동 방지)
-      if (/승인\s*번호|신고\s*번호|문서\s*번호|연락처|전화|MRN|HSN|MSN/.test(line)) return;
+  /* 헤더 이름 → 컬럼 인덱스 매핑 */
+  function mapHeaders(hdr) {
+    const norm = s => String(s).replace(/\s+/g,'').toLowerCase();
+    const find = (...keys) => {
+      for (let i = 0; i < hdr.length; i++) {
+        const c = norm(hdr[i]);
+        if (!c) continue;
+        for (const k of keys) if (c.includes(norm(k))) return i;
+      }
+      return null;
+    };
+    return {
+      count:    find('건수','count'),
+      shipper:  find('화주','거래처','수입자','수출자','consignee','shipper'),
+      bl:       find('bl번호','b/l','bl no','bl'),
+      qty:      find('수량','파렛','plt','qty','quantity','pkg','pack'),
+      weight:   find('중량','무게','weight','kg'),
+      work:     find('작업내용','단위','작업','unit'),
+      product:  find('제품종류','제품','품명','품목','description','cargo','상품')
+    };
+  }
 
-      let m;
-      reAlphaNum.lastIndex = 0;
-      while ((m = reAlphaNum.exec(line)) !== null) {
-        const v = m[0].replace(/\s/g,'');
-        // 끝이 M·H로 끝나거나 전체가 너무 길면(15+) 승인번호일 가능성 — 제외
-        if (/[MH]$/.test(v)) continue;
-        out.add(v);
-      }
-      rePureNum.lastIndex = 0;
-      while ((m = rePureNum.exec(line)) !== null) {
-        const v = m[0];
-        // 라인에 'M' 접미가 가까이 있으면(승인번호) 제외
-        if (new RegExp(v + '\\s*M').test(line)) continue;
-        out.add(v);
-      }
-    });
-    return Array.from(out);
+  function buildRow(row, map) {
+    const at = i => i==null ? '' : (row[i] ?? '');
+    const shipper = String(at(map.shipper)||'').trim();
+    const bl      = String(at(map.bl)||'').trim();
+    // 화주·BL 둘 다 없으면 빈 행으로 간주
+    if (!shipper && !bl) return null;
+    const cnt = parseInt(String(at(map.count)).replace(/[^\d]/g,''));
+    const qty = parseInt(String(at(map.qty)).replace(/[^\d]/g,''));
+    const wt  = parseFloat(String(at(map.weight)).replace(/[^\d.]/g,''));
+    return {
+      count:   isNaN(cnt) || !cnt ? 1 : cnt,
+      shipper,
+      bl,
+      container: '',                 // 사용자 요청 — 비워둠
+      spec: '',                      // 사용자 요청 — 비워둠
+      qty:    isNaN(qty) ? '' : qty,
+      weight: isNaN(wt)  ? '' : wt,
+      work:   String(at(map.work)||'PLT').trim() || 'PLT',
+      product: String(at(map.product)||'').trim()
+    };
   }
 
   /* 전역 클립보드 paste — 활성 영역에 이미지 붙여넣기 */
