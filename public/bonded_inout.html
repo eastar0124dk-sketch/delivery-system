@@ -34,12 +34,16 @@
     /* 캡쳐 업로드 — 참고용 */
     .cap-wrap{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px;}
     @media(max-width:760px){.cap-wrap{grid-template-columns:1fr;}}
-    .cap-zone{border:2px dashed #cbd5e1;border-radius:10px;padding:14px;text-align:center;cursor:pointer;background:#fafbfc;transition:all .18s;}
+    .cap-zone{border:2px dashed #cbd5e1;border-radius:10px;padding:14px;text-align:center;cursor:pointer;background:#fafbfc;transition:all .18s;position:relative;}
     .cap-zone:hover{border-color:#6366f1;background:#eef2ff;}
+    .cap-zone.active{border-color:#10b981;background:#f0fdf4;border-style:solid;}
+    .cap-zone.active::after{content:'붙여넣기 대기 중 (Ctrl+V)';position:absolute;top:-9px;right:10px;background:#10b981;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;}
     .cap-zone .lbl{font-size:12px;font-weight:700;color:#334155;}
     .cap-zone .sub{font-size:10px;color:#94a3b8;margin-top:3px;}
     .cap-zone img{max-width:100%;max-height:180px;border-radius:6px;margin-top:6px;}
     .cap-zone input{display:none;}
+    .cap-zone .clear-btn{position:absolute;top:6px;right:6px;background:#fee2e2;color:#b91c1c;border:none;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer;display:none;}
+    .cap-zone.has-img .clear-btn{display:block;}
 
     table.bd{width:100%;border-collapse:collapse;font-size:12px;}
     table.bd th{background:#1e293b;color:#e2e8f0;padding:8px 6px;font-weight:700;text-align:center;border:1px solid #334155;}
@@ -82,19 +86,24 @@
     <!-- 캡쳐 업로드 (참고용) -->
     <div class="card">
       <div class="card-title"><i class="fas fa-image"></i> 캡쳐 화면 (참고용 — 데이터 직접 입력)</div>
+      <div style="font-size:11px;color:#475569;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:10px;">
+        💡 영역을 클릭하여 선택한 뒤 <b>Ctrl+V</b>로 캡쳐 이미지를 붙여넣기 하세요. (드래그&드롭·파일선택도 가능)
+      </div>
       <div class="cap-wrap">
-        <label class="cap-zone" id="capIn">
+        <div class="cap-zone" id="capIn" data-kind="in">
+          <button type="button" class="clear-btn" onclick="clearImg(event,'in')">✕</button>
           <div class="lbl">📥 반입등록 화면</div>
-          <div class="sub">화면 캡쳐 이미지를 끌어다 놓거나 클릭 (선택 사항)</div>
+          <div class="sub">영역 클릭 후 Ctrl+V · 파일 드래그 · <a href="#" onclick="event.preventDefault();event.stopPropagation();document.getElementById('fileIn').click();" style="color:#6366f1;text-decoration:underline;font-weight:700;">파일 선택</a></div>
           <img id="imgIn" style="display:none;">
           <input type="file" id="fileIn" accept="image/*">
-        </label>
-        <label class="cap-zone" id="capOut">
+        </div>
+        <div class="cap-zone" id="capOut" data-kind="out">
+          <button type="button" class="clear-btn" onclick="clearImg(event,'out')">✕</button>
           <div class="lbl">📤 반출등록 화면</div>
-          <div class="sub">화면 캡쳐 이미지를 끌어다 놓거나 클릭 (선택 사항)</div>
+          <div class="sub">영역 클릭 후 Ctrl+V · 파일 드래그 · <a href="#" onclick="event.preventDefault();event.stopPropagation();document.getElementById('fileOut').click();" style="color:#6366f1;text-decoration:underline;font-weight:700;">파일 선택</a></div>
           <img id="imgOut" style="display:none;">
           <input type="file" id="fileOut" accept="image/*">
-        </label>
+        </div>
       </div>
     </div>
 
@@ -170,23 +179,73 @@
   /* 초기 날짜 */
   document.getElementById('mDate').value = new Date().toISOString().slice(0,10);
 
-  /* ── 캡쳐 업로드 (드래그&드롭, 표시만) ── */
-  bindCap('capIn','fileIn','imgIn');
-  bindCap('capOut','fileOut','imgOut');
-  function bindCap(zoneId, inputId, imgId) {
+  /* ── 캡쳐 업로드: Ctrl+V 붙여넣기 + 드래그&드롭 + 파일선택 ── */
+  let activeKind = 'in';   // 현재 선택된 영역 (Ctrl+V 대상)
+  bindCap('capIn','fileIn','imgIn','in');
+  bindCap('capOut','fileOut','imgOut','out');
+  setActive('in');  // 기본: 반입 영역
+
+  function bindCap(zoneId, inputId, imgId, kind) {
     const z = document.getElementById(zoneId);
     const inp = document.getElementById(inputId);
     const img = document.getElementById(imgId);
-    ['dragenter','dragover'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.style.borderColor='#6366f1'; }));
-    ['dragleave','drop'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.style.borderColor=''; }));
-    z.addEventListener('drop', e => { const f=e.dataTransfer.files[0]; if(f) showImg(f); });
-    inp.addEventListener('change', e => { const f=e.target.files[0]; if(f) showImg(f); });
-    function showImg(f) {
-      const r = new FileReader();
-      r.onload = e => { img.src = e.target.result; img.style.display='block'; };
-      r.readAsDataURL(f);
-    }
+    // 클릭 — 영역 활성화 (Ctrl+V 대상). 파일 선택은 별도 링크에서.
+    z.addEventListener('click', e => setActive(kind));
+    // 드래그&드롭
+    ['dragenter','dragover'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.classList.remove('dragover'); }));
+    z.addEventListener('drop', e => { const f=e.dataTransfer.files[0]; if(f && f.type.startsWith('image/')) showImgFor(kind, f); });
+    inp.addEventListener('change', e => { const f=e.target.files[0]; if(f) showImgFor(kind, f); });
   }
+
+  function setActive(kind) {
+    activeKind = kind;
+    document.getElementById('capIn').classList.toggle('active', kind==='in');
+    document.getElementById('capOut').classList.toggle('active', kind==='out');
+  }
+
+  function showImgFor(kind, file) {
+    const img = document.getElementById(kind==='in' ? 'imgIn' : 'imgOut');
+    const zone = document.getElementById(kind==='in' ? 'capIn' : 'capOut');
+    const r = new FileReader();
+    r.onload = e => {
+      img.src = e.target.result;
+      img.style.display = 'block';
+      zone.classList.add('has-img');
+    };
+    r.readAsDataURL(file);
+  }
+
+  function clearImg(e, kind) {
+    e.stopPropagation();
+    const img = document.getElementById(kind==='in' ? 'imgIn' : 'imgOut');
+    const zone = document.getElementById(kind==='in' ? 'capIn' : 'capOut');
+    img.src = ''; img.style.display = 'none';
+    zone.classList.remove('has-img');
+    const inp = document.getElementById(kind==='in' ? 'fileIn' : 'fileOut');
+    inp.value = '';
+  }
+  window.clearImg = clearImg;
+
+  /* 전역 클립보드 paste — 활성 영역에 이미지 붙여넣기 */
+  document.addEventListener('paste', e => {
+    if (!e.clipboardData) return;
+    // 사용자가 input/textarea에 포커스 중이면 그쪽 우선
+    const tag = (document.activeElement && document.activeElement.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    const items = e.clipboardData.items || [];
+    for (const it of items) {
+      if (it.type && it.type.startsWith('image/')) {
+        const blob = it.getAsFile();
+        if (blob) {
+          e.preventDefault();
+          showImgFor(activeKind, blob);
+          toast(`✅ ${activeKind==='in'?'반입':'반출'} 영역에 붙여넣기 완료`);
+        }
+        return;
+      }
+    }
+  });
 
   /* ── 행 추가/삭제/렌더 ── */
   function addRow(kind) {
