@@ -87,7 +87,12 @@
     <div class="card">
       <div class="card-title"><i class="fas fa-image"></i> 캡쳐 화면 (참고용 — 데이터 직접 입력)</div>
       <div style="font-size:11px;color:#475569;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:10px;">
-        💡 영역을 클릭하여 선택한 뒤 <b>Ctrl+V</b>로 캡쳐 이미지를 붙여넣기 하세요. (드래그&드롭·파일선택도 가능)
+        💡 영역을 클릭하여 선택한 뒤 <b>Ctrl+V</b>로 캡쳐 이미지를 붙여넣기 하세요. 붙여넣은 후 아래 <b>"이미지에서 BL 자동추출"</b> 버튼을 누르면 BL번호가 자동 인식되어 행이 생성됩니다.
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:10px;flex-wrap:wrap;">
+        <button class="btn" id="btnOcr" onclick="runOcr()" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;" disabled>
+          <i class="fas fa-magic"></i> <span id="btnOcrLbl">이미지에서 BL 자동추출</span>
+        </button>
       </div>
       <div class="cap-wrap">
         <div class="cap-zone" id="capIn" data-kind="in">
@@ -170,6 +175,7 @@
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://unpkg.com/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
 <script>
   initNav('bonded_inout.html');
 
@@ -212,8 +218,13 @@
       img.src = e.target.result;
       img.style.display = 'block';
       zone.classList.add('has-img');
+      updateOcrBtn();
     };
     r.readAsDataURL(file);
+  }
+  function updateOcrBtn() {
+    const has = document.getElementById('imgIn').src || document.getElementById('imgOut').src;
+    document.getElementById('btnOcr').disabled = !has;
   }
 
   function clearImg(e, kind) {
@@ -224,8 +235,61 @@
     zone.classList.remove('has-img');
     const inp = document.getElementById(kind==='in' ? 'fileIn' : 'fileOut');
     inp.value = '';
+    updateOcrBtn();
   }
   window.clearImg = clearImg;
+
+  /* ── OCR: 캡쳐 이미지에서 BL번호 자동 추출 ── */
+  async function runOcr() {
+    const btn = document.getElementById('btnOcr');
+    const lbl = document.getElementById('btnOcrLbl');
+    btn.disabled = true;
+    let totalAdded = 0;
+    for (const kind of ['in','out']) {
+      const img = document.getElementById(kind==='in' ? 'imgIn' : 'imgOut');
+      if (!img.src) continue;
+      lbl.textContent = `${kind==='in'?'반입':'반출'} 이미지 분석 중...`;
+      try {
+        const { data:{ text } } = await Tesseract.recognize(img.src, 'eng', {
+          logger: m => { if (m.status === 'recognizing text') lbl.textContent = `${kind==='in'?'반입':'반출'} 분석 ${Math.round((m.progress||0)*100)}%`; }
+        });
+        const bls = extractBLs(text);
+        const arr = kind==='in' ? rowsIn : rowsOut;
+        // 기존 행 중 BL 비어있는 행 우선 채우고, 나머지는 추가
+        bls.forEach(bl => {
+          if (arr.some(r => r.bl === bl)) return;  // 중복 제외
+          arr.push({ count:1, shipper:'', bl, container:'', spec:'', qty:'', weight:'', work:'PLT', product:'' });
+          totalAdded++;
+        });
+        render(kind);
+      } catch(e) {
+        console.warn('[OCR]', kind, e);
+        toast(`${kind==='in'?'반입':'반출'} 이미지 분석 실패: ${e.message}`, 'error');
+      }
+    }
+    lbl.textContent = '이미지에서 BL 자동추출';
+    btn.disabled = false;
+    if (totalAdded > 0) toast(`✅ BL번호 ${totalAdded}건 추출 완료`);
+    else toast('BL번호를 인식하지 못했습니다. 캡쳐가 선명한지 확인해주세요.', 'error');
+  }
+  window.runOcr = runOcr;
+
+  /* 텍스트에서 BL번호 패턴 추출 */
+  function extractBLs(text) {
+    const out = new Set();
+    // 패턴 1: 알파벳 2~5자 + 숫자 7~12자 (예: COAU7269203018, CNSZX0000605899, CN506828794)
+    const re1 = /\b[A-Z]{2,5}\s?\d{7,13}\b/g;
+    // 패턴 2: 순수 숫자 9~12자 (예: 2126300079)
+    const re2 = /\b\d{9,12}\b/g;
+    let m;
+    while ((m = re1.exec(text)) !== null) out.add(m[0].replace(/\s/g,''));
+    while ((m = re2.exec(text)) !== null) {
+      const v = m[0];
+      // MRN(15자리 이상)·전화번호 등 제외 (8~11자리는 BL로 간주)
+      if (v.length >= 9 && v.length <= 12) out.add(v);
+    }
+    return Array.from(out);
+  }
 
   /* 전역 클립보드 paste — 활성 영역에 이미지 붙여넣기 */
   document.addEventListener('paste', e => {
