@@ -244,22 +244,25 @@
     const btn = document.getElementById('btnOcr');
     const lbl = document.getElementById('btnOcrLbl');
     btn.disabled = true;
-    let totalAdded = 0;
+    const counts = { in: 0, out: 0 };
+    let ocrText = { in: '', out: '' };
     for (const kind of ['in','out']) {
       const img = document.getElementById(kind==='in' ? 'imgIn' : 'imgOut');
       if (!img.src) continue;
       lbl.textContent = `${kind==='in'?'반입':'반출'} 이미지 분석 중...`;
       try {
-        const { data:{ text } } = await Tesseract.recognize(img.src, 'eng', {
+        // 작은 이미지 → 2배 업스케일로 인식률 향상
+        const upscaled = await upscaleImage(img.src, 2);
+        const { data:{ text } } = await Tesseract.recognize(upscaled, 'eng', {
           logger: m => { if (m.status === 'recognizing text') lbl.textContent = `${kind==='in'?'반입':'반출'} 분석 ${Math.round((m.progress||0)*100)}%`; }
         });
+        ocrText[kind] = text;
         const bls = extractBLs(text);
         const arr = kind==='in' ? rowsIn : rowsOut;
-        // 기존 행 중 BL 비어있는 행 우선 채우고, 나머지는 추가
         bls.forEach(bl => {
-          if (arr.some(r => r.bl === bl)) return;  // 중복 제외
+          if (arr.some(r => r.bl === bl)) return;
           arr.push({ count:1, shipper:'', bl, container:'', spec:'', qty:'', weight:'', work:'PLT', product:'' });
-          totalAdded++;
+          counts[kind]++;
         });
         render(kind);
       } catch(e) {
@@ -269,25 +272,61 @@
     }
     lbl.textContent = '이미지에서 BL 자동추출';
     btn.disabled = false;
-    if (totalAdded > 0) toast(`✅ BL번호 ${totalAdded}건 추출 완료`);
-    else toast('BL번호를 인식하지 못했습니다. 캡쳐가 선명한지 확인해주세요.', 'error');
+    console.log('[OCR raw text — 반입]', ocrText.in);
+    console.log('[OCR raw text — 반출]', ocrText.out);
+    const msg = `반입 ${counts.in}건 · 반출 ${counts.out}건 추출`;
+    if (counts.in + counts.out > 0) toast(`✅ ${msg}`);
+    else toast(`⚠ BL을 인식하지 못했습니다. 캡쳐를 더 크게 찍거나 직접 입력해주세요. (콘솔 F12에서 OCR 원문 확인 가능)`, 'error');
   }
   window.runOcr = runOcr;
 
-  /* 텍스트에서 BL번호 패턴 추출 */
+  /* 이미지 업스케일 (Canvas) — 작은 캡쳐 인식률 향상 */
+  function upscaleImage(src, scale) {
+    return new Promise((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = im.naturalWidth * scale;
+        c.height = im.naturalHeight * scale;
+        const ctx = c.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(im, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/png'));
+      };
+      im.onerror = reject;
+      im.src = src;
+    });
+  }
+
+  /* 텍스트에서 BL번호 패턴 추출 — 라인 단위로 컨텍스트 필터링 */
   function extractBLs(text) {
     const out = new Set();
-    // 패턴 1: 알파벳 2~5자 + 숫자 7~12자 (예: COAU7269203018, CNSZX0000605899, CN506828794)
-    const re1 = /\b[A-Z]{2,5}\s?\d{7,13}\b/g;
-    // 패턴 2: 순수 숫자 9~12자 (예: 2126300079)
-    const re2 = /\b\d{9,12}\b/g;
-    let m;
-    while ((m = re1.exec(text)) !== null) out.add(m[0].replace(/\s/g,''));
-    while ((m = re2.exec(text)) !== null) {
-      const v = m[0];
-      // MRN(15자리 이상)·전화번호 등 제외 (8~11자리는 BL로 간주)
-      if (v.length >= 9 && v.length <= 12) out.add(v);
-    }
+    const lines = String(text).split(/\r?\n/);
+    // BL 패턴: 알파벳 2~5자 + 숫자 7~13자 (가장 신뢰도 높음)
+    const reAlphaNum = /\b[A-Z]{2,5}\s?\d{7,13}\b/g;
+    // 순수 숫자 10~12자 (한국 선사 등)
+    const rePureNum = /\b\d{10,12}\b/g;
+    lines.forEach(line => {
+      // 승인번호·신고번호·문서번호 줄은 스킵 (혼동 방지)
+      if (/승인\s*번호|신고\s*번호|문서\s*번호|연락처|전화|MRN|HSN|MSN/.test(line)) return;
+
+      let m;
+      reAlphaNum.lastIndex = 0;
+      while ((m = reAlphaNum.exec(line)) !== null) {
+        const v = m[0].replace(/\s/g,'');
+        // 끝이 M·H로 끝나거나 전체가 너무 길면(15+) 승인번호일 가능성 — 제외
+        if (/[MH]$/.test(v)) continue;
+        out.add(v);
+      }
+      rePureNum.lastIndex = 0;
+      while ((m = rePureNum.exec(line)) !== null) {
+        const v = m[0];
+        // 라인에 'M' 접미가 가까이 있으면(승인번호) 제외
+        if (new RegExp(v + '\\s*M').test(line)) continue;
+        out.add(v);
+      }
+    });
     return Array.from(out);
   }
 
