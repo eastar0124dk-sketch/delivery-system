@@ -120,8 +120,10 @@
       </div>
       <div class="actions-bar">
         <button class="btn btn-primary" style="padding:6px 12px;font-size:12px;" onclick="addConvRow()"><i class="fas fa-plus"></i> 행 추가</button>
+        <button class="btn btn-green" style="padding:6px 12px;font-size:12px;" onclick="saveConvDict()"><i class="fas fa-save"></i> 사전 저장</button>
+        <button class="btn btn-gray" style="padding:6px 12px;font-size:12px;" onclick="resetConvDict()"><i class="fas fa-undo"></i> 기본값 복원</button>
         <span class="spacer"></span>
-        <span style="font-size:11px;color:#94a3b8;">값 수정/추가/삭제 시 결과가 즉시 재계산됩니다</span>
+        <span style="font-size:11px;color:#94a3b8;">값 수정/추가/삭제 시 즉시 재계산 · "사전 저장"하면 다음 업로드에도 적용</span>
       </div>
       <div style="max-height:280px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">
         <table class="conv-table">
@@ -177,6 +179,33 @@
   let rawRows = [];         // Sheet1 데이터 (header 제외) [{material, desc, bin, unr, unit, val}]
   let convMap = [];         // [{material, factor}] — 편집 가능
   let resultRows = [];      // 변환 결과
+
+  /* 내장 변환 사전 (Material → 변환계수) — 업로드 파일에 "변환" 시트가 없을 때 자동 사용.
+     변환 = Unrestricted ÷ 계수. 사용자가 운임표 메뉴처럼 수정/저장 가능 (localStorage). */
+  const DEFAULT_CONV = {
+    "13865":80, "25777":1400, "27331":100, "65975":2, "72456":5, "101974":1400,
+    "11600388":3, "24141405":6, "30407436":228, "30407437":144, "30407444":228,
+    "30407445":192, "30407482":144, "30462990":2000, "30462991":2000,
+    "51300194":1.5, "51300259":1.5, "51300260":1.5, "51302049":0.6, "51302050":0.6,
+    "51302070":0.6, "51322312":1860, "51340046":1.5, "51340050":1.5, "51340054":1.5,
+    "51340081":1.5, "51340231":1.5, "51340236":1.5, "51350016":1.5, "51350026":1.5,
+    "51350042":1.5, "51350044":1.5, "51350046":1.5, "51350048":1.5, "51350062":1.5,
+    "51350080":1.5, "51350082":1.5, "51350086":1.5, "51350096":1.5, "51350098":1.5,
+    "23829":500
+  };
+  const CONV_STORE_KEY = 'mettler_inv_conv_v1';
+  function loadStoredConv() {
+    try {
+      const s = localStorage.getItem(CONV_STORE_KEY);
+      if (s) return JSON.parse(s);
+    } catch(e) {}
+    return null;
+  }
+  function saveStoredConv() {
+    const obj = {};
+    convMap.forEach(c => { if (c.material && c.factor > 0) obj[c.material] = c.factor; });
+    localStorage.setItem(CONV_STORE_KEY, JSON.stringify(obj));
+  }
 
   /* ── 파일 업로드 ── */
   const dz = document.getElementById('dropzone');
@@ -243,8 +272,9 @@
       });
     }
 
-    // 변환 시트 (없으면 빈 배열로 시작)
+    // 변환 사전 우선순위: ① 업로드 파일의 "변환" 시트 → ② 저장된 사전 → ③ 내장 기본 사전
     convMap = [];
+    let convSource = '';
     if (convName) {
       const convWs = inputWB.Sheets[convName];
       const convArr = XLSX.utils.sheet_to_json(convWs, { header: 1, defval: '' });
@@ -252,17 +282,23 @@
         const r = convArr[i] || [];
         const mat = String(r[0] ?? '').trim();
         const factor = Number(r[5]);
-        if (mat && factor > 0) {
-          convMap.push({ material: mat, factor: factor });
-        }
+        if (mat && factor > 0) convMap.push({ material: mat, factor: factor });
       }
+      if (convMap.length) convSource = '파일 내 변환 시트';
+    }
+    if (!convMap.length) {
+      // 파일에 변환 시트가 없으면 저장본 → 내장 기본 사전 사용
+      const stored = loadStoredConv();
+      const dict = (stored && Object.keys(stored).length) ? stored : DEFAULT_CONV;
+      convMap = Object.keys(dict).map(m => ({ material: m, factor: dict[m] }));
+      convSource = (stored && Object.keys(stored).length) ? '저장된 변환 사전' : '내장 기본 변환 사전';
     }
 
     document.getElementById('convCard').style.display = 'block';
     document.getElementById('btnRun').disabled = false;
     renderConvTable();
     runConversion();
-    toast(`✅ 로우데이터 ${rawRows.length}건, 변환사전 ${convMap.length}건 로드`);
+    toast(`✅ 로우데이터 ${rawRows.length}건 · 변환사전 ${convMap.length}건 (${convSource})`);
   }
 
   /* ── 변환 사전 테이블 렌더링 & 편집 ── */
@@ -296,6 +332,18 @@
     convMap.splice(idx, 1);
     renderConvTable();
     runConversion();
+  }
+  function saveConvDict() {
+    saveStoredConv();
+    toast('✅ 변환 사전 저장됨 (다음 업로드에도 자동 적용)');
+  }
+  function resetConvDict() {
+    if (!confirm('변환 사전을 내장 기본값(41건)으로 되돌릴까요? 저장된 수정사항이 사라집니다.')) return;
+    localStorage.removeItem(CONV_STORE_KEY);
+    convMap = Object.keys(DEFAULT_CONV).map(m => ({ material: m, factor: DEFAULT_CONV[m] }));
+    renderConvTable();
+    runConversion();
+    toast('기본 변환 사전(41건)으로 복원됨');
   }
 
   /* ── 변환 실행 (VBA 재고실사_변환 포팅) ── */
