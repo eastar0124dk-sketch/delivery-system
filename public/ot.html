@@ -115,6 +115,8 @@
         </div>
         <!-- 기간 조회 -->
         <div id="modeRange" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;" class="month-nav">
+          <button class="btn btn-sm" onclick="setPayCycle('prev')" style="background:#fbbf24;color:#7c2d12;">지난달</button>
+          <button class="btn btn-sm" onclick="setPayCycle('this')" style="background:#10b981;color:#fff;">이번달</button>
           <input type="date" id="rangeFrom" class="month-btn" style="padding:5px 8px;font-size:13px;cursor:text;">
           <span style="color:#718096;font-size:13px;">~</span>
           <input type="date" id="rangeTo"   class="month-btn" style="padding:5px 8px;font-size:13px;cursor:text;">
@@ -160,9 +162,9 @@
             ➕ OT 내역 등록
           </div>
 
-          <!-- 시간당 OT 단가 설정 (숨김) -->
+          <!-- 시간당 OT 단가 설정 (숨김) — 기본급 2,936,200원 / 209h × 1.5 = 21,075원/h -->
           <div style="display:none;">
-            <input type="number" class="rate-input" id="otRate" value="19228" min="0" step="100" oninput="updateStats()">
+            <input type="number" class="rate-input" id="otRate" value="21075" min="0" step="100" oninput="updateStats()">
           </div>
 
           <div class="form-group">
@@ -305,7 +307,13 @@
     let editingId = null;
     let curYear  = new Date().getFullYear();
     let curMonth = new Date().getMonth() + 1;
-    let otRate   = parseInt(localStorage.getItem('otRate') || '19228', 10);
+    // 기본급 2,936,200원 / 209h × 1.5 = 21,075원/h
+    let otRate = parseInt(localStorage.getItem('otRate') || '21075', 10);
+    // 옛 단가(19228/19880) 사용자는 자동 업데이트
+    if (otRate === 19228 || otRate === 19880) {
+      otRate = 21075;
+      localStorage.setItem('otRate', otRate);
+    }
 
     // ── 초기화 ──────────────────────────────────────────────
     document.getElementById('otRate').value = otRate;
@@ -379,6 +387,30 @@
       if (!from || !to) { alert('기간을 선택해주세요.'); return; }
       if (from > to)    { alert('시작일이 종료일보다 클 수 없습니다.'); return; }
       loadOTRange(from, to);
+    }
+
+    // 급여 주기(21일~20일) 기준 빠른 기간 선택
+    function setPayCycle(which) {
+      const today = new Date();
+      const day = today.getDate();
+      let fromDate, toDate;
+      // 이번 주기 시작점 계산: 오늘이 21일 이상이면 이번달 21일, 미만이면 전달 21일
+      if (day >= 21) {
+        fromDate = new Date(today.getFullYear(), today.getMonth(), 21);
+        toDate   = new Date(today.getFullYear(), today.getMonth() + 1, 20);
+      } else {
+        fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 21);
+        toDate   = new Date(today.getFullYear(), today.getMonth(), 20);
+      }
+      if (which === 'prev') {
+        // 한 달 더 이전 주기
+        fromDate = new Date(fromDate.getFullYear(), fromDate.getMonth() - 1, 21);
+        toDate   = new Date(toDate.getFullYear(),   toDate.getMonth()   - 1, 20);
+      }
+      const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      document.getElementById('rangeFrom').value = fmt(fromDate);
+      document.getElementById('rangeTo').value   = fmt(toDate);
+      applyRange();
     }
 
     async function loadOTRange(from, to) {
