@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script>window.AUTH_REQUIRE="admin";</script>
+  <script src="auth-guard.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>매월 입·출고 내역 분석</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;font-size:13px;display:flex;min-height:100vh;}
+    #sidebar{flex-shrink:0;}
+    .main-wrap{flex:1;min-width:0;}
+    .wrap{padding:24px 28px;max-width:1100px;margin:0 auto;}
+    .card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:22px;margin-bottom:18px;}
+    .card-title{font-size:15px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:2px solid #f0f4f8;}
+    .card-title i{color:#6366f1;}
+
+    .dropzone{border:2.5px dashed #cbd5e1;border-radius:14px;padding:34px 20px;text-align:center;cursor:pointer;transition:all .18s;background:#fafbfc;}
+    .dropzone:hover,.dropzone.dragover{border-color:#6366f1;background:#eef2ff;}
+    .dropzone .icon{font-size:40px;color:#94a3b8;margin-bottom:10px;}
+    .dropzone:hover .icon,.dropzone.dragover .icon{color:#6366f1;}
+    .dropzone .lbl{font-size:14px;font-weight:800;color:#334155;}
+    .dropzone .sub{font-size:11px;color:#94a3b8;margin-top:5px;}
+    .dropzone input{display:none;}
+    .fn{font-size:11px;color:#10b981;font-weight:700;margin-top:8px;}
+
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px;}
+    @media(max-width:760px){.stats{grid-template-columns:1fr 1fr;}}
+    .stat{border-radius:12px;padding:16px;text-align:center;color:#fff;}
+    .stat.in1{background:linear-gradient(135deg,#059669,#10b981);}
+    .stat.in2{background:linear-gradient(135deg,#0d9488,#14b8a6);}
+    .stat.out1{background:linear-gradient(135deg,#dc2626,#ef4444);}
+    .stat.out2{background:linear-gradient(135deg,#b45309,#f59e0b);}
+    .stat .lbl{font-size:12px;opacity:.9;font-weight:600;}
+    .stat .val{font-size:28px;font-weight:900;margin-top:4px;}
+    .stat .unit{font-size:13px;font-weight:700;opacity:.85;}
+
+    .btn{padding:9px 16px;border:none;border-radius:9px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+    .btn-green{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+    .btn-gray{background:#e2e8f0;color:#475569;}
+
+    table{width:100%;border-collapse:collapse;font-size:12px;}
+    th{background:#1e293b;color:#e2e8f0;padding:8px;font-weight:700;text-align:center;}
+    td{padding:7px 8px;border-bottom:1px solid #e2e8f0;text-align:center;}
+    td.left{text-align:left;}
+    td.num{text-align:right;font-variant-numeric:tabular-nums;}
+    tr:hover td{background:#f8fafc;}
+    tfoot td{background:#f1f5f9;font-weight:800;color:#0f172a;border-top:2px solid #cbd5e1;}
+    .tbl-wrap{max-height:380px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;}
+    .sec-title{font-size:13px;font-weight:800;margin:14px 0 6px;display:flex;align-items:center;gap:6px;}
+    .sec-title.in{color:#059669;}.sec-title.out{color:#dc2626;}
+
+    .toast{position:fixed;top:80px;right:20px;padding:12px 18px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.15);font-size:13px;font-weight:700;z-index:9999;display:none;color:#fff;}
+    .toast.success{background:#10b981;}.toast.error{background:#ef4444;}
+  </style>
+</head>
+<body>
+<script src="hub-nav.js"></script>
+<div id="sidebar"></div>
+
+<main class="hub-main">
+  <h1 class="hub-page-title">📊 매월 입·출고 내역 분석</h1>
+
+  <div class="wrap">
+
+    <div class="card">
+      <div class="card-title"><i class="fas fa-file-upload"></i> 월별 입·출고 엑셀 업로드</div>
+      <label class="dropzone" id="dropzone">
+        <div class="icon"><i class="fas fa-cloud-upload-alt"></i></div>
+        <div class="lbl">EXPORT 엑셀 파일을 끌어다 놓거나 클릭</div>
+        <div class="sub">SAP 이동내역 엑셀 (.xlsx) — 헤더 자동 인식</div>
+        <div class="fn" id="fname"></div>
+        <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls">
+      </label>
+      <div style="font-size:11px;color:#64748b;background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:9px 13px;margin-top:12px;">
+        💡 <b>Movement Type</b> 기준 — <b>101=입고</b> / <b>601=출고</b> (재고이동·반품 제외).
+        DN = <b>Reference</b> 고유 건수 · 수량 = <b>Qty in unit of entry</b> 합계(절대값).
+      </div>
+    </div>
+
+    <div class="card" id="resultCard" style="display:none;">
+      <div class="card-title">
+        <i class="fas fa-chart-bar"></i> 입·출고 집계 결과
+        <button class="btn btn-green" style="margin-left:auto;padding:6px 12px;font-size:12px;" onclick="downloadExcel()"><i class="fas fa-download"></i> 엑셀 다운로드</button>
+      </div>
+      <div class="stats">
+        <div class="stat in1"><div class="lbl">📥 입고 DN 수</div><div class="val"><span id="inDN">0</span><span class="unit"> 건</span></div></div>
+        <div class="stat in2"><div class="lbl">📥 입고 수량</div><div class="val"><span id="inQty">0</span></div></div>
+        <div class="stat out1"><div class="lbl">📤 출고 DN 수</div><div class="val"><span id="outDN">0</span><span class="unit"> 건</span></div></div>
+        <div class="stat out2"><div class="lbl">📤 출고 수량</div><div class="val"><span id="outQty">0</span></div></div>
+      </div>
+
+      <div class="sec-title in"><i class="fas fa-arrow-down"></i> 입고 DN별 상세 (라인수 · 수량)</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th style="width:44px;">#</th><th>DN (Reference)</th><th style="width:90px;">라인수</th><th style="width:110px;">수량</th></tr></thead>
+          <tbody id="inBody"></tbody>
+          <tfoot><tr><td colspan="2">합계</td><td id="inLineTot">0</td><td id="inQtyTot">0</td></tr></tfoot>
+        </table>
+      </div>
+
+      <div class="sec-title out"><i class="fas fa-arrow-up"></i> 출고 DN별 상세 (라인수 · 수량)</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th style="width:44px;">#</th><th>DN (Reference)</th><th style="width:90px;">라인수</th><th style="width:110px;">수량</th></tr></thead>
+          <tbody id="outBody"></tbody>
+          <tfoot><tr><td colspan="2">합계</td><td id="outLineTot">0</td><td id="outQtyTot">0</td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script>
+  initNav('mettler_monthly.html');
+
+  let result = null;   // { inMap, outMap, inDN, outDN, inQty, outQty, inLines, outLines }
+  let fileName = '';
+
+  const dz = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); }));
+  dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) readFile(f); });
+  fileInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) readFile(f); });
+
+  function readFile(file) {
+    fileName = file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+        result = analyze(wb);
+        if (!result) { toast('헤더(Movement Type/Reference/Qty)를 인식하지 못했습니다.', 'error'); return; }
+        document.getElementById('fname').textContent = `✓ ${file.name}`;
+        render();
+        toast(`✅ 입고 ${result.inDN}건 · 출고 ${result.outDN}건 집계 완료`);
+      } catch(err) {
+        toast('파일 읽기 실패: ' + err.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  /* 헤더 자동 인식 후 101/601 집계 */
+  function analyze(wb) {
+    for (const sn of wb.SheetNames) {
+      const arr = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header:1, defval:'' });
+      if (!arr.length) continue;
+      // 헤더 행 탐색
+      for (let h = 0; h < Math.min(arr.length, 5); h++) {
+        const hdr = (arr[h] || []).map(c => String(c||'').trim().toLowerCase());
+        const idxMv  = hdr.findIndex(c => c === 'movement type');
+        const idxRef = hdr.findIndex(c => c === 'reference');
+        const idxQty = hdr.findIndex(c => c === 'qty in unit of entry');
+        if (idxMv >= 0 && idxRef >= 0 && idxQty >= 0) {
+          return aggregate(arr, h, idxMv, idxRef, idxQty);
+        }
+      }
+    }
+    return null;
+  }
+
+  function aggregate(arr, headerRow, idxMv, idxRef, idxQty) {
+    const inMap = {}, outMap = {};   // ref → {lines, qty}
+    for (let i = headerRow + 1; i < arr.length; i++) {
+      const row = arr[i] || [];
+      const code = String(row[idxMv] ?? '').trim();
+      const ref  = String(row[idxRef] ?? '').trim();
+      let q = parseFloat(String(row[idxQty]).replace(/,/g,''));
+      if (isNaN(q)) q = 0;
+      const aq = Math.abs(q);
+      if (code === '101') {
+        if (!inMap[ref]) inMap[ref] = { lines:0, qty:0 };
+        inMap[ref].lines++; inMap[ref].qty += aq;
+      } else if (code === '601') {
+        if (!outMap[ref]) outMap[ref] = { lines:0, qty:0 };
+        outMap[ref].lines++; outMap[ref].qty += aq;
+      }
+    }
+    const sum = m => Object.values(m).reduce((a,v)=>({lines:a.lines+v.lines, qty:a.qty+v.qty}),{lines:0,qty:0});
+    const si = sum(inMap), so = sum(outMap);
+    return {
+      inMap, outMap,
+      inDN: Object.keys(inMap).length, outDN: Object.keys(outMap).length,
+      inLines: si.lines, outLines: so.lines,
+      inQty: si.qty, outQty: so.qty
+    };
+  }
+
+  function render() {
+    document.getElementById('resultCard').style.display = 'block';
+    const f = n => Math.round(n).toLocaleString('ko-KR');
+    document.getElementById('inDN').textContent  = result.inDN.toLocaleString();
+    document.getElementById('inQty').textContent = f(result.inQty);
+    document.getElementById('outDN').textContent = result.outDN.toLocaleString();
+    document.getElementById('outQty').textContent= f(result.outQty);
+
+    const rowsHtml = map => Object.keys(map).sort().map((ref,i) =>
+      `<tr><td style="color:#94a3b8;">${i+1}</td><td class="left">${esc(ref)}</td><td class="num">${map[ref].lines}</td><td class="num">${f(map[ref].qty)}</td></tr>`
+    ).join('') || `<tr><td colspan="4" style="color:#94a3b8;padding:16px;">데이터 없음</td></tr>`;
+
+    document.getElementById('inBody').innerHTML  = rowsHtml(result.inMap);
+    document.getElementById('outBody').innerHTML = rowsHtml(result.outMap);
+    document.getElementById('inLineTot').textContent  = result.inLines.toLocaleString();
+    document.getElementById('inQtyTot').textContent   = f(result.inQty);
+    document.getElementById('outLineTot').textContent = result.outLines.toLocaleString();
+    document.getElementById('outQtyTot').textContent  = f(result.outQty);
+  }
+
+  /* 엑셀 다운로드 — 요약 + 입고 + 출고 시트 */
+  function downloadExcel() {
+    if (!result) { toast('분석 결과가 없습니다.', 'error'); return; }
+    const wb = XLSX.utils.book_new();
+    const border = {top:{style:'thin',color:{rgb:'BFBFBF'}},bottom:{style:'thin',color:{rgb:'BFBFBF'}},left:{style:'thin',color:{rgb:'BFBFBF'}},right:{style:'thin',color:{rgb:'BFBFBF'}}};
+    const HDR = {font:{bold:true,color:{rgb:'FFFFFF'},sz:11,name:'맑은 고딕'},fill:{patternType:'solid',fgColor:{rgb:'1E293B'}},alignment:{horizontal:'center',vertical:'center'},border};
+    const CELL = {font:{sz:10,name:'맑은 고딕'},alignment:{horizontal:'center',vertical:'center'},border};
+    const NUM  = {...CELL, alignment:{horizontal:'right',vertical:'center'}, numFmt:'#,##0'};
+    const TOT  = {font:{bold:true,sz:11,name:'맑은 고딕'},fill:{patternType:'solid',fgColor:{rgb:'FEF3C7'}},alignment:{horizontal:'center',vertical:'center'},border};
+    const TOTN = {...TOT, alignment:{horizontal:'right',vertical:'center'}, numFmt:'#,##0'};
+
+    // 요약 시트
+    const sumAoa = [
+      ['구분','DN 수','라인수','수량'],
+      ['입고 (101)', result.inDN, result.inLines, Math.round(result.inQty)],
+      ['출고 (601)', result.outDN, result.outLines, Math.round(result.outQty)]
+    ];
+    const wsSum = XLSX.utils.aoa_to_sheet(sumAoa);
+    wsSum['!cols']=[{wch:14},{wch:10},{wch:10},{wch:12}];
+    for(let c=0;c<4;c++){const r=XLSX.utils.encode_cell({r:0,c});if(wsSum[r])wsSum[r].s=HDR;}
+    for(let i=1;i<=2;i++)for(let c=0;c<4;c++){const r=XLSX.utils.encode_cell({r:i,c});if(wsSum[r])wsSum[r].s=c===0?CELL:NUM;}
+    XLSX.utils.book_append_sheet(wb, wsSum, '요약');
+
+    // 입고/출고 상세 시트
+    const detailSheet = (map, name) => {
+      const list = Object.keys(map).sort();
+      const tot = list.reduce((a,k)=>({l:a.l+map[k].lines, q:a.q+map[k].qty}),{l:0,q:0});
+      const aoa = [['DN (Reference)','라인수','수량'], ...list.map(k=>[k, map[k].lines, Math.round(map[k].qty)]), ['합계', tot.l, Math.round(tot.q)]];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols']=[{wch:20},{wch:10},{wch:12}];
+      for(let c=0;c<3;c++){const r=XLSX.utils.encode_cell({r:0,c});if(ws[r])ws[r].s=HDR;}
+      for(let i=1;i<=list.length;i++)for(let c=0;c<3;c++){const r=XLSX.utils.encode_cell({r:i,c});if(ws[r])ws[r].s=c===0?CELL:NUM;}
+      const tr=list.length+1;
+      for(let c=0;c<3;c++){const r=XLSX.utils.encode_cell({r:tr,c});if(ws[r])ws[r].s=c===0?TOT:TOTN;}
+      XLSX.utils.book_append_sheet(wb, ws, name);
+    };
+    detailSheet(result.inMap, '입고 상세');
+    detailSheet(result.outMap, '출고 상세');
+
+    const base = (fileName||'입출고').replace(/\.[^.]+$/,'');
+    const stamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    XLSX.writeFile(wb, `${base}_입출고집계_${stamp}.xlsx`);
+    toast('✅ 엑셀 다운로드 완료');
+  }
+
+  function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function toast(msg, type='success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.className = 'toast ' + type; el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 2600);
+  }
+</script>
+</body>
+</html>
