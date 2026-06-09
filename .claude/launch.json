@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "배송 인수증명 시스템 (Node.js)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 3003
+    },
+    {
+      "name": "배송 인수증명 시스템 (Python)",
+      "runtimeExecutable": "py",
+      "runtimeArgs": ["server_python.py"],
+      "port": 3000
+    }
+  ]
+}

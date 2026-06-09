@@ -110,7 +110,6 @@ function initNav(currentPage) {
     { section: '📊 운영 현황', adminOnly: true },
     { href: 'hub.html',      icon: '🏠', label: '대시보드',         adminOnly: true },
     { href: 'dispatch.html', icon: '🚚', label: '차량 배차',         adminOnly: true },
-    { href: 'claims.html',   icon: '⚠️', label: '클레임 트래커',     adminOnly: true },
     { href: 'calendar.html', icon: '📅', label: '캘린더',           adminOnly: true },
     { href: 'notes.html',    icon: '📝', label: '메모장',            adminOnly: true },
     { href: 'vendors.html',  icon: '🏢', label: '업체 관리',         adminOnly: true },
@@ -119,16 +118,13 @@ function initNav(currentPage) {
     { section: '📦 오더 시스템' },                                  // 직원도 보임
     { href: 'admin.html', icon: '🗂️', label: '오더 관리' },          // 직원도 가능
     { href: 'list.html',  icon: '🔍', label: '조회/출력' },          // 직원도 가능
-    { href: 'dn_macro.html', icon: '⚡', label: 'DN Line 매크로', adminOnly: true },
     { href: 'mettler_inventory.html', icon: '📦', label: '메틀러 재고실사 변환', adminOnly: true },
     { href: 'mettler_courier.html', icon: '🚚', label: '메틀러 택배 출고건수', adminOnly: true },
     { href: 'mettler_inbound.html', icon: '📥', label: '메틀러 입고파일 분석', adminOnly: true },
-    { href: 'bonded_inout.html', icon: '📋', label: '보세 반·출입 내역', adminOnly: true },
     { href: 'mettler_monthly.html', icon: '📊', label: '매월 입·출고 분석', adminOnly: true },
     { section: '👥 직원 관리', adminOnly: true },
     { href: 'staff_management.html?client=mettler', icon: '⚖️', label: '메틀러토레도 직원',     adminOnly: true },
     { href: 'staff_management.html?client=canon',   icon: '📷', label: '캐논메디칼 직원',       adminOnly: true },
-    { href: 'staff_management.html?client=chanel',  icon: '💄', label: '샤넬코리아 직원',       adminOnly: true },
     { section: '💰 청구', adminOnly: true },
     { href: 'billing.html',           icon: '📋', label: '메틀러토레도 운송내역',  adminOnly: true },
     { href: 'mettler_transport.html', icon: '🚛', label: '메틀러토레도 운송청구서', adminOnly: true },

@@ -1,0 +1,14 @@
+{
+  "name": "delivery-receipt-system",
+  "version": "1.0.0",
+  "description": "배송 인수증명 시스템",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "express": "^4.18.2",
+    "node-sqlite3-wasm": "^0.8.55"
+  }
+}
