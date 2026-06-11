@@ -296,6 +296,31 @@ function loadEmployees() {
   } else {
     employees = defaultEmployees();
   }
+  migrateEmployees();
+}
+
+// 일회성 직원 명단 보정 (민동현 삭제 · 전유현 추가) — 한 번만 실행
+function migrateEmployees() {
+  const MIG_KEY = 'ot_fee_emp_mig_v1';
+  if (localStorage.getItem(MIG_KEY)) return;
+  let changed = false;
+  const di = employees.indexOf('민동현');
+  if (di >= 0) {
+    employees.splice(di, 1);
+    // 해당 직원 OT 데이터도 모든 기간에서 제거
+    Object.keys(localStorage).forEach(k => {
+      if (!k.startsWith('ot_fee_data_')) return;
+      try {
+        const d = JSON.parse(localStorage.getItem(k));
+        Object.values(d).forEach(row => { if (Array.isArray(row.ot)) row.ot.splice(di, 1); });
+        localStorage.setItem(k, JSON.stringify(d));
+      } catch(e) {}
+    });
+    changed = true;
+  }
+  if (!employees.includes('전유현')) { employees.push('전유현'); changed = true; }
+  if (changed) saveEmployees();
+  localStorage.setItem(MIG_KEY, '1');
 }
 
 function defaultEmployees() {
