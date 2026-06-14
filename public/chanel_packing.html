@@ -95,9 +95,9 @@
       <div class="sec-title"><i class="fas fa-stack-2"></i> PLT별 검수 리스트 (혼적 PLT 노란색)</div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th style="width:48px;">No.</th><th>PLT (Pack No.)</th><th>SKU</th><th>Description</th><th style="width:80px;">Qty</th><th style="width:90px;">PLT 합계</th><th style="width:70px;">구분</th></tr></thead>
+          <thead><tr><th style="width:48px;">No.</th><th>SKU</th><th>Description</th><th style="width:80px;">Qty</th><th style="width:70px;">PLT</th><th style="width:90px;">구분</th></tr></thead>
           <tbody id="pltBody"></tbody>
-          <tfoot><tr><td colspan="4">합계</td><td class="num" id="pltQtyTot">0</td><td class="num" id="pltCntTot">0</td><td id="pltMixTot"></td></tr></tfoot>
+          <tfoot><tr><td colspan="3">합계</td><td class="num" id="pltQtyTot">0</td><td class="num" id="pltCntTot">0</td><td id="pltMixTot"></td></tr></tfoot>
         </table>
       </div>
 
@@ -243,11 +243,10 @@
         const first = (i===0);
         html += `<tr class="${cls} ${first&&p.mixed?'mix-first':''}">
           <td>${first?no:''}</td>
-          <td class="left">${first?esc(p.plt):''}</td>
           <td class="left">${esc(it.sku)}</td>
           <td class="left">${esc(it.desc)}</td>
           <td class="num">${f(it.qty)}</td>
-          <td class="num">${first?f(p.total):''}</td>
+          <td class="num">${first?'1':''}</td>
           <td>${first?(p.mixed?`<span class="badge-mix">혼적 ${p.items.length}종</span>`:'단일'):''}</td>
         </tr>`;
       });
@@ -282,34 +281,34 @@
     const TOT={font:{bold:true,sz:11,name:'맑은 고딕'},fill:{patternType:'solid',fgColor:{rgb:'E2E8F0'}},alignment:{horizontal:'center',vertical:'center'},border};
     const TOTN={...TOT,alignment:{horizontal:'right',vertical:'center'},numFmt:'#,##0'};
 
-    // 시트1: PLT 검수표 (A:No B:PLT C:SKU D:Description E:Qty F:PLT합계 G:구분)
-    const aoa=[['No.','PLT (Pack No.)','SKU','Description','Qty','PLT 합계','구분']];
+    // 시트1: PLT 검수표 (A:No B:SKU C:Description D:Qty E:PLT F:구분)
+    const aoa=[['No.','SKU','Description','Qty','PLT','구분']];
     const rowMeta=[];  // {mixed}
     let no=0;
     agg.plts.forEach(p=>{
       no++;
       p.items.forEach((it,i)=>{
         const first=i===0;
-        aoa.push([ first?no:'', first?p.plt:'', it.sku, it.desc, Math.round(it.qty), first?Math.round(p.total):'', first?(p.mixed?`혼적 ${p.items.length}종`:'단일'):'' ]);
+        aoa.push([ first?no:'', it.sku, it.desc, Math.round(it.qty), first?1:'', first?(p.mixed?`혼적 ${p.items.length}종`:'단일'):'' ]);
         rowMeta.push({mixed:p.mixed});
       });
     });
-    aoa.push(['','','','합계', Math.round(agg.totals.qty), agg.totals.plt + ' plt', '혼적 ' + agg.totals.mix]);
+    aoa.push(['','','합계', Math.round(agg.totals.qty), agg.totals.plt + ' plt', '혼적 ' + agg.totals.mix]);
     const ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols']=[{wch:6},{wch:20},{wch:14},{wch:42},{wch:9},{wch:10},{wch:11}];
-    for(let c=0;c<7;c++){const r=XLSX.utils.encode_cell({r:0,c});if(ws[r])ws[r].s=HDR;}
+    ws['!cols']=[{wch:6},{wch:14},{wch:44},{wch:9},{wch:8},{wch:11}];
+    for(let c=0;c<6;c++){const r=XLSX.utils.encode_cell({r:0,c});if(ws[r])ws[r].s=HDR;}
     rowMeta.forEach((m,i)=>{
       const rr=i+1;
-      for(let c=0;c<7;c++){
+      for(let c=0;c<6;c++){
         const ref=XLSX.utils.encode_cell({r:rr,c});
         if(!ws[ref])ws[ref]={v:''};
-        // 좌측정렬: PLT(1)·SKU(2)·Description(3) / 숫자: Qty(4)·PLT합계(5)
-        if(m.mixed) ws[ref].s = (c===1||c===2||c===3)?MIXL : (c===4||c===5)?MIXN : MIX;
-        else        ws[ref].s = (c===1||c===2||c===3)?CELLL : (c===4||c===5)?NUM : CELL;
+        // 좌측정렬: SKU(1)·Description(2) / 숫자: Qty(3)·PLT(4) / 중앙: 구분(5)
+        if(m.mixed) ws[ref].s = (c===1||c===2)?MIXL : (c===3||c===4)?MIXN : MIX;
+        else        ws[ref].s = (c===1||c===2)?CELLL : (c===3||c===4)?NUM : CELL;
       }
     });
     const tr=aoa.length-1;
-    for(let c=0;c<7;c++){const ref=XLSX.utils.encode_cell({r:tr,c});if(!ws[ref])ws[ref]={v:''};ws[ref].s=(c===4)?TOTN:TOT;}
+    for(let c=0;c<6;c++){const ref=XLSX.utils.encode_cell({r:tr,c});if(!ws[ref])ws[ref]={v:''};ws[ref].s=(c===3)?TOTN:TOT;}
     XLSX.utils.book_append_sheet(wb, ws, 'PLT 검수표');
 
     // 시트2: SKU 집계
