@@ -97,7 +97,7 @@
         <table>
           <thead><tr><th style="width:48px;">No.</th><th>PLT (Pack No.)</th><th>SKU</th><th style="width:80px;">Qty</th><th style="width:90px;">PLT 합계</th><th style="width:70px;">구분</th></tr></thead>
           <tbody id="pltBody"></tbody>
-          <tfoot><tr><td colspan="3">합계</td><td class="num" id="pltQtyTot">0</td><td colspan="2"></td></tr></tfoot>
+          <tfoot><tr><td colspan="3">합계</td><td class="num" id="pltQtyTot">0</td><td class="num" id="pltCntTot">0</td><td id="pltMixTot"></td></tr></tfoot>
         </table>
       </div>
 
@@ -253,6 +253,8 @@
     });
     document.getElementById('pltBody').innerHTML = html;
     document.getElementById('pltQtyTot').textContent = f(t.qty);
+    document.getElementById('pltCntTot').textContent = t.plt + ' plt';
+    document.getElementById('pltMixTot').textContent = '혼적 ' + t.mix;
 
     // SKU별 표
     const skus = Object.keys(agg.skuMap).sort();
@@ -291,7 +293,7 @@
         rowMeta.push({mixed:p.mixed});
       });
     });
-    aoa.push(['','','합계', Math.round(agg.totals.qty), '', '']);
+    aoa.push(['','','합계', Math.round(agg.totals.qty), agg.totals.plt + ' plt', '혼적 ' + agg.totals.mix]);
     const ws=XLSX.utils.aoa_to_sheet(aoa);
     ws['!cols']=[{wch:6},{wch:20},{wch:14},{wch:9},{wch:10},{wch:11}];
     for(let c=0;c<6;c++){const r=XLSX.utils.encode_cell({r:0,c});if(ws[r])ws[r].s=HDR;}
