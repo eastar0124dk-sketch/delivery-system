@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script>window.AUTH_REQUIRE="admin";</script>
+  <script src="auth-guard.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>샤넬 패킹리스트 분석</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;font-size:13px;display:flex;min-height:100vh;}
+    #sidebar{flex-shrink:0;}
+    .main-wrap{flex:1;min-width:0;}
+    .wrap{padding:24px 28px;max-width:1100px;margin:0 auto;}
+    .card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:22px;margin-bottom:18px;}
+    .card-title{font-size:15px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:2px solid #f0f4f8;}
+    .card-title i{color:#be185d;}
+
+    .dropzone{border:2.5px dashed #cbd5e1;border-radius:14px;padding:34px 20px;text-align:center;cursor:pointer;transition:all .18s;background:#fafbfc;}
+    .dropzone:hover,.dropzone.dragover{border-color:#ec4899;background:#fdf2f8;}
+    .dropzone .icon{font-size:40px;color:#94a3b8;margin-bottom:10px;}
+    .dropzone:hover .icon,.dropzone.dragover .icon{color:#ec4899;}
+    .dropzone .lbl{font-size:14px;font-weight:800;color:#334155;}
+    .dropzone .sub{font-size:11px;color:#94a3b8;margin-top:5px;}
+    .dropzone input{display:none;}
+    .fn{font-size:11px;color:#10b981;font-weight:700;margin-top:8px;white-space:pre-line;}
+
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px;}
+    @media(max-width:760px){.stats{grid-template-columns:1fr 1fr;}}
+    .stat{border-radius:12px;padding:16px;text-align:center;color:#fff;}
+    .stat.a{background:linear-gradient(135deg,#831843,#be185d);}
+    .stat.b{background:linear-gradient(135deg,#9d174d,#db2777);}
+    .stat.c{background:linear-gradient(135deg,#0d9488,#14b8a6);}
+    .stat.d{background:linear-gradient(135deg,#b45309,#f59e0b);}
+    .stat .lbl{font-size:12px;opacity:.9;font-weight:600;}
+    .stat .val{font-size:28px;font-weight:900;margin-top:4px;}
+    .stat .unit{font-size:13px;font-weight:700;opacity:.85;}
+
+    .btn{padding:9px 16px;border:none;border-radius:9px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+    .btn-green{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+    .btn-gray{background:#e2e8f0;color:#475569;}
+
+    table{width:100%;border-collapse:collapse;font-size:12px;}
+    th{background:#1e293b;color:#e2e8f0;padding:8px;font-weight:700;text-align:center;}
+    td{padding:7px 8px;border-bottom:1px solid #e2e8f0;text-align:center;}
+    td.left{text-align:left;}
+    td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
+    tr.mix td{background:#fef3c7;}
+    tr.mix-first td{border-top:2px solid #f59e0b;}
+    .badge-mix{display:inline-block;background:#f59e0b;color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:6px;margin-left:4px;}
+    tfoot td{background:#f1f5f9;font-weight:800;color:#0f172a;border-top:2px solid #cbd5e1;}
+    .tbl-wrap{max-height:480px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;}
+    .sec-title{font-size:13px;font-weight:800;margin:16px 0 6px;display:flex;align-items:center;gap:6px;color:#334155;}
+
+    .toast{position:fixed;top:80px;right:20px;padding:12px 18px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.15);font-size:13px;font-weight:700;z-index:9999;display:none;color:#fff;}
+    .toast.success{background:#10b981;}.toast.error{background:#ef4444;}
+  </style>
+</head>
+<body>
+<script src="hub-nav.js"></script>
+<div id="sidebar"></div>
+
+<main class="hub-main">
+  <h1 class="hub-page-title">👜 샤넬 패킹리스트 분석</h1>
+
+  <div class="wrap">
+
+    <div class="card">
+      <div class="card-title"><i class="fas fa-file-upload"></i> Packing List 업로드</div>
+      <label class="dropzone" id="dropzone">
+        <div class="icon"><i class="fas fa-cloud-upload-alt"></i></div>
+        <div class="lbl">패킹리스트 파일을 끌어다 놓거나 클릭</div>
+        <div class="sub">한 BL의 여러 파일(.xls)을 한 번에 올리면 합산 집계됩니다</div>
+        <div class="fn" id="fname"></div>
+        <input type="file" id="fileInput" accept=".xls,.xlsx" multiple>
+      </label>
+      <div style="font-size:11px;color:#64748b;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:10px;padding:9px 13px;margin-top:12px;">
+        💡 <b>Pack No.(PLT)</b> 단위로 SKU·Qty 집계 — 한 PLT에 <b>SKU 2개 이상</b>이면 <span style="background:#f59e0b;color:#fff;padding:1px 6px;border-radius:5px;font-weight:700;">혼적</span> 으로 표시되어 검수가 쉽습니다.
+      </div>
+    </div>
+
+    <div class="card" id="resultCard" style="display:none;">
+      <div class="card-title">
+        <i class="fas fa-chart-bar"></i> 집계 결과
+        <button class="btn btn-green" style="margin-left:auto;padding:6px 12px;font-size:12px;" onclick="downloadExcel()"><i class="fas fa-download"></i> 엑셀 다운로드</button>
+      </div>
+      <div class="stats">
+        <div class="stat a"><div class="lbl">총 PLT</div><div class="val"><span id="sPlt">0</span><span class="unit"> plt</span></div></div>
+        <div class="stat b"><div class="lbl">총 SKU</div><div class="val"><span id="sSku">0</span><span class="unit"> 종</span></div></div>
+        <div class="stat c"><div class="lbl">총 Qty</div><div class="val"><span id="sQty">0</span></div></div>
+        <div class="stat d"><div class="lbl">혼적 PLT</div><div class="val"><span id="sMix">0</span><span class="unit"> plt</span></div></div>
+      </div>
+
+      <div class="sec-title"><i class="fas fa-stack-2"></i> PLT별 검수 리스트 (혼적 PLT 노란색)</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th style="width:48px;">No.</th><th>PLT (Pack No.)</th><th>SKU</th><th style="width:80px;">Qty</th><th style="width:90px;">PLT 합계</th><th style="width:70px;">구분</th></tr></thead>
+          <tbody id="pltBody"></tbody>
+          <tfoot><tr><td colspan="3">합계</td><td class="num" id="pltQtyTot">0</td><td colspan="2"></td></tr></tfoot>
+        </table>
+      </div>
+
+      <div class="sec-title"><i class="fas fa-list-ol"></i> SKU별 총집계</div>
+      <div class="tbl-wrap" style="max-height:300px;">
+        <table>
+          <thead><tr><th style="width:48px;">No.</th><th>SKU</th><th>Description</th><th style="width:80px;">Qty</th><th style="width:80px;">PLT수</th></tr></thead>
+          <tbody id="skuBody"></tbody>
+          <tfoot><tr><td colspan="3">합계</td><td class="num" id="skuQtyTot">0</td><td id="skuPltTot"></td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script>
+  initNav('chanel_packing.html');
+
+  let agg = null;   // { plts:[{plt,items:[{sku,desc,qty}],total,mixed}], skuMap, totals }
+  let loadedFiles = [];
+
+  const dz = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); }));
+  dz.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+  fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  let pendingRows = [];   // 누적 raw rows [{plt,sku,desc,qty}]
+
+  function handleFiles(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    pendingRows = [];
+    loadedFiles = [];
+    let done = 0;
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+          const rows = parseWorkbook(wb);
+          pendingRows.push(...rows);
+          loadedFiles.push(`${file.name} (${rows.length}줄)`);
+        } catch(err) {
+          toast(`${file.name} 읽기 실패: ${err.message}`, 'error');
+        }
+        if (++done === files.length) finalize();
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  /* 워크북 → raw rows */
+  function parseWorkbook(wb) {
+    const out = [];
+    wb.SheetNames.forEach(sn => {
+      const arr = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header:1, defval:'' });
+      // 헤더 컬럼 인덱스 탐색 (시트 어디든 SKU/Items Qty/Pack No 헤더가 있는 행)
+      let idxPack=-1, idxSku=-1, idxQty=-1, idxDesc=-1;
+      for (let r=0; r<arr.length; r++) {
+        const row = (arr[r]||[]).map(c => String(c||'').trim().toLowerCase());
+        const p = row.findIndex(c => c.includes('pack no'));
+        const s = row.indexOf('sku');
+        const q = row.findIndex(c => c.includes('items qty') || c === 'qty');
+        const d = row.indexOf('description');
+        if (p>=0 && s>=0 && q>=0) { idxPack=p; idxSku=s; idxQty=q; idxDesc=(d>=0?d:-1); break; }
+      }
+      if (idxPack<0) return;
+      let cur = null;
+      for (let r=0; r<arr.length; r++) {
+        const row = arr[r] || [];
+        const pack = String(row[idxPack] ?? '').trim();
+        if (pack.toUpperCase().startsWith('PLT')) cur = pack;
+        const sku = String(row[idxSku] ?? '').trim();
+        if (!sku || sku.toUpperCase()==='SKU') continue;
+        let q = parseFloat(String(row[idxQty]).replace(/,/g,''));
+        if (isNaN(q) || q<=0) continue;
+        const desc = idxDesc>=0 ? String(row[idxDesc] ?? '').trim() : '';
+        out.push({ plt: cur || '(PLT미상)', sku, desc, qty: q });
+      }
+    });
+    return out;
+  }
+
+  function finalize() {
+    if (!pendingRows.length) { toast('데이터를 인식하지 못했습니다. 파일 형식을 확인해주세요.', 'error'); return; }
+    // PLT별 그룹
+    const pltOrder = [];
+    const pltGroup = {};
+    pendingRows.forEach(r => {
+      if (!pltGroup[r.plt]) { pltGroup[r.plt]=[]; pltOrder.push(r.plt); }
+      pltGroup[r.plt].push(r);
+    });
+    const plts = pltOrder.sort().map(plt => {
+      // 같은 PLT 내 동일 SKU 합산
+      const skuQ = {};
+      const skuDesc = {};
+      pltGroup[plt].forEach(r => { skuQ[r.sku]=(skuQ[r.sku]||0)+r.qty; skuDesc[r.sku]=r.desc; });
+      const items = Object.keys(skuQ).sort().map(sku => ({ sku, desc:skuDesc[sku], qty:skuQ[sku] }));
+      const total = items.reduce((a,b)=>a+b.qty,0);
+      return { plt, items, total, mixed: items.length>1 };
+    });
+    // SKU별 집계
+    const skuMap = {};
+    pendingRows.forEach(r => {
+      if (!skuMap[r.sku]) skuMap[r.sku] = { qty:0, desc:r.desc, plts:new Set() };
+      skuMap[r.sku].qty += r.qty;
+      skuMap[r.sku].desc = r.desc;
+      skuMap[r.sku].plts.add(r.plt);
+    });
+    const totals = {
+      plt: plts.length,
+      sku: Object.keys(skuMap).length,
+      qty: pendingRows.reduce((a,b)=>a+b.qty,0),
+      mix: plts.filter(p=>p.mixed).length
+    };
+    agg = { plts, skuMap, totals };
+    document.getElementById('fname').textContent = loadedFiles.join('\n');
+    render();
+    toast(`✅ ${totals.plt} PLT · ${totals.sku} SKU · 혼적 ${totals.mix} PLT`);
+  }
+
+  function render() {
+    document.getElementById('resultCard').style.display='block';
+    const f = n => Math.round(n).toLocaleString('ko-KR');
+    const t = agg.totals;
+    document.getElementById('sPlt').textContent = t.plt;
+    document.getElementById('sSku').textContent = t.sku;
+    document.getElementById('sQty').textContent = f(t.qty);
+    document.getElementById('sMix').textContent = t.mix;
+
+    // PLT별 표
+    let html='', no=0;
+    agg.plts.forEach(p => {
+      no++;
+      const cls = p.mixed ? 'mix' : '';
+      p.items.forEach((it, i) => {
+        const first = (i===0);
+        html += `<tr class="${cls} ${first&&p.mixed?'mix-first':''}">
+          <td>${first?no:''}</td>
+          <td class="left">${first?esc(p.plt):''}</td>
+          <td class="left">${esc(it.sku)}</td>
+          <td class="num">${f(it.qty)}</td>
+          <td class="num">${first?f(p.total):''}</td>
+          <td>${first?(p.mixed?`<span class="badge-mix">혼적 ${p.items.length}종</span>`:'단일'):''}</td>
+        </tr>`;
+      });
+    });
+    document.getElementById('pltBody').innerHTML = html;
+    document.getElementById('pltQtyTot').textContent = f(t.qty);
+
+    // SKU별 표
+    const skus = Object.keys(agg.skuMap).sort();
+    document.getElementById('skuBody').innerHTML = skus.map((sku,i) => {
+      const m = agg.skuMap[sku];
+      return `<tr><td style="color:#94a3b8;">${i+1}</td><td class="left">${esc(sku)}</td><td class="left">${esc(m.desc)}</td><td class="num">${f(m.qty)}</td><td>${m.plts.size}</td></tr>`;
+    }).join('');
+    document.getElementById('skuQtyTot').textContent = f(t.qty);
+    document.getElementById('skuPltTot').textContent = t.plt;
+  }
+
+  /* 엑셀 다운로드 — PLT 검수표 + SKU 집계 */
+  function downloadExcel() {
+    if (!agg) { toast('분석 결과가 없습니다.', 'error'); return; }
+    const wb = XLSX.utils.book_new();
+    const border={top:{style:'thin',color:{rgb:'BFBFBF'}},bottom:{style:'thin',color:{rgb:'BFBFBF'}},left:{style:'thin',color:{rgb:'BFBFBF'}},right:{style:'thin',color:{rgb:'BFBFBF'}}};
+    const HDR={font:{bold:true,color:{rgb:'FFFFFF'},sz:11,name:'맑은 고딕'},fill:{patternType:'solid',fgColor:{rgb:'1E293B'}},alignment:{horizontal:'center',vertical:'center'},border};
+    const CELL={font:{sz:10,name:'맑은 고딕'},alignment:{horizontal:'center',vertical:'center'},border};
+    const CELLL={...CELL,alignment:{horizontal:'left',vertical:'center'}};
+    const NUM={...CELL,alignment:{horizontal:'right',vertical:'center'},numFmt:'#,##0'};
+    const MIX={...CELL,fill:{patternType:'solid',fgColor:{rgb:'FEF3C7'}}};
+    const MIXL={...MIX,alignment:{horizontal:'left',vertical:'center'}};
+    const MIXN={...MIX,alignment:{horizontal:'right',vertical:'center'},numFmt:'#,##0'};
+    const TOT={font:{bold:true,sz:11,name:'맑은 고딕'},fill:{patternType:'solid',fgColor:{rgb:'E2E8F0'}},alignment:{horizontal:'center',vertical:'center'},border};
+    const TOTN={...TOT,alignment:{horizontal:'right',vertical:'center'},numFmt:'#,##0'};
+
+    // 시트1: PLT 검수표
+    const aoa=[['No.','PLT (Pack No.)','SKU','Qty','PLT 합계','구분']];
+    const rowMeta=[];  // {mixed, first}
+    let no=0;
+    agg.plts.forEach(p=>{
+      no++;
+      p.items.forEach((it,i)=>{
+        const first=i===0;
+        aoa.push([ first?no:'', first?p.plt:'', it.sku, Math.round(it.qty), first?Math.round(p.total):'', first?(p.mixed?`혼적 ${p.items.length}종`:'단일'):'' ]);
+        rowMeta.push({mixed:p.mixed});
+      });
+    });
+    aoa.push(['','','합계', Math.round(agg.totals.qty), '', '']);
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=[{wch:6},{wch:20},{wch:14},{wch:9},{wch:10},{wch:11}];
+    for(let c=0;c<6;c++){const r=XLSX.utils.encode_cell({r:0,c});if(ws[r])ws[r].s=HDR;}
+    rowMeta.forEach((m,i)=>{
+      const rr=i+1;
+      for(let c=0;c<6;c++){
+        const ref=XLSX.utils.encode_cell({r:rr,c});
+        if(!ws[ref])ws[ref]={v:''};
+        if(m.mixed) ws[ref].s = (c===1||c===2)?MIXL : (c===3||c===4)?MIXN : MIX;
+        else        ws[ref].s = (c===1||c===2)?CELLL : (c===3||c===4)?NUM : CELL;
+      }
+    });
+    const tr=aoa.length-1;
+    for(let c=0;c<6;c++){const ref=XLSX.utils.encode_cell({r:tr,c});if(!ws[ref])ws[ref]={v:''};ws[ref].s=(c===3)?TOTN:TOT;}
+    XLSX.utils.book_append_sheet(wb, ws, 'PLT 검수표');
+
+    // 시트2: SKU 집계
+    const skus=Object.keys(agg.skuMap).sort();
+    const a2=[['No.','SKU','Description','Qty','PLT수'], ...skus.map((s,i)=>[i+1,s,agg.skuMap[s].desc,Math.round(agg.skuMap[s].qty),agg.skuMap[s].plts.size]), ['','','합계',Math.round(agg.totals.qty),agg.totals.plt]];
+    const ws2=XLSX.utils.aoa_to_sheet(a2);
+    ws2['!cols']=[{wch:6},{wch:14},{wch:42},{wch:9},{wch:8}];
+    for(let c=0;c<5;c++){const r=XLSX.utils.encode_cell({r:0,c});if(ws2[r])ws2[r].s=HDR;}
+    for(let i=1;i<=skus.length;i++)for(let c=0;c<5;c++){const ref=XLSX.utils.encode_cell({r:i,c});if(ws2[ref])ws2[ref].s=(c===1||c===2)?CELLL:(c===3?NUM:CELL);}
+    const tr2=a2.length-1;
+    for(let c=0;c<5;c++){const ref=XLSX.utils.encode_cell({r:tr2,c});if(!ws2[ref])ws2[ref]={v:''};ws2[ref].s=(c===3)?TOTN:TOT;}
+    XLSX.utils.book_append_sheet(wb, ws2, 'SKU 집계');
+
+    const stamp=new Date().toISOString().slice(0,10).replace(/-/g,'');
+    XLSX.writeFile(wb, `샤넬_패킹리스트_집계_${stamp}.xlsx`);
+    toast('✅ 엑셀 다운로드 완료');
+  }
+
+  function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function toast(msg, type='success') {
+    const el=document.getElementById('toast');
+    el.textContent=msg; el.className='toast '+type; el.style.display='block';
+    setTimeout(()=>el.style.display='none', 2600);
+  }
+</script>
+</body>
+</html>
