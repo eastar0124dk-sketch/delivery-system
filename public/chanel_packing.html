@@ -83,7 +83,11 @@
     <div class="card" id="resultCard" style="display:none;">
       <div class="card-title">
         <i class="fas fa-chart-bar"></i> 집계 결과
-        <button class="btn btn-green" style="margin-left:auto;padding:6px 12px;font-size:12px;" onclick="downloadExcel()"><i class="fas fa-download"></i> 엑셀 다운로드</button>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <label style="font-size:12px;font-weight:700;color:#475569;">BL 번호</label>
+          <input type="text" id="blInput" placeholder="예: CN507014365" style="padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;width:160px;">
+          <button class="btn btn-green" style="padding:6px 12px;font-size:12px;" onclick="downloadExcel()"><i class="fas fa-download"></i> 엑셀 다운로드</button>
+        </div>
       </div>
       <div class="stats">
         <div class="stat a"><div class="lbl">총 PLT</div><div class="val"><span id="sPlt">0</span><span class="unit"> plt</span></div></div>
@@ -323,7 +327,9 @@
     XLSX.utils.book_append_sheet(wb, ws2, 'SKU 집계');
 
     const stamp=new Date().toISOString().slice(0,10).replace(/-/g,'');
-    XLSX.writeFile(wb, `샤넬_패킹리스트_집계_${stamp}.xlsx`);
+    const bl=(document.getElementById('blInput').value||'').trim().replace(/[\\\/:*?"<>|]/g,'');
+    const fn = bl ? `샤넬_패킹리스트_${bl}_${stamp}.xlsx` : `샤넬_패킹리스트_집계_${stamp}.xlsx`;
+    XLSX.writeFile(wb, fn);
     toast('✅ 엑셀 다운로드 완료');
   }
 
