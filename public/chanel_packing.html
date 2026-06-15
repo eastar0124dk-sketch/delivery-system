@@ -122,7 +122,6 @@
 
   let agg = null;   // { plts:[{plt,items:[{sku,desc,qty}],total,mixed}], skuMap, totals }
   let loadedFiles = [];
-  let shipmentNos = [];   // 각 파일의 Shipment Nbr
 
   const dz = document.getElementById('dropzone');
   const fileInput = document.getElementById('fileInput');
@@ -138,7 +137,6 @@
     if (!files.length) return;
     pendingRows = [];
     loadedFiles = [];
-    shipmentNos = [];
     let done = 0;
     files.forEach(file => {
       const reader = new FileReader();
@@ -162,18 +160,6 @@
     const out = [];
     wb.SheetNames.forEach(sn => {
       const arr = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header:1, defval:'' });
-      // Shipment Nbr 추출 (라벨 셀 뒤 첫 비어있지 않은 값)
-      for (let r=0; r<Math.min(arr.length,15); r++) {
-        const row = arr[r] || [];
-        for (let c=0; c<row.length; c++) {
-          if (/shipment\s*nbr/i.test(String(row[c]||''))) {
-            for (let k=c+1; k<row.length; k++) {
-              const v = String(row[k]??'').trim();
-              if (v) { if (!shipmentNos.includes(v)) shipmentNos.push(v); break; }
-            }
-          }
-        }
-      }
       // 헤더 컬럼 인덱스 탐색 (시트 어디든 SKU/Items Qty/Pack No 헤더가 있는 행)
       let idxPack=-1, idxSku=-1, idxQty=-1, idxDesc=-1;
       for (let r=0; r<arr.length; r++) {
@@ -234,8 +220,7 @@
       mix: plts.filter(p=>p.mixed).length
     };
     agg = { plts, skuMap, totals };
-    const blTxt = blLabel();
-    document.getElementById('fname').textContent = (blTxt ? `BL: ${blTxt}\n` : '') + loadedFiles.join('\n');
+    document.getElementById('fname').textContent = loadedFiles.join('\n');
     render();
     toast(`✅ ${totals.plt} PLT · ${totals.sku} SKU · 혼적 ${totals.mix} PLT`);
   }
@@ -338,21 +323,8 @@
     XLSX.utils.book_append_sheet(wb, ws2, 'SKU 집계');
 
     const stamp=new Date().toISOString().slice(0,10).replace(/-/g,'');
-    const bl = blLabel();
-    const fn = bl ? `샤넬_패킹리스트_${bl}_${stamp}.xlsx` : `샤넬_패킹리스트_집계_${stamp}.xlsx`;
-    XLSX.writeFile(wb, fn);
+    XLSX.writeFile(wb, `샤넬_패킹리스트_집계_${stamp}.xlsx`);
     toast('✅ 엑셀 다운로드 완료');
-  }
-
-  /* Shipment Nbr들에서 BL 식별자 도출 (공통 prefix, 예: CPYTNKOR025-489 → CPYTNKOR025) */
-  function blLabel() {
-    if (!shipmentNos.length) return '';
-    if (shipmentNos.length === 1) return shipmentNos[0].replace(/[\\\/:*?"<>|]/g,'');
-    // 마지막 "-숫자" 떼고 공통부 추출
-    const bases = shipmentNos.map(s => s.replace(/-\d+\s*$/, ''));
-    const uniq = [...new Set(bases)];
-    const base = (uniq.length === 1) ? uniq[0] : shipmentNos.join('+');
-    return base.replace(/[\\\/:*?"<>|]/g,'');
   }
 
   function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
