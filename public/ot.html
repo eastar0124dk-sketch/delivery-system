@@ -186,7 +186,7 @@
           </div>
 
           <div class="ot-rule-note" id="canonNote" style="display:none;">
-            ⚡ <b>캐논메디칼 긴급출고</b> — 최소 <b>3시간</b> 보장 (실제 근무시간이 3h 미만이면 3h로 계산)
+            ⚡ <b>캐논메디칼 긴급출고</b> — 최소 <b>4시간</b> 보장 (실제 근무시간이 4h 미만이면 4h로 계산)
           </div>
 
           <div class="form-row">
@@ -441,11 +441,21 @@
       if (endMin <= startMin) endMin += 24 * 60; // 자정 넘기는 경우
       const actualHours = (endMin - startMin) / 60;
       let rounded = Math.round(actualHours * 10) / 10;
-      // 캐논메디칼 긴급출고: 최소 3시간
+      // 캐논메디칼 긴급출고: 최소 4시간
       if ((workContent || '').includes('캐논메디칼 긴급출고')) {
-        rounded = Math.max(3.0, rounded);
+        rounded = Math.max(4.0, rounded);
       }
       return rounded;
+    }
+
+    // 표시·합계용 유효 OT 시간 — 시작/퇴근시간으로 재계산(최소시간 규칙 반영), 없으면 저장값
+    function effectiveHours(r) {
+      const h = calcOTHours(r.start_time, r.end_time, r.work_content);
+      if (h != null) return h;
+      // 시간이 없으면: 캐논 긴급출고는 최소 4h 보장, 그 외 저장값
+      const stored = parseFloat(r.ot_hours || 0);
+      if ((r.work_content || '').includes('캐논메디칼 긴급출고')) return Math.max(4.0, stored);
+      return stored;
     }
 
     function getWorkContent() {
@@ -472,8 +482,8 @@
           if(en<=st) en+=1440;
           return Math.round((en-st)/60*10)/10;
         })();
-        if (isCanon && actualMin !== null && actualMin < 3) {
-          document.getElementById('otCalcNote').textContent = `실제 ${actualMin.toFixed(1)}h → 3h 최소 적용`;
+        if (isCanon && actualMin !== null && actualMin < 4) {
+          document.getElementById('otCalcNote').textContent = `실제 ${actualMin.toFixed(1)}h → 4h 최소 적용`;
         } else {
           document.getElementById('otCalcNote').textContent = `${s} ~ ${e}`;
         }
@@ -520,7 +530,7 @@
           <td>${r.start_time || '-'}</td>
           <td>${r.end_time || '-'}</td>
           <td class="left ${contentClass}">${r.work_content || '-'}</td>
-          <td style="font-weight:700;color:#276749;">${parseFloat(r.ot_hours||0).toFixed(1)}</td>
+          <td style="font-weight:700;color:#276749;">${effectiveHours(r).toFixed(1)}</td>
           <td><span class="${r.meal_ticket==='O'?'meal-o':'meal-x'}">${r.meal_ticket||'X'}</span></td>
           <td>
             <div style="display:flex;gap:4px;justify-content:center;">
@@ -531,7 +541,7 @@
         </tr>`;
       }).join('');
 
-      const totalHours  = records.reduce((s, r) => s + parseFloat(r.ot_hours || 0), 0);
+      const totalHours  = records.reduce((s, r) => s + effectiveHours(r), 0);
       const mealCount   = records.filter(r => r.meal_ticket === 'O').length;
       const mealDeduct  = mealCount * 8000;
       const totalAmt    = Math.round(totalHours * otRate) - mealDeduct;
@@ -550,7 +560,7 @@
     }
 
     function updateStats() {
-      const totalHours  = records.reduce((s, r) => s + parseFloat(r.ot_hours || 0), 0);
+      const totalHours  = records.reduce((s, r) => s + effectiveHours(r), 0);
       const mealCount   = records.filter(r => r.meal_ticket === 'O').length;
       const mealDeduct  = mealCount * 8000;
       const totalAmt    = Math.round(totalHours * otRate) - mealDeduct;
@@ -665,7 +675,7 @@
       const ym = `${curYear}-${String(curMonth).padStart(2,'0')}`;
       const now = new Date();
       const exportDate = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
-      const totalHours  = records.reduce((s,r) => s + parseFloat(r.ot_hours||0), 0);
+      const totalHours  = records.reduce((s,r) => s + effectiveHours(r), 0);
       const mealCount   = records.filter(r => r.meal_ticket === 'O').length;
       const mealDeduct  = mealCount * 8000;
       const totalAmt    = Math.round(totalHours * otRate) - mealDeduct;
@@ -686,7 +696,7 @@
       const NC=8;
       const dataRows = records.map((r,i)=>[
         i+1, r.work_date, r.start_time, r.end_time,
-        r.work_content, parseFloat(r.ot_hours||0).toFixed(1),
+        r.work_content, effectiveHours(r).toFixed(1),
         r.meal_ticket||'X', r.notes||''
       ]);
 
