@@ -13,6 +13,7 @@
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;}
     .topbar{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(102,126,234,.4);position:sticky;top:0;z-index:100;}
+    @media(min-width:769px){ body.has-hub-sidebar{ padding-left:220px; } }
     .topbar .left{display:flex;align-items:center;gap:10px;}
     .topbar h1{font-size:17px;font-weight:700;}
     .topbar a{color:#fff;text-decoration:none;opacity:.8;font-size:13px;}
@@ -121,6 +122,8 @@
   </style>
 </head>
 <body>
+<div id="sidebar"></div>
+<script src="hub-nav.js"></script>
 
 <!-- 로그인 모달 -->
 <div class="modal-overlay show" id="loginModal">
@@ -702,6 +705,16 @@
     const btn = document.getElementById('pwChangeBtn');
     if(btn) btn.style.display = userRole === 'admin' ? '' : 'none';
     renderClientBar();
+    mountHubSidebar();
+  }
+
+  // 허브 사이드바 고정 표시 (로그인 후)
+  function mountHubSidebar() {
+    if (window.__hubMounted) return;
+    if (typeof initNav !== 'function') return;
+    document.body.classList.add('has-hub-sidebar');
+    initNav('admin.html');
+    window.__hubMounted = true;
   }
 
   // ── 화주 선택 바 ──

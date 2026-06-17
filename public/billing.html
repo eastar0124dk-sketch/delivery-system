@@ -9,6 +9,7 @@
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;}
     .topbar{background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(240,147,251,.4);position:sticky;top:0;z-index:200;}
+    @media(min-width:769px){ body.has-hub-sidebar{ padding-left:220px; } }
     .topbar .left{display:flex;align-items:center;gap:10px;}
     .topbar a{color:#fff;text-decoration:none;opacity:.85;font-size:13px;font-weight:600;}
     .topbar h1{font-size:17px;font-weight:700;}
@@ -118,6 +119,8 @@
   </style>
 </head>
 <body>
+<div id="sidebar"></div>
+<script src="hub-nav.js"></script>
 
 <!-- 로그인 -->
 <div class="login-overlay" id="loginModal">
@@ -333,8 +336,18 @@
   }
   function authH(){ return {'Content-Type':'application/json','Authorization':`Bearer ${adminToken}`}; }
 
+  function mountHubSidebar(){
+    if(window.__hubMounted) return;
+    if(typeof initNav!=='function') return;
+    if(!sessionStorage.getItem('adminToken') && !sessionStorage.getItem('staffToken')) return;
+    document.body.classList.add('has-hub-sidebar');
+    initNav('billing.html');
+    window.__hubMounted=true;
+  }
+
   function initApp(){
     document.getElementById('mainWrap').style.display='block';
+    mountHubSidebar();
     loadRates();
     setQuick('thismonth');
     // 화주 드롭다운 초기화

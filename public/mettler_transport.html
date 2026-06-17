@@ -21,6 +21,7 @@
     .topbar a.back { color:#fff; opacity:.85; text-decoration:none; }
     .topbar h1 { font-size:18px; font-weight:800; }
     .topbar .actions { margin-left:auto; display:flex; gap:8px; }
+    @media(min-width:769px){ body.has-hub-sidebar{ padding-left:220px; } }
     .topbar button {
       background:rgba(255,255,255,.22); border:none; color:#fff;
       padding:7px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:700;
@@ -156,6 +157,8 @@
   </style>
 </head>
 <body>
+<div id="sidebar"></div>
+<script src="hub-nav.js"></script>
 
 <div class="topbar">
   <a href="hub.html" class="back"><i class="fas fa-arrow-left"></i></a>
@@ -1314,7 +1317,17 @@ function exportExcel() {
 }
 
 /* ════════ 초기화 ════════ */
+function mountHubSidebar(){
+  if(window.__hubMounted) return;
+  if(typeof initNav!=='function') return;
+  if(!sessionStorage.getItem('adminToken') && !sessionStorage.getItem('staffToken')) return;
+  document.body.classList.add('has-hub-sidebar');
+  initNav('mettler_transport.html');
+  window.__hubMounted=true;
+}
+
 async function init() {
+  mountHubSidebar();
   await loadRates();
   setQuickRange('this');  // 기본: 이번달
   updatePeriodInfo();

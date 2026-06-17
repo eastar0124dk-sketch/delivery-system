@@ -11,6 +11,7 @@
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;color:#1a202c;}
     .topbar{background:linear-gradient(135deg,#43e97b,#38f9d7);color:#1a202c;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(67,233,123,.35);position:sticky;top:0;z-index:200;}
+    @media(min-width:769px){ body.has-hub-sidebar{ padding-left:220px; } }
     .topbar .left{display:flex;align-items:center;gap:10px;}
     .topbar a{color:#1a202c;text-decoration:none;font-weight:600;font-size:13px;}
     .topbar h1{font-size:17px;font-weight:700;}
@@ -134,6 +135,8 @@
   </style>
 </head>
 <body>
+<div id="sidebar"></div>
+<script src="hub-nav.js"></script>
 
 <!-- 로그인 -->
 <div class="login-overlay show" id="loginModal">
@@ -311,8 +314,17 @@
     }
   }
 
+  function mountHubSidebar() {
+    if (window.__hubMounted) return;
+    if (typeof initNav !== 'function') return;
+    document.body.classList.add('has-hub-sidebar');
+    initNav('list.html');
+    window.__hubMounted = true;
+  }
+
   async function initApp() {
     document.getElementById('mainWrap').style.display='block';
+    mountHubSidebar();
     const cfg=await fetch('/api/config').then(r=>r.json()).catch(()=>({}));
     if(cfg.companyName) companyName=cfg.companyName;
     await loadAll();
