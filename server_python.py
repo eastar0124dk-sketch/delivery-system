@@ -783,6 +783,9 @@ class Handler(BaseHTTPRequestHandler):
             if self.token_ok(): return self.send_json({'ok': True})
             return self.send_json({'error':'Unauthorized'}, 401)
 
+        if path == '/api/telegram-status':
+            return self.send_json({'enabled': bool(TELEGRAM_TOKEN and TELEGRAM_CHAT_ID)})
+
         if path == '/api/test-telegram':
             if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
                 return self.send_json({'error':'환경변수 없음'})
@@ -1081,6 +1084,19 @@ class Handler(BaseHTTPRequestHandler):
       try:
         p    = urlparse(self.path).path.rstrip('/')
         body = self.read_body()
+
+        # ── AI 비서: 텔레그램 알림 전송 ──
+        if p == '/api/assistant/notify':
+            if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
+            text = (body.get('text') or '').strip()
+            if not text: return self.send_json({'error':'내용이 비어 있습니다.'}, 400)
+            if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+                return self.send_json({'error':'텔레그램이 설정되지 않았습니다 (TELEGRAM_TOKEN/CHAT_ID).'}, 400)
+            try:
+                send_telegram(text)
+                return self.send_json({'ok': True})
+            except Exception as e:
+                return self.send_json({'error': str(e)}, 500)
 
         # ── 통합 직원 계정 추가 (관리자 전용) ──
         if p == '/api/staff-users':

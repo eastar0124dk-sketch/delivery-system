@@ -108,6 +108,7 @@ function initNav(currentPage) {
   // 메뉴 정의 (adminOnly: true → 관리자만)
   const allNavItems = [
     { section: '📊 운영 현황', adminOnly: true },
+    { href: 'assistant.html', icon: '🤖', label: 'AI 비서',          adminOnly: true },
     { href: 'hub.html',      icon: '🏠', label: '대시보드',         adminOnly: true },
     { href: 'dispatch.html', icon: '🚚', label: '차량 배차',         adminOnly: true },
     { href: 'calendar.html', icon: '📅', label: '캘린더',           adminOnly: true },
