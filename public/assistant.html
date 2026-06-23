@@ -86,6 +86,33 @@
       "<b>리마인드 6/20 운임청구</b>"로 알림 등록, "<b>오늘 오더</b>" 같은 질문엔 시스템 데이터로 답합니다.
     </div>
 
+    <!-- 데이터 분석 도구 (엑셀 업로드 시 표시) -->
+    <div class="rem-card" id="analysisCard" style="display:none;">
+      <h3 style="color:#0f172a;"><i class="fas fa-calculator" style="color:#6366f1;"></i> 데이터 분석 도구 <span id="anaFile" style="margin-left:auto;font-size:11px;color:#10b981;font-weight:700;"></span></h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px;">
+        <div>
+          <label style="font-size:11px;color:#475569;font-weight:700;">시트</label>
+          <select id="anaSheet" onchange="onSheetChange()" style="width:100%;padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;"></select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:#475569;font-weight:700;">분석 종류</label>
+          <select id="anaOp" onchange="onOpChange()" style="width:100%;padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;">
+            <option value="sum">합계</option>
+            <option value="avg">평균</option>
+            <option value="max">최대값</option>
+            <option value="min">최소값</option>
+            <option value="count">건수(비어있지 않은 행)</option>
+            <option value="div">개당 단가 (A ÷ B)</option>
+            <option value="group">그룹별 합계</option>
+          </select>
+        </div>
+      </div>
+      <div id="anaColWrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px;"></div>
+      <button onclick="runAnalysis()" style="background:linear-gradient(135deg,#4338ca,#6366f1);color:#fff;border:none;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;"><i class="fas fa-play"></i> 계산</button>
+      <button onclick="document.getElementById('analysisCard').style.display='none'" style="background:#e2e8f0;color:#475569;border:none;border-radius:9px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;margin-left:6px;">닫기</button>
+      <div id="anaResult" style="margin-top:12px;"></div>
+    </div>
+
     <!-- 리마인더 -->
     <div class="rem-card">
       <h3><i class="fas fa-bell"></i> 등록된 리마인더 <span id="remCount" style="margin-left:auto;font-size:11px;color:#94a3b8;font-weight:600;"></span></h3>
@@ -451,42 +478,132 @@
     }catch(e){ botSay('파일 분석 실패: '+e.message); }
   }
 
+  let LOADED = null;   // { fname, sheets:[{name, header, rows}] }
+
   function analyzeExcel(buf, fname){
     const wb=XLSX.read(new Uint8Array(buf),{type:'array'});
-    let out=`📊 "${fname}" 분석\n• 시트 ${wb.SheetNames.length}개: ${wb.SheetNames.join(', ')}`;
-    // 첫(또는 데이터가 가장 많은) 시트 요약
-    let best=null, bestRows=0;
+    const sheets=[];
     wb.SheetNames.forEach(sn=>{
       const arr=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''});
-      if(arr.length>bestRows){ bestRows=arr.length; best={sn,arr}; }
+      // 헤더 행 자동 탐색 (값이 가장 많은 상위 5행 중 첫 행)
+      let hi=0, best=-1;
+      for(let i=0;i<Math.min(arr.length,6);i++){ const c=(arr[i]||[]).filter(x=>String(x||'').trim()).length; if(c>best){best=c;hi=i;} }
+      const header=(arr[hi]||[]).map(c=>String(c||'').trim());
+      const rows=arr.slice(hi+1).filter(r=>r.some(c=>c!==''&&c!=null));
+      sheets.push({name:sn, header, rows});
     });
-    if(best){
-      const {sn,arr}=best;
-      const header=(arr[0]||[]).map(c=>String(c||'').trim());
-      const dataRows=arr.slice(1).filter(r=>r.some(c=>c!==''&&c!=null));
-      out+=`\n\n[${sn}] 행 ${dataRows.length} · 열 ${header.length}`;
-      out+=`\n• 컬럼: ${header.filter(Boolean).slice(0,12).join(' | ')}${header.length>12?' …':''}`;
-      // 숫자 컬럼 합계 (상위 4개)
-      const numCols=[];
-      header.forEach((h,ci)=>{
-        if(!h) return;
-        let sum=0, cnt=0;
-        dataRows.forEach(r=>{ const v=parseFloat(String(r[ci]).replace(/,/g,'')); if(!isNaN(v)){ sum+=v; cnt++; } });
-        if(cnt>=Math.max(2,dataRows.length*0.5)) numCols.push({h,sum,cnt});
-      });
-      if(numCols.length){
-        out+='\n\n🔢 숫자 컬럼 합계';
-        numCols.slice(0,6).forEach(c=>{ out+=`\n  • ${c.h}: ${Math.round(c.sum).toLocaleString('ko-KR')} (${c.cnt}건)`; });
-      }
-      // 미리보기 3행
-      if(dataRows.length){
-        out+='\n\n👀 미리보기 (상위 3행)';
-        dataRows.slice(0,3).forEach((r,i)=>{ out+=`\n  ${i+1}) `+r.slice(0,6).map(c=>String(c).slice(0,14)).join(' | '); });
-      }
-    }
-    const acts = tgEnabled?[{cls:'btn-tg',label:'📱 텔레그램 전송',onclick:`sendTG(${JSON.stringify(out).replace(/"/g,'&quot;')})`}]:[];
-    botSay(out, acts);
+    LOADED={fname, sheets};
+
+    // 간단 요약 메시지
+    const big=sheets.reduce((a,b)=>b.rows.length>a.rows.length?b:a, sheets[0]);
+    let out=`📊 "${fname}" 로드 완료\n• 시트 ${sheets.length}개: ${sheets.map(s=>s.name).join(', ')}`;
+    out+=`\n• 주요 시트 [${big.name}] — 행 ${big.rows.length} · 열 ${big.header.filter(Boolean).length}`;
+    out+=`\n\n👇 아래 "데이터 분석 도구"에서 원하는 계산(합계·평균·개당단가·그룹별 등)을 선택하면 정확히 계산해 드립니다.`;
+    botSay(out);
+
+    // 분석 도구 표시
+    setupAnalysisTool();
+    document.getElementById('analysisCard').scrollIntoView({behavior:'smooth',block:'center'});
   }
+
+  /* ── 데이터 분석 도구 ── */
+  function setupAnalysisTool(){
+    if(!LOADED) return;
+    document.getElementById('analysisCard').style.display='block';
+    document.getElementById('anaFile').textContent='📎 '+LOADED.fname;
+    const ss=document.getElementById('anaSheet');
+    ss.innerHTML=LOADED.sheets.map((s,i)=>`<option value="${i}">${escHtml(s.name)} (${s.rows.length}행)</option>`).join('');
+    onSheetChange();
+  }
+  function curSheet(){ return LOADED ? LOADED.sheets[+document.getElementById('anaSheet').value||0] : null; }
+  function onSheetChange(){ onOpChange(); }
+
+  function onOpChange(){
+    const sh=curSheet(); if(!sh) return;
+    const op=document.getElementById('anaOp').value;
+    const cols=sh.header.map((h,i)=>({h:h||`(열${i+1})`, i})).filter(c=>c.h);
+    const opt=cols.map(c=>`<option value="${c.i}">${escHtml(c.h)}</option>`).join('');
+    const wrap=document.getElementById('anaColWrap');
+    if(op==='div'){
+      wrap.innerHTML=`
+        <div><label style="font-size:11px;color:#475569;font-weight:700;">금액 컬럼 (A)</label><select id="colA" style="width:100%;padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;">${opt}</select></div>
+        <div><label style="font-size:11px;color:#475569;font-weight:700;">수량 컬럼 (B)</label><select id="colB" style="width:100%;padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;">${opt}</select></div>`;
+    } else if(op==='group'){
+      wrap.innerHTML=`
+        <div><label style="font-size:11px;color:#475569;font-weight:700;">그룹 기준 컬럼</label><select id="colG" style="width:100%;padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;">${opt}</select></div>
+        <div><label style="font-size:11px;color:#475569;font-weight:700;">합산할 값 컬럼</label><select id="colV" style="width:100%;padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;">${opt}</select></div>`;
+    } else {
+      wrap.innerHTML=`<div><label style="font-size:11px;color:#475569;font-weight:700;">대상 컬럼</label><select id="colA" style="width:100%;padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;">${opt}</select></div>`;
+    }
+  }
+
+  function numAt(row, ci){ const v=parseFloat(String(row[ci]??'').replace(/[^\d.\-]/g,'')); return isNaN(v)?null:v; }
+
+  function runAnalysis(){
+    const sh=curSheet(); if(!sh){ return; }
+    const op=document.getElementById('anaOp').value;
+    const res=document.getElementById('anaResult');
+    const fmt=n=>{ const r=Math.round(n*100)/100; return r.toLocaleString('ko-KR'); };
+    let html='', tgText='';
+    const hname=ci=>sh.header[ci]||`열${ci+1}`;
+
+    try{
+      if(op==='sum'||op==='avg'||op==='max'||op==='min'||op==='count'){
+        const ci=+document.getElementById('colA').value;
+        const vals=sh.rows.map(r=>numAt(r,ci)).filter(v=>v!==null);
+        let val, label;
+        if(op==='count'){ val=sh.rows.filter(r=>String(r[ci]??'').trim()!=='').length; label='건수'; }
+        else if(!vals.length){ res.innerHTML='<div style="color:#ef4444;font-size:12px;">숫자 데이터가 없습니다. 다른 컬럼을 선택하세요.</div>'; return; }
+        else if(op==='sum'){ val=vals.reduce((a,b)=>a+b,0); label='합계'; }
+        else if(op==='avg'){ val=vals.reduce((a,b)=>a+b,0)/vals.length; label='평균'; }
+        else if(op==='max'){ val=Math.max(...vals); label='최대값'; }
+        else { val=Math.min(...vals); label='최소값'; }
+        tgText=`📊 [${sh.name}] ${hname(ci)} ${label}: ${fmt(val)}${op!=='count'?` (${vals.length}건)`:''}`;
+        html=resultCard(label, hname(ci), fmt(val), op==='count'?'':`${vals.length}건 기준`);
+      }
+      else if(op==='div'){
+        const a=+document.getElementById('colA').value, b=+document.getElementById('colB').value;
+        let sumA=0,sumB=0,n=0;
+        sh.rows.forEach(r=>{ const va=numAt(r,a), vb=numAt(r,b); if(va!==null&&vb!==null&&vb!==0){ sumA+=va; sumB+=vb; n++; } });
+        if(!n){ res.innerHTML='<div style="color:#ef4444;font-size:12px;">계산 가능한 행이 없습니다.</div>'; return; }
+        const per=sumA/sumB;
+        tgText=`📊 [${sh.name}] 개당 단가 = ${hname(a)} ÷ ${hname(b)}\n= ${fmt(sumA)} ÷ ${fmt(sumB)} = ${fmt(per)}/개 (${n}건)`;
+        html=resultCard('개당 단가', `${hname(a)} ÷ ${hname(b)}`, fmt(per)+' /개',
+          `총 ${hname(a)} ${fmt(sumA)} ÷ 총 ${hname(b)} ${fmt(sumB)} · ${n}건`);
+      }
+      else if(op==='group'){
+        const g=+document.getElementById('colG').value, v=+document.getElementById('colV').value;
+        const map={};
+        sh.rows.forEach(r=>{ const key=String(r[g]??'').trim()||'(빈값)'; const val=numAt(r,v)||0; map[key]=(map[key]||0)+val; });
+        const entries=Object.entries(map).sort((a,b)=>b[1]-a[1]);
+        const total=entries.reduce((a,b)=>a+b[1],0);
+        tgText=`📊 [${sh.name}] ${hname(g)}별 ${hname(v)} 합계\n`+entries.map(([k,val])=>`• ${k}: ${fmt(val)}`).join('\n')+`\n합계: ${fmt(total)}`;
+        html=`<div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;">${escHtml(hname(g))}별 ${escHtml(hname(v))} 합계</div>
+          <div style="max-height:240px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr><th style="background:#1e293b;color:#fff;padding:7px;text-align:left;">${escHtml(hname(g))}</th><th style="background:#1e293b;color:#fff;padding:7px;text-align:right;">${escHtml(hname(v))}</th></tr></thead>
+          <tbody>${entries.map(([k,val])=>`<tr><td style="padding:6px 8px;border-bottom:1px solid #eee;">${escHtml(k)}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">${fmt(val)}</td></tr>`).join('')}</tbody>
+          <tfoot><tr><td style="padding:7px 8px;background:#f1f5f9;font-weight:800;">합계</td><td style="padding:7px 8px;background:#f1f5f9;font-weight:800;text-align:right;">${fmt(total)}</td></tr></tfoot>
+          </table></div>`;
+      }
+      res.innerHTML=html;
+      if(tgEnabled){
+        const b=document.createElement('button');
+        b.style.cssText='margin-top:10px;background:#229ED9;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;';
+        b.innerHTML='📱 텔레그램 전송';
+        b.onclick=()=>sendTG(tgText);
+        res.appendChild(b);
+      }
+    }catch(e){ res.innerHTML='<div style="color:#ef4444;font-size:12px;">계산 오류: '+e.message+'</div>'; }
+  }
+  function resultCard(label, target, value, sub){
+    return `<div style="background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid #c7d2fe;border-radius:12px;padding:14px 16px;">
+      <div style="font-size:11px;color:#6366f1;font-weight:700;">${escHtml(target)} — ${escHtml(label)}</div>
+      <div style="font-size:26px;font-weight:900;color:#4338ca;margin-top:2px;">${escHtml(value)}</div>
+      ${sub?`<div style="font-size:11px;color:#64748b;margin-top:3px;">${escHtml(sub)}</div>`:''}
+    </div>`;
+  }
+  window.onSheetChange=onSheetChange; window.onOpChange=onOpChange; window.runAnalysis=runAnalysis;
 
   async function extractPdf(file){
     const buf=await file.arrayBuffer();
