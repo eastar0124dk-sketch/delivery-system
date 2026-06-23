@@ -643,6 +643,51 @@
   }
 
   // ── 운임표 조회 (도착지 시군 + 차종) ──
+  /* ════════ 학습 사전 (운송청구서와 동일 키 공유) ════════
+     ① 도착지 상호 → 시군구 / ② (시군구+차종) → 운임 */
+  const DEST_REGION_KEY = 'mettler_dest_region_v1';
+  const RATE_LEARN_KEY  = 'mettler_rate_learned_v1';
+  const _fmt = n => (Number(n)||0).toLocaleString('ko-KR');
+
+  function loadDestRegion(){ try{ return JSON.parse(localStorage.getItem(DEST_REGION_KEY)||'{}'); }catch(e){ return {}; } }
+  function regionFromLearned(name){
+    if(!name) return '';
+    const d=loadDestRegion(); const key=String(name).replace(/\s+/g,'');
+    if(d[key]) return d[key];
+    for(const k in d){ if(key && (key.includes(k)||k.includes(key))) return d[k]; }
+    return '';
+  }
+  function saveDestRegion(name, region){
+    if(!name||!region) return;
+    const d=loadDestRegion(); d[String(name).replace(/\s+/g,'')]=String(region).trim();
+    localStorage.setItem(DEST_REGION_KEY, JSON.stringify(d));
+  }
+  function loadRateLearn(){ try{ return JSON.parse(localStorage.getItem(RATE_LEARN_KEY)||'{}'); }catch(e){ return {}; } }
+  function rateLearnKey(sigun, vehicle){ return normalizeDistrict(sigun)+'|'+String(vehicle).trim(); }
+  function getLearnedRate(sigun, vehicle){
+    if(!sigun||!vehicle) return null;
+    return loadRateLearn()[rateLearnKey(sigun, vehicle)] || null;   // {cBase, sBase}
+  }
+  function saveLearnedRate(sigun, vehicle, cBase, sBase){
+    if(!sigun||!vehicle) return false;
+    const d=loadRateLearn(); const k=rateLearnKey(sigun, vehicle); const ex=d[k];
+    cBase=parseInt(cBase)||0; sBase=parseInt(sBase)||0;
+    if(ex){
+      const cClash=cBase>0&&ex.cBase>0&&ex.cBase!==cBase;
+      const sClash=sBase>0&&ex.sBase>0&&ex.sBase!==sBase;
+      if(cClash||sClash){
+        const msg=`⚠ 학습된 운임이 다릅니다.\n[${normalizeDistrict(sigun)} · ${vehicle}]\n`+
+          (cClash?`운송사: 기존 ${_fmt(ex.cBase)} → 새 ${_fmt(cBase)}\n`:'')+
+          (sClash?`화주: 기존 ${_fmt(ex.sBase)} → 새 ${_fmt(sBase)}\n`:'')+
+          `\n새 값으로 갱신할까요? (취소 시 기존값 유지)`;
+        if(!confirm(msg)) return false;
+      }
+    }
+    d[k]={ cBase: cBase||(ex?ex.cBase:0)||0, sBase: sBase||(ex?ex.sBase:0)||0 };
+    localStorage.setItem(RATE_LEARN_KEY, JSON.stringify(d));
+    return true;
+  }
+
   function lookupRate(district, vehicleType){
     if(!district||!vehicleType||typeof RATE_TABLE==='undefined') return null;
     const d=normalizeDistrict(district);
@@ -706,11 +751,18 @@
       r.client_base=found.client;
       r.rate_matched=true;
       r.rate_info=`${found.sido} ${found.matched}`;
-    } else {
-      r.rate_matched=false;
-      r.rate_info='';
+      return found;
     }
-    return found;
+    // ② 운임표 미매칭(3.5톤 등) → 학습된 운임 적용
+    const learned=getLearnedRate(r.district, r.vehicle_type);
+    if(learned && (learned.cBase>0 || learned.sBase>0)){
+      if(learned.cBase>0) r.carrier_base=learned.cBase;
+      if(learned.sBase>0) r.client_base=learned.sBase;
+      r.rate_matched=true; r.rate_info='학습운임';
+      return { carrier:learned.cBase, client:learned.sBase, matched:'학습', sido:'' };
+    }
+    r.rate_matched=false; r.rate_info='';
+    return null;
   }
 
   // ── 전체 행 운임 자동계산 ──
@@ -970,40 +1022,35 @@
       };
     });
 
-    // ── 저장된 잘못된 시군구 자동 정정 ─────────────────────────────
-    // 운임 매칭이 실패한 행에 대해 다양한 방법으로 정정 시도
-    billingRows.forEach(row => {
-      if (!row.rate_matched && row.vehicle_type) {
-        const original = data.find(d => d.id === row.id);
-        const fullAddr = original ? (original.customer_address || '') : '';
-        const destName = row.dest_name || '';
+    // ── 시군구 자동 정정 + 학습 사전 적용 ─────────────────────────────
+    billingRows.forEach((row, idx) => {
+      if (row.rate_matched || !row.vehicle_type) return;
+      const original = data.find(d => d.id === row.id);
+      const fullAddr = original ? (original.customer_address || '') : '';
+      const destName = row.dest_name || '';
 
-        // 1차: 도착지 상호로 추론 (메틀러토레도 → 송파구 등)
-        let altDistrict = regionFromDestName(destName);
-        // 2차: customer_address 별칭 매칭
-        if (!altDistrict || !lookupRate(altDistrict, row.vehicle_type)) {
-          altDistrict = aliasMatch(fullAddr);
-        }
-        // 3차: row.district 정규화 시도 (대전, 안산시 등)
-        if (!altDistrict || !lookupRate(altDistrict, row.vehicle_type)) {
-          altDistrict = normalizeDistrict(row.district || '');
-          if (altDistrict && !lookupRate(altDistrict, row.vehicle_type)) {
-            altDistrict = aliasMatch(row.district || '');
-          }
-        }
-
-        if (altDistrict && altDistrict !== row.district) {
-          const found = lookupRate(altDistrict, row.vehicle_type);
-          if (found) {
-            console.log(`[자동정정] ${row.order_no}: ${row.district || '(없음)'} → ${altDistrict}`);
-            row.district = altDistrict;
-            row.carrier_base = found.carrier;
-            row.client_base  = found.client;
-            row.rate_matched = true;
-            row.rate_info = `${found.sido} ${found.matched}`;
-          }
-        }
+      // ① 학습된 도착지 상호 → 시군구 (최우선)
+      let altDistrict = regionFromLearned(destName);
+      // 2차: 고정 사전 (메틀러토레도 → 송파구)
+      if (!altDistrict || !lookupRate(altDistrict, row.vehicle_type)) {
+        const a = regionFromDestName(destName); if (a) altDistrict = a;
       }
+      // 3차: customer_address 별칭 매칭
+      if (!altDistrict || !lookupRate(altDistrict, row.vehicle_type)) {
+        const a = aliasMatch(fullAddr); if (a) altDistrict = a;
+      }
+      // 4차: row.district 정규화
+      if (!altDistrict || !lookupRate(altDistrict, row.vehicle_type)) {
+        let a = normalizeDistrict(row.district || '');
+        if (a && !lookupRate(a, row.vehicle_type)) a = aliasMatch(row.district || '') || a;
+        if (a) altDistrict = a;
+      }
+      if (altDistrict && altDistrict !== row.district) {
+        console.log(`[자동정정] ${row.order_no}: ${row.district || '(없음)'} → ${altDistrict}`);
+        row.district = altDistrict;
+      }
+      // 운임표 매칭 + 학습운임(3.5톤 등) 적용
+      autoCalcRow(idx);
     });
 
     // ── 저장본 복원 (서버 DB — 운송청구서와 공유) ──────────────────
@@ -1155,18 +1202,20 @@
 
   // 도착지 변경 → 운임 자동조회
   function updDistrict(i, val){
-    billingRows[i].district=val;
+    const r=billingRows[i];
+    r.district=val;
+    // ① 학습: 도착지 상호 → 방금 입력한 시군구 기억 (다음에 같은 상호면 자동)
+    if(r.dest_name && val) saveDestRegion(r.dest_name, val);
     const found=autoCalcRow(i);
     if(found){
-      // 운임 입력값 갱신
       const tr=document.getElementById('brow'+i);
       if(tr){
         const inputs=tr.querySelectorAll('.num-inp');
-        inputs[0].value=billingRows[i].carrier_base.toLocaleString();
-        inputs[2].value=billingRows[i].client_base.toLocaleString();
+        inputs[0].value=r.carrier_base.toLocaleString();
+        inputs[2].value=r.client_base.toLocaleString();
       }
-      refreshRowTotals(i);
     }
+    refreshRowTotals(i);
   }
 
   // 차종 변경 → 운임 자동조회
@@ -1224,7 +1273,16 @@
   function upd(i,field,val){ billingRows[i][field]=val; }
 
   function updFee(i,field,val){
-    billingRows[i][field]=parseInt(val.replace(/[^0-9]/g,''))||0;
+    const r=billingRows[i];
+    r[field]=parseInt(val.replace(/[^0-9]/g,''))||0;
+    // ② 학습: 운임표에 없는 차종(3.5톤 등) 기본운임을 직접 입력하면 (시군구+차종)→운임 기억
+    if((field==='carrier_base'||field==='client_base') && r.district && r.vehicle_type){
+      const tableHas=!!lookupRate(r.district, r.vehicle_type);
+      if(!tableHas){
+        const ok=saveLearnedRate(r.district, r.vehicle_type, r.carrier_base, r.client_base);
+        if(ok) alert(`📌 학습 완료: ${normalizeDistrict(r.district)} · ${r.vehicle_type} 운임이 저장되어\n다음에 같은 곳·같은 차종 배차 시 자동 입력됩니다.`);
+      }
+    }
     refreshRowTotals(i);
   }
 
