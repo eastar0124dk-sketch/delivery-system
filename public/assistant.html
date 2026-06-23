@@ -82,8 +82,8 @@
     </div>
 
     <div class="note">
-      💡 회의 내용이나 메모를 그대로 붙여넣으면 <b>요약·할 일·날짜</b>를 자동 정리합니다.
-      "<b>리마인드 6/20 운임청구</b>" 처럼 입력하면 알림을 등록하고, "<b>오늘 오더</b>" 같은 질문엔 시스템 데이터로 답합니다.
+      💡 회의 내용·메모를 붙여넣으면 <b>요약·할 일·날짜</b>를 정리하고, 📎 <b>파일(엑셀·CSV·PDF·텍스트)을 첨부</b>하면 분석해 드립니다.
+      "<b>리마인드 6/20 운임청구</b>"로 알림 등록, "<b>오늘 오더</b>" 같은 질문엔 시스템 데이터로 답합니다.
     </div>
 
     <!-- 리마인더 -->
@@ -106,7 +106,9 @@
     <div class="chat">
       <div class="chat-body" id="chatBody"></div>
       <div class="chat-input">
-        <textarea id="input" rows="1" placeholder="메시지 입력 (회의록 붙여넣기 / 리마인드 6/20 운임청구 / 오늘 오더 …)" onkeydown="onKey(event)" oninput="autoGrow(this)"></textarea>
+        <button onclick="document.getElementById('fileInput').click()" title="파일 첨부" style="background:#e2e8f0;color:#475569;width:44px;"><i class="fas fa-paperclip"></i></button>
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt,.pdf" multiple style="display:none" onchange="onFiles(this.files)">
+        <textarea id="input" rows="1" placeholder="메시지 입력 / 파일 첨부(📎) — 엑셀·CSV·PDF·텍스트 분석" onkeydown="onKey(event)" oninput="autoGrow(this)"></textarea>
         <button onclick="send()" title="보내기"><i class="fas fa-paper-plane"></i></button>
       </div>
     </div>
@@ -115,6 +117,11 @@
 
 <div id="toast" class="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+</script>
 <script>
   initNav('assistant.html');
   const authToken = sessionStorage.getItem('adminToken') || sessionStorage.getItem('staffToken');
@@ -393,6 +400,9 @@
   function showHelp(){
     botSay(`📖 사용법
 • 회의록·메모 붙여넣기 → 요약·할 일·날짜 자동 정리
+• 📎 파일 첨부(또는 드래그) → 엑셀·CSV·PDF·텍스트 분석
+   - 엑셀/CSV: 시트·행·열·숫자합계·미리보기
+   - PDF/텍스트: 요약·할 일·날짜 추출
 • "리마인드 6/20 운임청구" → 알림 등록
 • "오늘 오더" / "이번달 오더" → 오더 건수 조회
 • "이번달 OT" → OT 시간 조회
@@ -402,6 +412,96 @@
 
 (현재 규칙기반 v1 — 추후 Claude AI 연동 시 자유로운 대화·심층 분석이 가능해집니다)`);
   }
+
+  /* ── 파일 업로드 분석 ── */
+  // 드래그&드롭 (채팅 영역)
+  (function(){
+    const z=document.querySelector('.chat');
+    if(!z) return;
+    ['dragenter','dragover'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.style.outline='2px dashed #6366f1';}));
+    ['dragleave','drop'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.style.outline='';}));
+    z.addEventListener('drop',e=>{ if(e.dataTransfer.files.length) onFiles(e.dataTransfer.files); });
+  })();
+
+  function onFiles(list){
+    const files=Array.from(list||[]);
+    files.forEach(f=>processFile(f));
+    document.getElementById('fileInput').value='';
+  }
+
+  async function processFile(file){
+    userSay('📎 ' + file.name + '  (' + fmtSize(file.size) + ')');
+    const name=file.name.toLowerCase();
+    try{
+      if(/\.(xlsx|xls|csv)$/.test(name)){
+        const buf=await file.arrayBuffer();
+        analyzeExcel(buf, file.name);
+      } else if(/\.txt$/.test(name)){
+        const text=await file.text();
+        botSay(`📄 "${file.name}" 텍스트 분석`);
+        analyzeText(text);
+      } else if(/\.pdf$/.test(name)){
+        botSay(`📄 "${file.name}" PDF에서 텍스트 추출 중…`);
+        const text=await extractPdf(file);
+        if(text.trim()) analyzeText(text);
+        else botSay('PDF에서 텍스트를 추출하지 못했습니다 (스캔본일 수 있음).');
+      } else {
+        botSay('지원하지 않는 형식입니다. 엑셀(.xlsx/.xls), CSV, PDF, 텍스트(.txt)를 올려주세요.');
+      }
+    }catch(e){ botSay('파일 분석 실패: '+e.message); }
+  }
+
+  function analyzeExcel(buf, fname){
+    const wb=XLSX.read(new Uint8Array(buf),{type:'array'});
+    let out=`📊 "${fname}" 분석\n• 시트 ${wb.SheetNames.length}개: ${wb.SheetNames.join(', ')}`;
+    // 첫(또는 데이터가 가장 많은) 시트 요약
+    let best=null, bestRows=0;
+    wb.SheetNames.forEach(sn=>{
+      const arr=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''});
+      if(arr.length>bestRows){ bestRows=arr.length; best={sn,arr}; }
+    });
+    if(best){
+      const {sn,arr}=best;
+      const header=(arr[0]||[]).map(c=>String(c||'').trim());
+      const dataRows=arr.slice(1).filter(r=>r.some(c=>c!==''&&c!=null));
+      out+=`\n\n[${sn}] 행 ${dataRows.length} · 열 ${header.length}`;
+      out+=`\n• 컬럼: ${header.filter(Boolean).slice(0,12).join(' | ')}${header.length>12?' …':''}`;
+      // 숫자 컬럼 합계 (상위 4개)
+      const numCols=[];
+      header.forEach((h,ci)=>{
+        if(!h) return;
+        let sum=0, cnt=0;
+        dataRows.forEach(r=>{ const v=parseFloat(String(r[ci]).replace(/,/g,'')); if(!isNaN(v)){ sum+=v; cnt++; } });
+        if(cnt>=Math.max(2,dataRows.length*0.5)) numCols.push({h,sum,cnt});
+      });
+      if(numCols.length){
+        out+='\n\n🔢 숫자 컬럼 합계';
+        numCols.slice(0,6).forEach(c=>{ out+=`\n  • ${c.h}: ${Math.round(c.sum).toLocaleString('ko-KR')} (${c.cnt}건)`; });
+      }
+      // 미리보기 3행
+      if(dataRows.length){
+        out+='\n\n👀 미리보기 (상위 3행)';
+        dataRows.slice(0,3).forEach((r,i)=>{ out+=`\n  ${i+1}) `+r.slice(0,6).map(c=>String(c).slice(0,14)).join(' | '); });
+      }
+    }
+    const acts = tgEnabled?[{cls:'btn-tg',label:'📱 텔레그램 전송',onclick:`sendTG(${JSON.stringify(out).replace(/"/g,'&quot;')})`}]:[];
+    botSay(out, acts);
+  }
+
+  async function extractPdf(file){
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    let text='';
+    for(let i=1;i<=pdf.numPages;i++){
+      const page=await pdf.getPage(i);
+      const tc=await page.getTextContent();
+      text+=tc.items.map(it=>it.str).join(' ')+'\n';
+    }
+    return text;
+  }
+
+  function fmtSize(b){ if(b<1024)return b+' B'; if(b<1048576)return (b/1024).toFixed(1)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+  window.onFiles=onFiles;
 
   /* ── 텔레그램 전송 ── */
   async function sendTG(text){
