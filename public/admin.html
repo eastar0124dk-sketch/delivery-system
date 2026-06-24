@@ -751,6 +751,7 @@
     document.getElementById('mainWrap').style.display = 'block';
     applyRoleUI();
     refreshCompanyDropdown();
+    refreshOriginDropdown();
     // 백그라운드에서 토큰 유효성 검증
     try {
       const res = await fetch('/api/auth/check', { headers:{'Authorization':`Bearer ${adminToken}`} });
@@ -912,7 +913,14 @@
       addrEl.style.background = '#fafafa';
       customEl.style.display = 'none';
       customEl.value = '';
-      sidoGroup.style.display = 'none';
+      // 시도/시군구 복원 (저장돼 있으면 표시)
+      if(p.sido || p.sigun) {
+        sidoGroup.style.display = 'block';
+        const sidoEl = document.getElementById('origin_sido');
+        if(sidoEl && p.sido){ populateSido('origin_sido'); sidoEl.value = p.sido; populateSigun('origin_sigun', p.sido, p.sigun||''); }
+      } else {
+        sidoGroup.style.display = 'none';
+      }
       if(p.contact_person) {
         // 기본 담당자 옵션에 있으면 선택, 아니면 기타로 직접입력
         const opts = Array.from(contactEl.options).map(o => o.value);
@@ -967,9 +975,11 @@
       ? contactCustom.value.trim()
       : contactEl.value;
     const contact_phone = phoneEl.value.trim();
+    const sido  = document.getElementById('origin_sido')  ? document.getElementById('origin_sido').value  : '';
+    const sigun = document.getElementById('origin_sigun') ? document.getElementById('origin_sigun').value : '';
 
     const presets = JSON.parse(localStorage.getItem('delivery_origin_presets') || '{}');
-    presets[name] = { address, contact_person, contact_phone };
+    presets[name] = { address, contact_person, contact_phone, sido, sigun };
     localStorage.setItem('delivery_origin_presets', JSON.stringify(presets));
     refreshOriginDropdown();
     document.getElementById('origin').value = name;
