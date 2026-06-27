@@ -142,7 +142,7 @@
 
   /* 헤더가 있는 시트를 찾아 분석 */
   function analyzeWorkbook(wb, fileName) {
-    let targetSheet = null, headerRow = -1, cols = null;
+    let targetSheet = null, headerRow = -1, cols = null, rawName = '';
     // 모든 시트에서 표준 헤더 탐색
     for (const sn of wb.SheetNames) {
       const arr = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '' });
@@ -153,7 +153,7 @@
         const idxQty  = hdr.indexOf('delivery quantity');
         const idxMat  = hdr.indexOf('material');
         if (idxDN >= 0 && idxQty >= 0) {
-          targetSheet = arr; headerRow = r;
+          targetSheet = arr; headerRow = r; rawName = sn;
           cols = { dn: idxDN, sloc: idxSLOC, qty: idxQty, mat: idxMat };
           break;
         }
@@ -163,6 +163,8 @@
     if (!targetSheet) {
       return { fileName, error: "'Delivery' / 'Delivery quantity' 헤더를 찾을 수 없습니다." };
     }
+    // 검수용 원본 데이터 보관 (헤더 행부터 전체)
+    const rawData = targetSheet.slice(headerRow);
 
     const dnCounts = {};   // DN → 라인수
     const slocQty  = {};   // SLOC → 수량합
@@ -183,7 +185,7 @@
       totalQty += qty;
       lineTotal++;
     }
-    return { fileName, dnCounts, slocQty, matCounts, totalQty, lineTotal };
+    return { fileName, dnCounts, slocQty, matCounts, totalQty, lineTotal, rawData, rawName };
   }
 
   /* ── 렌더링 ── */
@@ -318,9 +320,21 @@
     for(let r=1;r<sumAoa.length;r++)for(let c=0;c<2;c++){const ref=XLSX.utils.encode_cell({r,c});if(wsSum[ref])wsSum[ref].s=CELL;}
     XLSX.utils.book_append_sheet(wb, wsSum, '요약');
 
+    // 검수용 원본 시트 추가 (분석에 사용된 원본 데이터 그대로)
+    if (a.rawData && a.rawData.length) {
+      const wsRaw = XLSX.utils.aoa_to_sheet(a.rawData);
+      // 헤더 행 스타일
+      const ncol = (a.rawData[0]||[]).length;
+      for(let c=0;c<ncol;c++){ const ref=XLSX.utils.encode_cell({r:0,c}); if(wsRaw[ref]) wsRaw[ref].s=HDR; }
+      let rawSheetName = (a.rawName && a.rawName.trim()) ? a.rawName.trim() : '원본';
+      // 시트명 31자 제한 + 중복/금지문자 방지
+      rawSheetName = ('원본_'+rawSheetName).replace(/[\\\/\?\*\[\]:]/g,' ').slice(0,31);
+      XLSX.utils.book_append_sheet(wb, wsRaw, rawSheetName);
+    }
+
     const base = a.fileName.replace(/\.[^.]+$/,'');
     XLSX.writeFile(wb, `${base}_입고분석.xlsx`);
-    toast('✅ 엑셀 다운로드 완료');
+    toast('✅ 엑셀 다운로드 완료 (원본 시트 포함)');
   }
   window.downloadOne = downloadOne;
 
