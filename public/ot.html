@@ -162,9 +162,9 @@
             ➕ OT 내역 등록
           </div>
 
-          <!-- 시간당 OT 단가 설정 (숨김) — 기본급 2,936,200원 / 209h × 1.5 = 21,075원/h -->
+          <!-- 시간당 OT 단가 설정 (숨김) — 기본급 2,936,200원 ÷ 209h × 1.5 = 21,073원/h -->
           <div style="display:none;">
-            <input type="number" class="rate-input" id="otRate" value="21075" min="0" step="100" oninput="updateStats()">
+            <input type="number" class="rate-input" id="otRate" value="21073" min="0" step="1" oninput="updateStats()">
           </div>
 
           <div class="form-group">
@@ -307,11 +307,11 @@
     let editingId = null;
     let curYear  = new Date().getFullYear();
     let curMonth = new Date().getMonth() + 1;
-    // 기본급 2,936,200원 / 209h × 1.5 = 21,075원/h
-    let otRate = parseInt(localStorage.getItem('otRate') || '21075', 10);
-    // 옛 단가(19228/19880) 사용자는 자동 업데이트
-    if (otRate === 19228 || otRate === 19880) {
-      otRate = 21075;
+    // 기본급 2,936,200원 ÷ 209h × 1.5 = 21,073원/h
+    let otRate = parseInt(localStorage.getItem('otRate') || '21073', 10);
+    // 옛 단가(19228/19880/21075) 사용자는 자동 업데이트
+    if (otRate === 19228 || otRate === 19880 || otRate === 21075) {
+      otRate = 21073;
       localStorage.setItem('otRate', otRate);
     }
 
