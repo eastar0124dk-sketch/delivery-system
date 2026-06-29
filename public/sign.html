@@ -249,7 +249,7 @@
             <div style="font-size:17px;font-weight:700;color:#2d3748;margin-bottom:4px;">배송이 완료 되었습니다.</div>
             <div style="font-size:15px;color:#4a5568;">수고하셨습니다!</div>
           </div>
-          <div style="display:flex;gap:10px;">
+          <div style="display:flex;flex-direction:column;gap:10px;" id="completeBtns">
             <a href="index.html" class="btn btn-secondary btn-full" style="text-decoration:none;">메인으로</a>
           </div>
         </div>
@@ -455,6 +455,22 @@
       }
     })();
 
+    // 완료 화면 버튼 — 관리자(토큰 보유 또는 ?dn= 진입)면 대시보드/조회로, 기사 단독이면 메인으로
+    function setCompleteButtons(){
+      const box = document.getElementById('completeBtns');
+      if(!box) return;
+      const isAdmin = !!(sessionStorage.getItem('adminToken') || sessionStorage.getItem('staffToken'))
+                    || new URLSearchParams(location.search).has('dn');
+      if(isAdmin){
+        box.innerHTML =
+          `<a href="hub.html" class="btn btn-primary btn-full" style="text-decoration:none;justify-content:center;"><i class="fas fa-th-large"></i> 대시보드로</a>`+
+          `<a href="list.html" class="btn btn-secondary btn-full" style="text-decoration:none;justify-content:center;"><i class="fas fa-search"></i> 조회/출력으로</a>`+
+          `<a href="sign.html" class="btn btn-secondary btn-full" style="text-decoration:none;justify-content:center;"><i class="fas fa-signature"></i> 다른 건 서명</a>`;
+      } else {
+        box.innerHTML = `<a href="index.html" class="btn btn-secondary btn-full" style="text-decoration:none;justify-content:center;">메인으로</a>`;
+      }
+    }
+
     function showOrderInfo(r) {
       document.getElementById('stepSearch').style.display='none';
       document.getElementById('stepSign').style.display='block';
@@ -552,6 +568,7 @@
           document.getElementById('stepSign').style.display='none';
           document.getElementById('stepComplete').style.display='block';
           document.getElementById('completeMsg').textContent=`DN번호 [${currentRecord.order_no}] 인수증명서가 성공적으로 저장되었습니다.`;
+          setCompleteButtons();
         } else {
           showAlert(data.error||'저장 중 오류가 발생했습니다.','error');
           btn.disabled=false;
