@@ -627,6 +627,7 @@
         const r = byId[String(id)];
         if (!r) continue;
         btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 생성중 ${ci + 1}/${checked.length}`;
+        await new Promise(r => requestAnimationFrame(r));   // 진행률 화면 반영
 
         // Build receipt HTML in hidden div
         let locRows = '';
@@ -686,25 +687,18 @@
           </div>`;
 
         await waitImages(hidden);   // 서명 이미지 로드 완료까지만 대기 (고정 200ms 제거)
-        const canvas = await html2canvas(hidden, { scale: 2, useCORS: true, allowTaint: true });
-        const imgW = pw - 20;
-        const imgH = (canvas.height * imgW) / canvas.width;
+        // scale 낮춤(2→1.4) + logging off → 렌더 속도 대폭 향상
+        const canvas = await html2canvas(hidden, { scale: 1.4, useCORS: true, allowTaint: true, logging: false, imageTimeout: 0, backgroundColor: '#fff' });
 
         if (!first) pdf.addPage();
         first = false;
 
-        let yPos = 10;
-        while (yPos < imgH + 10) {
-          const sliceH = Math.min(ph - 20, imgH + 10 - yPos);
-          const sliceCanvas = document.createElement('canvas');
-          sliceCanvas.width = canvas.width;
-          sliceCanvas.height = (sliceH / imgW) * canvas.width;
-          const ctx = sliceCanvas.getContext('2d');
-          ctx.drawImage(canvas, 0, (yPos / imgW) * canvas.width, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
-          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', 10, 10, imgW, sliceH);
-          yPos += sliceH;
-          if (yPos < imgH + 10) pdf.addPage();
-        }
+        // 영수증 1건 = 1페이지 (슬라이싱 제거). 페이지보다 길면 비율 유지하여 한 페이지에 맞춤
+        const maxW = pw - 20, maxH = ph - 20;
+        let imgW = maxW, imgH = (canvas.height * imgW) / canvas.width;
+        if (imgH > maxH) { const k = maxH / imgH; imgH = maxH; imgW = imgW * k; }
+        const xOff = 10 + (maxW - imgW) / 2;
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', xOff, 10, imgW, imgH);
       }
 
       const today = todayKST();
