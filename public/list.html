@@ -494,6 +494,7 @@
         <td><span class="badge ${r.status==='signed'?'badge-signed':'badge-draft'}">${r.status==='signed'?'✅완료':'📋대기'}</span></td>
         <td>
           <div class="action-btns">
+            ${r.status!=='signed' ? `<button class="btn btn-sm" style="background:#f5576c;color:#fff;" onclick="goSign('${(r.order_no||'').split(' ')[0]}')" title="기사 서명 등록"><i class="fas fa-signature"></i></button>` : ''}
             <button class="btn btn-sm btn-blue" onclick="openDetail(${r.id})" title="상세/인쇄/PDF"><i class="fas fa-eye"></i></button>
             <button class="btn btn-sm btn-danger" onclick="deleteRecord(${r.id},'${r.order_no}')"><i class="fas fa-trash"></i></button>
           </div>
@@ -509,6 +510,7 @@
         <div class="mc-row"><span class="k">제품/수량</span><span class="v">${r.product_name||'-'} / ${r.quantity||'-'}</span></div>
         <div class="mc-row"><span class="k">수취인</span><span class="v">${maskName(r.receiver_name)}</span></div>
         <div class="mc-row" style="margin-top:8px;gap:6px;">
+          ${r.status!=='signed' ? `<button class="btn btn-sm" style="flex:1;justify-content:center;background:#f5576c;color:#fff;" onclick="goSign('${(r.order_no||'').split(' ')[0]}')"><i class="fas fa-signature"></i> 서명</button>` : ''}
           <button class="btn btn-sm btn-blue" style="flex:1;justify-content:center;" onclick="openDetail(${r.id})"><i class="fas fa-eye"></i> 상세/출력</button>
           <button class="btn btn-sm btn-danger" onclick="deleteRecord(${r.id},'${r.order_no}')"><i class="fas fa-trash"></i></button>
         </div>
@@ -697,6 +699,12 @@
     if(!confirm(`DN번호 [${dn}]를 삭제하시겠습니까?`)) return;
     await fetch(`/api/records/${id}`,{method:'DELETE',headers:authH()});
     await loadAll(); applyFilter();
+  }
+
+  // 기사 서명 등록 — sign.html로 이동 (DN 자동 검색)
+  function goSign(dn){
+    if(!dn){ alert('DN번호를 확인할 수 없습니다.'); return; }
+    location.href = `sign.html?dn=${encodeURIComponent(dn)}`;
   }
 
   // ── 상세 모달 ──

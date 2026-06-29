@@ -442,6 +442,19 @@
       }
     }
 
+    // URL ?dn=DN번호 로 진입 시 자동 검색
+    (function(){
+      const dn = new URLSearchParams(location.search).get('dn');
+      if(dn){
+        const inp = document.getElementById('searchOrderNo');
+        if(inp){
+          inp.value = dn;
+          if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', searchOrder);
+          else setTimeout(searchOrder, 100);
+        }
+      }
+    })();
+
     function showOrderInfo(r) {
       document.getElementById('stepSearch').style.display='none';
       document.getElementById('stepSign').style.display='block';
