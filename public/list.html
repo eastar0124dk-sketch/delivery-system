@@ -216,6 +216,7 @@
       <button class="btn btn-secondary btn-sm" onclick="printAll()"><i class="fas fa-print"></i> 목록 인쇄</button>
       <button class="btn btn-pdf btn-sm" onclick="exportPDFAll()"><i class="fas fa-file-pdf"></i> 목록 PDF</button>
       <button class="btn btn-pdf btn-sm" id="bulkPdfBtn" onclick="bulkPDF()" style="display:none;background:linear-gradient(135deg,#e53e3e,#c53030);"><i class="fas fa-file-pdf"></i> 선택 일괄 PDF (<span id="chkCount">0</span>건)</button>
+      <button class="btn btn-pdf btn-sm" id="perDnPdfBtn" onclick="bulkPDFperDN()" style="display:none;background:linear-gradient(135deg,#7c3aed,#5b21b6);"><i class="fas fa-file-zipper"></i> DN별 개별 PDF (<span id="chkCount2">0</span>건)</button>
       <button class="btn btn-excel btn-sm" onclick="exportExcel()"><i class="fas fa-file-excel"></i> 엑셀 다운로드</button>
     </div>
   </div>
@@ -273,6 +274,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="clients.js"></script>
 <script>
   // 화주 고정: 메틀러토레도 전용 (화주 선택 불필요)
@@ -574,7 +576,9 @@
     const checked = document.querySelectorAll('.row-chk:checked');
     const cnt = checked.length;
     document.getElementById('chkCount').textContent = cnt;
+    const c2 = document.getElementById('chkCount2'); if (c2) c2.textContent = cnt;
     document.getElementById('bulkPdfBtn').style.display = cnt > 0 ? '' : 'none';
+    const perBtn = document.getElementById('perDnPdfBtn'); if (perBtn) perBtn.style.display = cnt > 0 ? '' : 'none';
     const all = document.querySelectorAll('.row-chk');
     const chkAll = document.getElementById('chkAll');
     if (chkAll) chkAll.checked = all.length > 0 && checked.length === all.length;
@@ -582,6 +586,80 @@
   function toggleAllCheck(checked) {
     document.querySelectorAll('.row-chk').forEach(c => c.checked = checked);
     updateChkCount();
+  }
+
+  // ── 인수증명서 HTML 템플릿 (일괄 PDF / DN별 PDF 공용) ──
+  function buildReceiptHTML(r) {
+    let locRows = '';
+    try {
+      const arr = JSON.parse(r.extra_locations || '[]');
+      for (let i = 0; i < 2; i++) locRows += `<tr><td colspan="2" style="text-align:left;">경유지 ${i + 1}.</td><td style="text-align:left;">${arr[i] || ''}</td></tr>`;
+    } catch {
+      for (let i = 0; i < 2; i++) locRows += `<tr><td colspan="2" style="text-align:left;">경유지 ${i + 1}.</td><td></td></tr>`;
+    }
+    const driverSig = r.driver_signature ? `<img src="${r.driver_signature}" style="max-width:120px;max-height:60px;">` : '<div style="padding:20px 0;color:#a0aec0;font-size:12px;">서명 없음</div>';
+    const receiverSig = r.receiver_signature ? `<img src="${r.receiver_signature}" style="max-width:120px;max-height:60px;">` : '<div style="padding:20px 0;color:#a0aec0;font-size:12px;">서명 없음</div>';
+    return `
+      <div style="font-family:'Noto Sans KR',sans-serif;font-size:13px;color:#1a202c;">
+        <div style="text-align:center;font-size:20px;font-weight:700;margin-bottom:6px;">인수증명서</div>
+        <div style="text-align:right;font-size:11px;color:${r.status==='signed'?'#276749':'#c05621'};font-weight:600;margin-bottom:8px;">${r.status==='signed'?'✅ 서명 완료':'📋 서명 대기'}</div>
+        <hr style="border:1px solid #2d3748;margin:6px 0 12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:12px;">
+          <div><span style="color:#718096;font-size:11px;">배송일자 :</span> <strong>${r.delivery_date||'-'}</strong></div>
+          <div><span style="color:#718096;font-size:11px;">수량 :</span> <strong>${r.quantity||'-'}</strong></div>
+          <div><span style="color:#718096;font-size:11px;">고객사 :</span> ${r.customer_company||'-'}</div>
+          <div><span style="color:#718096;font-size:11px;">수취인 :</span> ${r.receiver_name||'-'}</div>
+          <div style="grid-column:span 2;"><span style="color:#718096;font-size:11px;">제품명 :</span> ${r.product_name||'-'}</div>
+          ${r.notes?`<div style="grid-column:span 2;"><span style="color:#718096;font-size:11px;">비고 :</span> ${r.notes}</div>`:''}
+        </div>
+        <div style="background:#2d3748;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:600;margin-bottom:12px;">
+          DN 번호 : ${r.order_no}${r.vehicle_no?`  |  차량번호 : ${r.vehicle_no}`:''}
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
+          <thead><tr style="background:#f7fafc;">
+            <th style="border:1px solid #e2e8f0;padding:6px;width:34%;">작업 내용</th>
+            <th style="border:1px solid #e2e8f0;padding:6px;width:30%;">단위</th>
+            <th style="border:1px solid #e2e8f0;padding:6px;">기타</th>
+          </tr></thead>
+          <tbody>
+            <tr><td style="border:1px solid #e2e8f0;padding:5px;">현장 대기</td><td style="border:1px solid #e2e8f0;padding:5px;">대기시간</td><td style="border:1px solid #e2e8f0;padding:5px;">${r.wait_time?r.wait_time+'분':''}</td></tr>
+            <tr><td style="border:1px solid #e2e8f0;padding:5px;">작업비</td><td style="border:1px solid #e2e8f0;padding:5px;">원</td><td style="border:1px solid #e2e8f0;padding:5px;">${r.work_fee?Number(r.work_fee).toLocaleString()+'원':''}</td></tr>
+            ${locRows}
+            <tr><td style="border:1px solid #e2e8f0;padding:5px;">폐기물 회수</td><td style="border:1px solid #e2e8f0;padding:5px;">회수</td><td style="border:1px solid #e2e8f0;padding:5px;">${r.waste_collection||'회수 불필요'}</td></tr>
+          </tbody>
+        </table>
+        <div style="font-size:11px;color:#718096;text-align:center;margin-bottom:12px;font-style:italic;">
+          상기와 같이 운송 중 추가 작업이 발생하였음을 증명합니다.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:11px;color:#718096;margin-bottom:8px;">운송담당자 (서명)</div>
+            ${driverSig}
+            <div style="font-size:12px;font-weight:600;margin-top:6px;">${r.driver_name||''}</div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:11px;color:#718096;margin-bottom:8px;">확인검수자 (서명)</div>
+            ${receiverSig}
+            <div style="font-size:12px;font-weight:600;margin-top:6px;">${r.receiver_name||''}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // 캔버스를 jsPDF 한 페이지에 비율 유지하여 채움
+  function addCanvasToPdf(pdf, canvas) {
+    const pw = pdf.internal.pageSize.getWidth();
+    const ph = pdf.internal.pageSize.getHeight();
+    const maxW = pw - 20, maxH = ph - 20;
+    let imgW = maxW, imgH = (canvas.height * imgW) / canvas.width;
+    if (imgH > maxH) { const k = maxH / imgH; imgH = maxH; imgW = imgW * k; }
+    const xOff = 10 + (maxW - imgW) / 2;
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', xOff, 10, imgW, imgH);
+  }
+
+  // DN번호 → 안전한 파일명
+  function safeFileName(s) {
+    return String(s || 'DN').replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '').slice(0, 60);
   }
 
   // ── 일괄 PDF ──
@@ -629,62 +707,7 @@
         btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 생성중 ${ci + 1}/${checked.length}`;
         await new Promise(r => requestAnimationFrame(r));   // 진행률 화면 반영
 
-        // Build receipt HTML in hidden div
-        let locRows = '';
-        try {
-          const arr = JSON.parse(r.extra_locations || '[]');
-          for (let i = 0; i < 2; i++) locRows += `<tr><td colspan="2" style="text-align:left;">경유지 ${i + 1}.</td><td style="text-align:left;">${arr[i] || ''}</td></tr>`;
-        } catch {
-          for (let i = 0; i < 2; i++) locRows += `<tr><td colspan="2" style="text-align:left;">경유지 ${i + 1}.</td><td></td></tr>`;
-        }
-        const driverSig = r.driver_signature ? `<img src="${r.driver_signature}" style="max-width:120px;max-height:60px;">` : '<div style="padding:20px 0;color:#a0aec0;font-size:12px;">서명 없음</div>';
-        const receiverSig = r.receiver_signature ? `<img src="${r.receiver_signature}" style="max-width:120px;max-height:60px;">` : '<div style="padding:20px 0;color:#a0aec0;font-size:12px;">서명 없음</div>';
-
-        hidden.innerHTML = `
-          <div style="font-family:'Noto Sans KR',sans-serif;font-size:13px;color:#1a202c;">
-            <div style="text-align:center;font-size:20px;font-weight:700;margin-bottom:6px;">인수증명서</div>
-            <div style="text-align:right;font-size:11px;color:${r.status==='signed'?'#276749':'#c05621'};font-weight:600;margin-bottom:8px;">${r.status==='signed'?'✅ 서명 완료':'📋 서명 대기'}</div>
-            <hr style="border:1px solid #2d3748;margin:6px 0 12px;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:12px;">
-              <div><span style="color:#718096;font-size:11px;">배송일자 :</span> <strong>${r.delivery_date||'-'}</strong></div>
-              <div><span style="color:#718096;font-size:11px;">수량 :</span> <strong>${r.quantity||'-'}</strong></div>
-              <div><span style="color:#718096;font-size:11px;">고객사 :</span> ${r.customer_company||'-'}</div>
-              <div><span style="color:#718096;font-size:11px;">수취인 :</span> ${r.receiver_name||'-'}</div>
-              <div style="grid-column:span 2;"><span style="color:#718096;font-size:11px;">제품명 :</span> ${r.product_name||'-'}</div>
-              ${r.notes?`<div style="grid-column:span 2;"><span style="color:#718096;font-size:11px;">비고 :</span> ${r.notes}</div>`:''}
-            </div>
-            <div style="background:#2d3748;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:600;margin-bottom:12px;">
-              DN 번호 : ${r.order_no}${r.vehicle_no?`  |  차량번호 : ${r.vehicle_no}`:''}
-            </div>
-            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
-              <thead><tr style="background:#f7fafc;">
-                <th style="border:1px solid #e2e8f0;padding:6px;width:34%;">작업 내용</th>
-                <th style="border:1px solid #e2e8f0;padding:6px;width:30%;">단위</th>
-                <th style="border:1px solid #e2e8f0;padding:6px;">기타</th>
-              </tr></thead>
-              <tbody>
-                <tr><td style="border:1px solid #e2e8f0;padding:5px;">현장 대기</td><td style="border:1px solid #e2e8f0;padding:5px;">대기시간</td><td style="border:1px solid #e2e8f0;padding:5px;">${r.wait_time?r.wait_time+'분':''}</td></tr>
-                <tr><td style="border:1px solid #e2e8f0;padding:5px;">작업비</td><td style="border:1px solid #e2e8f0;padding:5px;">원</td><td style="border:1px solid #e2e8f0;padding:5px;">${r.work_fee?Number(r.work_fee).toLocaleString()+'원':''}</td></tr>
-                ${locRows}
-                <tr><td style="border:1px solid #e2e8f0;padding:5px;">폐기물 회수</td><td style="border:1px solid #e2e8f0;padding:5px;">회수</td><td style="border:1px solid #e2e8f0;padding:5px;">${r.waste_collection||'회수 불필요'}</td></tr>
-              </tbody>
-            </table>
-            <div style="font-size:11px;color:#718096;text-align:center;margin-bottom:12px;font-style:italic;">
-              상기와 같이 운송 중 추가 작업이 발생하였음을 증명합니다.
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-              <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;">
-                <div style="font-size:11px;color:#718096;margin-bottom:8px;">운송담당자 (서명)</div>
-                ${driverSig}
-                <div style="font-size:12px;font-weight:600;margin-top:6px;">${r.driver_name||''}</div>
-              </div>
-              <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;">
-                <div style="font-size:11px;color:#718096;margin-bottom:8px;">확인검수자 (서명)</div>
-                ${receiverSig}
-                <div style="font-size:12px;font-weight:600;margin-top:6px;">${r.receiver_name||''}</div>
-              </div>
-            </div>
-          </div>`;
+        hidden.innerHTML = buildReceiptHTML(r);
 
         await waitImages(hidden);   // 서명 이미지 로드 완료까지만 대기 (고정 200ms 제거)
         // scale 낮춤(2→1.4) + logging off → 렌더 속도 대폭 향상
@@ -710,6 +733,120 @@
       document.body.removeChild(hidden);
       btn.disabled = false;
       btn.innerHTML = `<i class="fas fa-file-pdf"></i> 선택 일괄 PDF (<span id="chkCount">${document.querySelectorAll('.row-chk:checked').length}</span>건)`;
+    }
+  }
+
+  // ── DN별 개별 PDF (각 1건 = 1파일) ──
+  // 저장 방식 선택: ① 폴더에 직접 64개 PDF 저장(Chrome/Edge) ② ZIP 한 파일
+  async function bulkPDFperDN() {
+    const checked = [...document.querySelectorAll('.row-chk:checked')];
+    if (!checked.length) { alert('항목을 선택하세요.'); return; }
+
+    const canFolder = (typeof window.showDirectoryPicker === 'function');
+    let mode; // 'folder' | 'zip'
+    if (canFolder) {
+      // 확인=폴더에 개별 저장 / 취소=ZIP / Esc(=null) 처리는 confirm 특성상 취소로 들어감
+      const useFolder = confirm(
+        `선택한 ${checked.length}건을 어떻게 저장할까요?\n\n` +
+        `[확인]  폴더를 지정해 ${checked.length}개의 PDF 파일을 그대로 저장\n` +
+        `[취소]  ZIP 파일 1개로 압축해서 저장`);
+      mode = useFolder ? 'folder' : 'zip';
+    } else {
+      if (typeof JSZip === 'undefined') { alert('압축 라이브러리 로드 실패. 새로고침 후 다시 시도하세요.'); return; }
+      if (!confirm(`선택한 ${checked.length}건을 DN별 개별 PDF 파일로 만들어 ZIP으로 저장하시겠습니까?`)) return;
+      mode = 'zip';
+    }
+
+    // 폴더 모드: 디렉터리 선택을 먼저 받아야(사용자 제스처) 권한 팝업이 정상 동작
+    let dirHandle = null;
+    if (mode === 'folder') {
+      try {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      } catch (e) {
+        return; // 사용자가 폴더 선택을 취소
+      }
+    } else if (typeof JSZip === 'undefined') {
+      alert('압축 라이브러리 로드 실패. 새로고침 후 다시 시도하세요.'); return;
+    }
+
+    const btn = document.getElementById('perDnPdfBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 생성중...';
+
+    const hidden = document.createElement('div');
+    hidden.style.cssText = 'position:fixed;left:-9999px;top:0;width:680px;background:#fff;padding:24px;';
+    document.body.appendChild(hidden);
+
+    try {
+      const { jsPDF } = window.jspdf;
+      const zip = (mode === 'zip') ? new JSZip() : null;
+
+      // 목록 데이터에서 부족한 건만 병렬 prefetch
+      const byId = {}; allData.forEach(d => byId[String(d.id)] = d);
+      const missing = checked.map(c => c.dataset.id).filter(id => !byId[String(id)]);
+      if (missing.length) {
+        const fetched = await Promise.all(missing.map(id =>
+          fetch(`/api/records/${id}`, { headers: authH() }).then(res => res.json()).catch(() => null)));
+        fetched.forEach((d, i) => { if (d) byId[String(missing[i])] = d; });
+      }
+
+      const waitImages = el => {
+        const imgs = [...el.querySelectorAll('img')];
+        return Promise.all(imgs.map(im => im.complete ? Promise.resolve()
+          : new Promise(res => { im.onload = im.onerror = res; })));
+      };
+
+      const usedNames = {};
+      for (let ci = 0; ci < checked.length; ci++) {
+        const r = byId[String(checked[ci].dataset.id)];
+        if (!r) continue;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 생성중 ${ci + 1}/${checked.length}`;
+        await new Promise(res => requestAnimationFrame(res));
+
+        hidden.innerHTML = buildReceiptHTML(r);
+        await waitImages(hidden);
+        const canvas = await html2canvas(hidden, { scale: 1.4, useCORS: true, allowTaint: true, logging: false, imageTimeout: 0, backgroundColor: '#fff' });
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        addCanvasToPdf(pdf, canvas);
+
+        // 파일명: 인수증명서_DN번호.pdf (중복 시 _2, _3 …)
+        let base = `인수증명서_${safeFileName(r.order_no)}`;
+        if (usedNames[base]) { usedNames[base]++; base = `${base}_${usedNames[base]}`; }
+        else usedNames[base] = 1;
+        const fileName = `${base}.pdf`;
+        const blob = pdf.output('blob');
+
+        if (mode === 'folder') {
+          const fh = await dirHandle.getFileHandle(fileName, { create: true });
+          const w = await fh.createWritable();
+          await w.write(blob);
+          await w.close();
+        } else {
+          zip.file(fileName, blob);
+        }
+      }
+
+      const today = todayKST();
+      if (mode === 'folder') {
+        alert(`완료! 선택한 폴더에 ${checked.length}개의 PDF 파일을 저장했습니다.`);
+      } else {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 압축중...';
+        const zblob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zblob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `인수증명서_DN별_${today}_${checked.length}건.zip`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch (e) {
+      alert('PDF 생성 오류: ' + e.message);
+      console.error(e);
+    } finally {
+      document.body.removeChild(hidden);
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fas fa-file-zipper"></i> DN별 개별 PDF (<span id="chkCount2">${document.querySelectorAll('.row-chk:checked').length}</span>건)`;
     }
   }
 
