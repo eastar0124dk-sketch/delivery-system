@@ -93,6 +93,19 @@
         <div class="stat out2"><div class="lbl">📤 출고 수량</div><div class="val"><span id="outQty">0</span></div></div>
       </div>
 
+      <!-- 월간 보고표 입력값 -->
+      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px 16px;margin-bottom:18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-weight:800;color:#0c4a6e;font-size:14px;">📋 월간 보고표 입력값</span>
+          <span id="rptMonth" style="background:#0ea5e9;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;"></span>
+          <button onclick="copyReportAll()" style="margin-left:auto;background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;"><i class="fas fa-copy"></i> 전체 복사 (세로 붙여넣기용)</button>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tbody id="rptBody"></tbody>
+        </table>
+        <div id="rptNote" style="font-size:11px;color:#64748b;margin-top:8px;"></div>
+      </div>
+
       <div class="sec-title in"><i class="fas fa-arrow-down"></i> 입고 DN별 상세 (라인수 · 수량)</div>
       <div class="tbl-wrap">
         <table>
@@ -161,16 +174,20 @@
         const idxRef = hdr.findIndex(c => c === 'reference');
         const idxQty = hdr.findIndex(c => c === 'qty in unit of entry');
         const idxPO  = hdr.findIndex(c => c === 'purchase order');
+        const idxDt  = hdr.findIndex(c => c === 'posting date');
         if (idxMv >= 0 && idxRef >= 0 && idxQty >= 0) {
-          return aggregate(arr, h, idxMv, idxRef, idxQty, idxPO);
+          return aggregate(arr, h, idxMv, idxRef, idxQty, idxPO, idxDt);
         }
       }
     }
     return null;
   }
 
-  function aggregate(arr, headerRow, idxMv, idxRef, idxQty, idxPO) {
+  function aggregate(arr, headerRow, idxMv, idxRef, idxQty, idxPO, idxDt) {
     const inMap = {}, outMap = {};   // ref → {lines, qty}
+    const cancel = { in:{lines:0,qty:0}, out:{lines:0,qty:0} };  // 102 / 602 취소 전표
+    let etc647 = { lines:0, qty:0 };                              // 647 재고이동
+    const monthCnt = {};                                          // 'YY년 M월' → 건수
     for (let i = headerRow + 1; i < arr.length; i++) {
       const row = arr[i] || [];
       const code = String(row[idxMv] ?? '').trim();
@@ -184,18 +201,35 @@
       let q = parseFloat(String(row[idxQty]).replace(/,/g,''));
       if (isNaN(q)) q = 0;
       const aq = Math.abs(q);
+      // 월 자동 인식 (Posting Date 최빈 월)
+      if (idxDt >= 0 && row[idxDt] !== '' && (code==='101'||code==='601')) {
+        let d = row[idxDt];
+        if (typeof d === 'number') d = new Date(Math.round((d - 25569) * 86400 * 1000)); // 엑셀 시리얼
+        else d = new Date(d);
+        if (!isNaN(d)) {
+          const k = `${String(d.getFullYear()).slice(2)}년 ${d.getMonth()+1}월`;
+          monthCnt[k] = (monthCnt[k]||0) + 1;
+        }
+      }
       if (code === '101') {
         if (!inMap[ref]) inMap[ref] = { lines:0, qty:0 };
         inMap[ref].lines++; inMap[ref].qty += aq;
       } else if (code === '601') {
         if (!outMap[ref]) outMap[ref] = { lines:0, qty:0 };
         outMap[ref].lines++; outMap[ref].qty += aq;
+      } else if (code === '102') {
+        cancel.in.lines++; cancel.in.qty += aq;
+      } else if (code === '602') {
+        cancel.out.lines++; cancel.out.qty += aq;
+      } else if (code === '647') {
+        etc647.lines++; etc647.qty += aq;
       }
     }
     const sum = m => Object.values(m).reduce((a,v)=>({lines:a.lines+v.lines, qty:a.qty+v.qty}),{lines:0,qty:0});
     const si = sum(inMap), so = sum(outMap);
+    const monthLabel = Object.keys(monthCnt).sort((a,b)=>monthCnt[b]-monthCnt[a])[0] || '';
     return {
-      inMap, outMap,
+      inMap, outMap, cancel, etc647, monthLabel,
       inDN: Object.keys(inMap).length, outDN: Object.keys(outMap).length,
       inLines: si.lines, outLines: so.lines,
       inQty: si.qty, outQty: so.qty
@@ -210,6 +244,27 @@
     document.getElementById('outDN').textContent = result.outDN.toLocaleString();
     document.getElementById('outQty').textContent= f(result.outQty);
 
+    /* 월간 보고표 입력값 패널 */
+    document.getElementById('rptMonth').textContent = result.monthLabel || '월 인식 안됨';
+    const rows = reportRows();
+    document.getElementById('rptBody').innerHTML = rows.map((r,i) => `
+      <tr style="border-bottom:1px solid #e0f2fe;">
+        <td style="padding:7px 4px;color:#0c4a6e;font-weight:600;width:40%;">${r.label}</td>
+        <td style="padding:7px 4px;text-align:right;font-weight:800;font-size:15px;color:#0369a1;">${f(r.value)}</td>
+        <td style="padding:7px 4px;width:70px;text-align:center;">
+          <button onclick="copyVal(${r.value},this)" style="background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">복사</button>
+        </td>
+      </tr>`).join('');
+    // 참고: 취소·재고이동
+    const c = result.cancel, e6 = result.etc647;
+    const notes = [];
+    if (c.in.lines)  notes.push(`입고취소(102) ${c.in.lines}건/${f(c.in.qty)} → 순입고 ${f(result.inQty - c.in.qty)}`);
+    if (c.out.lines) notes.push(`출고취소(602) ${c.out.lines}건/${f(c.out.qty)} → 순출고 ${f(result.outQty - c.out.qty)}`);
+    if (e6.lines)    notes.push(`재고이동(647) ${e6.lines}건/${f(e6.qty)} — 집계 제외`);
+    document.getElementById('rptNote').innerHTML = notes.length
+      ? '⚠️ 참고: ' + notes.join(' · ')
+      : '취소 전표(102/602) 없음 — 표시값이 순수량과 동일합니다.';
+
     const rowsHtml = map => Object.keys(map).sort().map((ref,i) =>
       `<tr><td style="color:#94a3b8;">${i+1}</td><td class="left">${esc(ref)}</td><td class="num">${map[ref].lines}</td><td class="num">${f(map[ref].qty)}</td></tr>`
     ).join('') || `<tr><td colspan="4" style="color:#94a3b8;padding:16px;">데이터 없음</td></tr>`;
@@ -220,6 +275,29 @@
     document.getElementById('inQtyTot').textContent   = f(result.inQty);
     document.getElementById('outLineTot').textContent = result.outLines.toLocaleString();
     document.getElementById('outQtyTot').textContent  = f(result.outQty);
+  }
+
+  /* 월간 보고표 행 정의 — 스케줄표 순서와 동일 */
+  function reportRows() {
+    return [
+      { label: '입고 횟수 (입고 DN 수)',   value: result.inDN },
+      { label: '입고 수량',                value: Math.round(result.inQty) },
+      { label: '피킹 오더 수 (출고 DN 수)', value: result.outDN },
+      { label: '피킹 수량 (출고 수량)',     value: Math.round(result.outQty) }
+    ];
+  }
+
+  function copyVal(v, btn) {
+    navigator.clipboard.writeText(String(v)).then(() => {
+      const t = btn.textContent; btn.textContent = '✓ 복사됨';
+      setTimeout(() => btn.textContent = t, 1200);
+    });
+  }
+
+  /* 세로 4행 복사 — 보고표의 월 컬럼에 그대로 붙여넣기 (입고횟수→입고수량→피킹오더수→피킹수량) */
+  function copyReportAll() {
+    const txt = reportRows().map(r => r.value).join('\n');
+    navigator.clipboard.writeText(txt).then(() => toast('4개 값 복사 완료 — 보고표의 "입고 횟수" 셀에 붙여넣으세요.'));
   }
 
   /* 엑셀 다운로드 — 요약 + 입고 + 출고 시트 */
@@ -244,6 +322,17 @@
     for(let c=0;c<4;c++){const r=XLSX.utils.encode_cell({r:0,c});if(wsSum[r])wsSum[r].s=HDR;}
     for(let i=1;i<=2;i++)for(let c=0;c<4;c++){const r=XLSX.utils.encode_cell({r:i,c});if(wsSum[r])wsSum[r].s=c===0?CELL:NUM;}
     XLSX.utils.book_append_sheet(wb, wsSum, '요약');
+
+    // 보고표 입력값 시트 (월간 스케줄표 순서)
+    const rptAoa = [
+      ['항목', result.monthLabel || ''],
+      ...reportRows().map(r => [r.label, r.value])
+    ];
+    const wsRpt = XLSX.utils.aoa_to_sheet(rptAoa);
+    wsRpt['!cols']=[{wch:26},{wch:12}];
+    for(let c=0;c<2;c++){const r=XLSX.utils.encode_cell({r:0,c});if(wsRpt[r])wsRpt[r].s=HDR;}
+    for(let i=1;i<=4;i++)for(let c=0;c<2;c++){const r=XLSX.utils.encode_cell({r:i,c});if(wsRpt[r])wsRpt[r].s=c===0?CELL:NUM;}
+    XLSX.utils.book_append_sheet(wb, wsRpt, '보고표 입력값');
 
     // 입고/출고 상세 시트
     const detailSheet = (map, name) => {
