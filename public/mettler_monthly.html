@@ -66,18 +66,20 @@
   <div class="wrap">
 
     <div class="card">
-      <div class="card-title"><i class="fas fa-file-upload"></i> 월별 입·출고 엑셀 업로드</div>
+      <div class="card-title"><i class="fas fa-file-upload"></i> 분석 파일 업로드 (자동 인식)</div>
       <label class="dropzone" id="dropzone">
         <div class="icon"><i class="fas fa-cloud-upload-alt"></i></div>
-        <div class="lbl">EXPORT 엑셀 파일을 끌어다 놓거나 클릭</div>
-        <div class="sub">SAP 이동내역 엑셀 (.xlsx) — 헤더 자동 인식</div>
-        <div class="fn" id="fname"></div>
-        <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls">
+        <div class="lbl">엑셀 파일을 끌어다 놓거나 클릭 (여러 개 가능)</div>
+        <div class="sub">SAP 이동내역(입·출고) / 재고 스냅샷 — 파일 종류 자동 인식</div>
+        <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls" multiple>
       </label>
+      <div id="fileChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;"></div>
       <div style="font-size:11px;color:#64748b;background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:9px 13px;margin-top:12px;">
-        💡 <b>Movement Type</b> 기준 — <b>101=입고</b> / <b>601=출고</b> (재고이동·반품 제외).
-        DN = <b>Reference</b> 고유 건수 · 수량 = <b>Qty in unit of entry</b> 합계(절대값).
-        Reference(DN)가 없는 건은 <b>Purchase order</b> 번호(PO)로 대체 집계됩니다.
+        💡 올린 파일 조합에 따라 자동 분석:
+        <b>이동내역 1개</b> → 입·출고 집계 ·
+        <b>재고 2개</b> → 전월↔당월 재고 비교 ·
+        <b>이동내역+재고 2개</b> → 재고 대사(기초+입출고=기말 검증).
+        입·출고 기준: <b>101=입고 / 601=출고</b>, DN=Reference 고유 건수 (없으면 PO 대체).
       </div>
     </div>
 
@@ -125,6 +127,58 @@
       </div>
     </div>
 
+    <!-- 재고 대사 (이동내역 + 재고 2개) -->
+    <div class="card" id="reconCard" style="display:none;">
+      <div class="card-title"><i class="fas fa-scale-balanced"></i> 재고 대사 — 기초재고 + 입·출고 = 기말재고 검증 <span id="reconVerdict" style="margin-left:auto;font-size:12px;"></span></div>
+      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">낱개(Base Unit, Quantity 열) 기준으로 대사합니다. 입·출고 수량(전표단위)과는 단위가 다를 수 있습니다.</div>
+      <table>
+        <thead><tr><th>구분</th><th style="width:130px;">수량 (낱개)</th></tr></thead>
+        <tbody id="reconBody"></tbody>
+      </table>
+      <div id="reconNote" style="font-size:11px;color:#64748b;margin-top:10px;"></div>
+    </div>
+
+    <!-- 재고 비교 (재고 2개) -->
+    <div class="card" id="stockCard" style="display:none;">
+      <div class="card-title">
+        <i class="fas fa-boxes-stacked"></i> 재고 비교 <span id="stockPeriod" style="font-size:12px;color:#64748b;font-weight:600;"></span>
+        <button class="btn btn-gray" style="margin-left:auto;padding:6px 12px;font-size:12px;" onclick="swapStocks()"><i class="fas fa-right-left"></i> 전월↔당월 바꾸기</button>
+        <button class="btn btn-green" style="padding:6px 12px;font-size:12px;" onclick="downloadStockExcel()"><i class="fas fa-download"></i> 엑셀 다운로드</button>
+      </div>
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat in1"><div class="lbl">품목(SKU) 수</div><div class="val" id="stSku" style="font-size:22px;">-</div></div>
+        <div class="stat in2"><div class="lbl">재고수량(변환)</div><div class="val" id="stQty" style="font-size:22px;">-</div></div>
+        <div class="stat out2"><div class="lbl">재고금액</div><div class="val" id="stVal" style="font-size:19px;">-</div></div>
+        <div class="stat out1"><div class="lbl">신규 / 소진 품목</div><div class="val" id="stNew" style="font-size:22px;">-</div></div>
+      </div>
+      <div class="sec-title in"><i class="fas fa-arrow-trend-up"></i> 증가 TOP 15 (변환수량)</div>
+      <div class="tbl-wrap" style="max-height:280px;">
+        <table>
+          <thead><tr><th style="width:44px;">#</th><th style="width:90px;">자재</th><th>품명</th><th style="width:80px;">전월</th><th style="width:80px;">당월</th><th style="width:80px;">증감</th></tr></thead>
+          <tbody id="stIncBody"></tbody>
+        </table>
+      </div>
+      <div class="sec-title out"><i class="fas fa-arrow-trend-down"></i> 감소 TOP 15 (변환수량)</div>
+      <div class="tbl-wrap" style="max-height:280px;">
+        <table>
+          <thead><tr><th style="width:44px;">#</th><th style="width:90px;">자재</th><th>품명</th><th style="width:80px;">전월</th><th style="width:80px;">당월</th><th style="width:80px;">증감</th></tr></thead>
+          <tbody id="stDecBody"></tbody>
+        </table>
+      </div>
+      <div id="stSkipNote" style="font-size:11px;color:#64748b;margin-top:8px;"></div>
+    </div>
+
+    <!-- 재고 단일 요약 (재고 1개만) -->
+    <div class="card" id="stockOneCard" style="display:none;">
+      <div class="card-title"><i class="fas fa-box"></i> 재고 스냅샷 요약 <span id="so-name" style="font-size:12px;color:#64748b;font-weight:600;"></span></div>
+      <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat in1"><div class="lbl">품목(SKU) 수</div><div class="val" id="so-sku" style="font-size:22px;">-</div></div>
+        <div class="stat in2"><div class="lbl">재고수량(변환)</div><div class="val" id="so-qty" style="font-size:22px;">-</div></div>
+        <div class="stat out2"><div class="lbl">재고금액</div><div class="val" id="so-val" style="font-size:19px;">-</div></div>
+      </div>
+      <div style="font-size:11px;color:#64748b;">전월 재고 파일을 하나 더 올리면 자동으로 비교 분석됩니다.</div>
+    </div>
+
   </div>
 </main>
 
@@ -134,33 +188,128 @@
 <script>
   initNav('mettler_monthly.html');
 
-  let result = null;   // { inMap, outMap, inDN, outDN, inQty, outQty, inLines, outLines }
-  let fileName = '';
+  let result = null;   // 이동내역 집계 결과
+  let fileName = '';   // 이동내역 파일명
+  let stocks = [];     // 재고 스냅샷 [{name, dateKey, skus:{mat:{desc,qty,conv,val,unit}}, skuCnt, totConv, totVal, skipped}] 최대 2개
 
   const dz = document.getElementById('dropzone');
   const fileInput = document.getElementById('fileInput');
   ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); }));
   ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); }));
-  dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) readFile(f); });
-  fileInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) readFile(f); });
+  dz.addEventListener('drop', e => { handleFiles([...e.dataTransfer.files]); });
+  fileInput.addEventListener('change', e => { handleFiles([...e.target.files]); e.target.value=''; });
 
-  function readFile(file) {
-    fileName = file.name;
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
-        result = analyze(wb);
-        if (!result) { toast('헤더(Movement Type/Reference/Qty)를 인식하지 못했습니다.', 'error'); return; }
-        document.getElementById('fname').textContent = `✓ ${file.name}`;
-        render();
-        toast(`✅ 입고 ${result.inDN}건 · 출고 ${result.outDN}건 집계 완료`);
-      } catch(err) {
-        toast('파일 읽기 실패: ' + err.message, 'error');
-      }
-    };
-    reader.readAsArrayBuffer(file);
+  function handleFiles(files) {
+    files.filter(f => /\.(xlsx|xlsm|xls)$/i.test(f.name)).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+          // ① 이동내역 파일인지 시도
+          const mv = analyze(wb);
+          if (mv) {
+            result = mv; fileName = file.name;
+            toast(`✅ 이동내역 인식: 입고 ${mv.inDN}건 · 출고 ${mv.outDN}건`);
+            renderAll(); return;
+          }
+          // ② 재고 스냅샷 파일인지 시도
+          const st = parseStock(wb, file.name);
+          if (st) {
+            // 같은 이름 파일 교체, 그 외엔 추가(최대 2개 — 오래된 것 교체)
+            const dup = stocks.findIndex(s => s.name === st.name);
+            if (dup >= 0) stocks[dup] = st;
+            else { stocks.push(st); if (stocks.length > 2) stocks.shift(); }
+            sortStocks();
+            toast(`✅ 재고 파일 인식: ${st.skuCnt.toLocaleString()}품목 / ${Math.round(st.totConv).toLocaleString()}개`);
+            renderAll(); return;
+          }
+          toast(`"${file.name}" — 이동내역/재고 형식을 인식하지 못했습니다.`, 'error');
+        } catch(err) {
+          toast('파일 읽기 실패: ' + err.message, 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
   }
+
+  /* 파일명에서 날짜 추출 (0528, 0629, 20260601 등) → 정렬키 */
+  function dateKeyFromName(name) {
+    const m8 = name.match(/20\d{6}/);          // YYYYMMDD
+    if (m8) return m8[0];
+    const m4 = name.match(/(?:^|\D)(\d{4})(?:\D|$)/); // MMDD
+    if (m4) return '0000' + m4[1];
+    return '';
+  }
+  function sortStocks() {
+    if (stocks.length === 2) {
+      const [a, b] = stocks;
+      if (a.dateKey && b.dateKey && a.dateKey > b.dateKey) stocks = [b, a];
+    }
+  }
+  function swapStocks() { if (stocks.length === 2) { stocks.reverse(); renderAll(); } }
+
+  /* 재고 스냅샷 파싱 — Material / Unrestricted / 변환 / Value 헤더 자동 인식, 총합계 행 제외 */
+  function parseStock(wb, name) {
+    for (const sn of wb.SheetNames) {
+      const arr = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header:1, defval:'' });
+      if (!arr.length) continue;
+      for (let h = 0; h < Math.min(arr.length, 5); h++) {
+        const hdr = (arr[h] || []).map(c => String(c||'').trim().toLowerCase());
+        const iM = hdr.findIndex(c => c === 'material');
+        let iQ = -1, iV = -1, iC = -1, iD = -1, iU = -1;
+        hdr.forEach((c, i) => {
+          if (c.includes('unrestricted') && !c.includes('value') && iQ < 0) iQ = i;
+          if (c.includes('value') && iV < 0) iV = i;
+          if (c === '변환') iC = i;
+          if (c.includes('material descr') && iD < 0) iD = i;
+          if (c.includes('base unit') && iU < 0) iU = i;
+        });
+        if (iM >= 0 && iQ >= 0) {
+          const skus = {}; let skipped = 0;
+          for (let r = h + 1; r < arr.length; r++) {
+            const row = arr[r] || [];
+            const mat = String(row[iM] ?? '').trim();
+            if (!mat) continue;
+            if (!/^\d+$/.test(mat)) { skipped++; continue; }  // '총합계' 등 비자재 행 제외
+            const num = v => { const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? 0 : n; };
+            const e = skus[mat] || (skus[mat] = { desc:'', qty:0, conv:0, val:0, unit:'' });
+            if (!e.desc && iD >= 0 && row[iD]) e.desc = String(row[iD]).trim();
+            if (!e.unit && iU >= 0 && row[iU]) e.unit = String(row[iU]).trim();
+            e.qty += num(row[iQ]);
+            e.conv += iC >= 0 ? num(row[iC]) : num(row[iQ]);
+            e.val += iV >= 0 ? num(row[iV]) : 0;
+          }
+          const cnt = Object.keys(skus).length;
+          if (!cnt) return null;
+          const totConv = Object.values(skus).reduce((a,e)=>a+e.conv,0);
+          const totQty  = Object.values(skus).reduce((a,e)=>a+e.qty,0);
+          const totVal  = Object.values(skus).reduce((a,e)=>a+e.val,0);
+          return { name, dateKey: dateKeyFromName(name), skus, skuCnt: cnt, totConv, totQty, totVal, skipped };
+        }
+      }
+    }
+    return null;
+  }
+
+  /* 파일 칩 + 결과 렌더 총괄 */
+  function renderAll() {
+    // 칩
+    const chips = [];
+    if (result) chips.push(`<span style="background:#eef2ff;border:1px solid #c7d2fe;color:#4338ca;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;">🔄 이동내역: ${esc(fileName)} <a onclick="removeMv()" style="cursor:pointer;color:#94a3b8;margin-left:4px;">✕</a></span>`);
+    stocks.forEach((s, i) => {
+      const tag = stocks.length === 2 ? (i === 0 ? '전월 재고' : '당월 재고') : '재고';
+      chips.push(`<span style="background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;">📦 ${tag}: ${esc(s.name)} <a onclick="removeStock(${i})" style="cursor:pointer;color:#94a3b8;margin-left:4px;">✕</a></span>`);
+    });
+    document.getElementById('fileChips').innerHTML = chips.join('');
+
+    if (result) render();
+    document.getElementById('resultCard').style.display = result ? 'block' : 'none';
+
+    renderStock();
+    renderRecon();
+  }
+  function removeMv() { result = null; fileName = ''; renderAll(); }
+  function removeStock(i) { stocks.splice(i, 1); renderAll(); }
 
   /* 헤더 자동 인식 후 101/601 집계 */
   function analyze(wb) {
@@ -175,22 +324,28 @@
         const idxQty = hdr.findIndex(c => c === 'qty in unit of entry');
         const idxPO  = hdr.findIndex(c => c === 'purchase order');
         const idxDt  = hdr.findIndex(c => c === 'posting date');
+        const idxQb  = hdr.findIndex(c => c === 'quantity');   // 낱개(base) 수량
         if (idxMv >= 0 && idxRef >= 0 && idxQty >= 0) {
-          return aggregate(arr, h, idxMv, idxRef, idxQty, idxPO, idxDt);
+          return aggregate(arr, h, idxMv, idxRef, idxQty, idxPO, idxDt, idxQb);
         }
       }
     }
     return null;
   }
 
-  function aggregate(arr, headerRow, idxMv, idxRef, idxQty, idxPO, idxDt) {
+  function aggregate(arr, headerRow, idxMv, idxRef, idxQty, idxPO, idxDt, idxQb) {
     const inMap = {}, outMap = {};   // ref → {lines, qty}
     const cancel = { in:{lines:0,qty:0}, out:{lines:0,qty:0} };  // 102 / 602 취소 전표
     let etc647 = { lines:0, qty:0 };                              // 647 재고이동
     const monthCnt = {};                                          // 'YY년 M월' → 건수
+    const baseNet = {};                                           // code → 낱개(base) 부호합 (재고 대사용)
     for (let i = headerRow + 1; i < arr.length; i++) {
       const row = arr[i] || [];
       const code = String(row[idxMv] ?? '').trim();
+      if (code && idxQb >= 0) {
+        const qb = parseFloat(String(row[idxQb]).replace(/,/g,''));
+        if (!isNaN(qb)) baseNet[code] = (baseNet[code] || 0) + qb;
+      }
       let ref  = String(row[idxRef] ?? '').trim();
       // Reference(DN)가 비어있으면 Purchase order 번호로 대체 (DN 없이 PO로 직접 입고된 건)
       if (!ref && idxPO >= 0) {
@@ -229,7 +384,7 @@
     const si = sum(inMap), so = sum(outMap);
     const monthLabel = Object.keys(monthCnt).sort((a,b)=>monthCnt[b]-monthCnt[a])[0] || '';
     return {
-      inMap, outMap, cancel, etc647, monthLabel,
+      inMap, outMap, cancel, etc647, monthLabel, baseNet,
       inDN: Object.keys(inMap).length, outDN: Object.keys(outMap).length,
       inLines: si.lines, outLines: so.lines,
       inQty: si.qty, outQty: so.qty
@@ -298,6 +453,118 @@
   function copyReportAll() {
     const txt = reportRows().map(r => r.value).join('\n');
     navigator.clipboard.writeText(txt).then(() => toast('4개 값 복사 완료 — 보고표의 "입고 횟수" 셀에 붙여넣으세요.'));
+  }
+
+  /* ── 재고 비교 렌더 ── */
+  function fmtVal(v) {
+    if (Math.abs(v) >= 1e8) return (v/1e8).toFixed(1) + '억';
+    return Math.round(v).toLocaleString('ko-KR');
+  }
+  function renderStock() {
+    const one = document.getElementById('stockOneCard');
+    const cmp = document.getElementById('stockCard');
+    if (stocks.length === 0) { one.style.display = 'none'; cmp.style.display = 'none'; return; }
+    if (stocks.length === 1) {
+      cmp.style.display = 'none'; one.style.display = 'block';
+      const s = stocks[0];
+      document.getElementById('so-name').textContent = s.name;
+      document.getElementById('so-sku').textContent = s.skuCnt.toLocaleString();
+      document.getElementById('so-qty').textContent = Math.round(s.totConv).toLocaleString();
+      document.getElementById('so-val').textContent = fmtVal(s.totVal) + '원';
+      return;
+    }
+    one.style.display = 'none'; cmp.style.display = 'block';
+    const [a, b] = stocks;
+    const f = n => Math.round(n).toLocaleString('ko-KR');
+    const sgn = n => (n > 0 ? '+' : '') + f(n);
+    document.getElementById('stockPeriod').textContent = `${a.name} → ${b.name}`;
+    document.getElementById('stSku').innerHTML = `${a.skuCnt.toLocaleString()} → ${b.skuCnt.toLocaleString()}`;
+    document.getElementById('stQty').innerHTML = `${f(a.totConv)} → ${f(b.totConv)}<div style="font-size:12px;opacity:.9;">${sgn(b.totConv-a.totConv)}</div>`;
+    document.getElementById('stVal').innerHTML = `${fmtVal(a.totVal)} → ${fmtVal(b.totVal)}원<div style="font-size:12px;opacity:.9;">${(b.totVal-a.totVal>0?'+':'')}${fmtVal(b.totVal-a.totVal)}</div>`;
+    const aK = new Set(Object.keys(a.skus)), bK = new Set(Object.keys(b.skus));
+    const newK = [...bK].filter(k => !aK.has(k));
+    const goneK = [...aK].filter(k => !bK.has(k));
+    document.getElementById('stNew').innerHTML = `+${newK.length} / -${goneK.length}<div style="font-size:11px;opacity:.9;">종</div>`;
+
+    // 증감 목록 (신규/소진 포함)
+    const allK = new Set([...aK, ...bK]);
+    const diffs = [];
+    allK.forEach(k => {
+      const av = a.skus[k]?.conv || 0, bv = b.skus[k]?.conv || 0;
+      if (av !== bv) diffs.push({ mat:k, desc:(b.skus[k]||a.skus[k]).desc, a:av, b:bv, d:bv-av });
+    });
+    const rowHtml = (r, i) => `<tr><td style="color:#94a3b8;">${i+1}</td><td>${esc(r.mat)}</td><td class="left">${esc(r.desc)}${!aK.has(r.mat)?' <span style="color:#059669;font-size:10px;font-weight:700;">신규</span>':''}${!bK.has(r.mat)?' <span style="color:#dc2626;font-size:10px;font-weight:700;">소진</span>':''}</td><td class="num">${f(r.a)}</td><td class="num">${f(r.b)}</td><td class="num" style="font-weight:700;color:${r.d>0?'#059669':'#dc2626'};">${sgn(r.d)}</td></tr>`;
+    const inc = diffs.filter(r => r.d > 0).sort((x,y) => y.d - x.d);
+    const dec = diffs.filter(r => r.d < 0).sort((x,y) => x.d - y.d);
+    document.getElementById('stIncBody').innerHTML = inc.slice(0,15).map(rowHtml).join('') || '<tr><td colspan="6" style="color:#94a3b8;padding:14px;">증가 품목 없음</td></tr>';
+    document.getElementById('stDecBody').innerHTML = dec.slice(0,15).map(rowHtml).join('') || '<tr><td colspan="6" style="color:#94a3b8;padding:14px;">감소 품목 없음</td></tr>';
+    const skips = (a.skipped||0) + (b.skipped||0);
+    document.getElementById('stSkipNote').textContent =
+      `증가 ${inc.length}종 · 감소 ${dec.length}종 · 신규 ${newK.length}종 · 소진 ${goneK.length}종` +
+      (skips ? ` — 총합계 등 비자재 행 ${skips}건 자동 제외됨` : '') +
+      ` · 전월/당월 순서가 다르면 위 "전월↔당월 바꾸기"를 누르세요.`;
+  }
+
+  /* ── 재고 대사 렌더 (이동내역 + 재고 2개) ── */
+  const MV_LABEL = { '101':'입고 (101)', '102':'입고취소 (102)', '601':'출고 (601)', '602':'출고취소 (602)', '647':'재고이동 (647)' };
+  function renderRecon() {
+    const card = document.getElementById('reconCard');
+    if (!result || stocks.length !== 2 || !result.baseNet || !Object.keys(result.baseNet).length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    const [a, b] = stocks;
+    const f = n => Math.round(n).toLocaleString('ko-KR');
+    const sgn = n => (n > 0 ? '+' : '') + f(n);
+    let net = 0;
+    const rows = [];
+    rows.push(`<tr><td class="left" style="font-weight:700;">기초재고 (${esc(a.name)})</td><td class="num" style="font-weight:700;">${f(a.totQty)}</td></tr>`);
+    Object.keys(result.baseNet).sort().forEach(code => {
+      const v = result.baseNet[code]; net += v;
+      rows.push(`<tr><td class="left">&nbsp;&nbsp;${MV_LABEL[code] || '기타 (' + esc(code) + ')'}</td><td class="num" style="color:${v>=0?'#059669':'#dc2626'};">${sgn(v)}</td></tr>`);
+    });
+    const expected = a.totQty + net;
+    const diff = b.totQty - expected;
+    rows.push(`<tr><td class="left" style="font-weight:700;background:#f8fafc;">예상 기말재고 (기초+순변동 ${sgn(net)})</td><td class="num" style="font-weight:700;background:#f8fafc;">${f(expected)}</td></tr>`);
+    rows.push(`<tr><td class="left" style="font-weight:700;">실제 기말재고 (${esc(b.name)})</td><td class="num" style="font-weight:700;">${f(b.totQty)}</td></tr>`);
+    rows.push(`<tr><td class="left" style="font-weight:800;color:${Math.abs(diff)===0?'#059669':'#b45309'};">차이 (실제 − 예상)</td><td class="num" style="font-weight:800;color:${Math.abs(diff)===0?'#059669':'#b45309'};">${sgn(diff)}</td></tr>`);
+    document.getElementById('reconBody').innerHTML = rows.join('');
+    const pct = expected ? Math.abs(diff) / Math.abs(expected) * 100 : 0;
+    const ok = pct < 2;
+    document.getElementById('reconVerdict').innerHTML = ok
+      ? `<span style="background:#dcfce7;color:#166534;padding:4px 12px;border-radius:20px;font-weight:800;">✅ 대사 일치 (오차 ${pct.toFixed(1)}%)</span>`
+      : `<span style="background:#fef3c7;color:#b45309;padding:4px 12px;border-radius:20px;font-weight:800;">⚠️ 차이 ${sgn(diff)} (${pct.toFixed(1)}%)</span>`;
+    document.getElementById('reconNote').textContent =
+      '차이가 발생하는 일반적 원인: 재고 스냅샷 날짜와 이동내역 기간 불일치(예: 5/28 실사 ↔ 6/1 시작), 이동내역에 없는 이동유형, 타 플랜트 재고 포함 여부.';
+  }
+
+  /* ── 재고 비교 엑셀 다운로드 ── */
+  function downloadStockExcel() {
+    if (stocks.length !== 2) { toast('재고 파일 2개가 필요합니다.', 'error'); return; }
+    const [a, b] = stocks;
+    const wb = XLSX.utils.book_new();
+    const sum = [
+      ['구분', '전월 (' + a.name + ')', '당월 (' + b.name + ')', '증감'],
+      ['품목(SKU) 수', a.skuCnt, b.skuCnt, b.skuCnt - a.skuCnt],
+      ['재고수량(변환)', Math.round(a.totConv), Math.round(b.totConv), Math.round(b.totConv - a.totConv)],
+      ['재고금액(원)', Math.round(a.totVal), Math.round(b.totVal), Math.round(b.totVal - a.totVal)]
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum), '요약');
+    const aK = new Set(Object.keys(a.skus)), bK = new Set(Object.keys(b.skus));
+    const allK = [...new Set([...aK, ...bK])];
+    const rows = [['자재', '품명', '단위', '전월수량', '당월수량', '증감', '구분']];
+    allK.forEach(k => {
+      const av = a.skus[k]?.conv || 0, bv = b.skus[k]?.conv || 0;
+      if (av === bv) return;
+      const e = b.skus[k] || a.skus[k];
+      rows.push([k, e.desc, e.unit, Math.round(av), Math.round(bv), Math.round(bv - av),
+        !aK.has(k) ? '신규' : (!bK.has(k) ? '소진' : (bv > av ? '증가' : '감소'))]);
+    });
+    rows.sort((x, y) => (typeof y[5] === 'number' && typeof x[5] === 'number') ? y[5] - x[5] : 0);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:12},{wch:36},{wch:7},{wch:10},{wch:10},{wch:10},{wch:7}];
+    XLSX.utils.book_append_sheet(wb, ws, '증감 상세');
+    const stamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    XLSX.writeFile(wb, `재고비교_${stamp}.xlsx`);
+    toast('✅ 재고비교 엑셀 다운로드 완료');
   }
 
   /* 엑셀 다운로드 — 요약 + 입고 + 출고 시트 */
