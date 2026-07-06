@@ -336,10 +336,47 @@
 
   function authH(){ return {'Content-Type':'application/json','Authorization':`Bearer ${adminToken}`}; }
 
-  // ── 데이터 로드 ──
+  // ── 데이터 로드 (오류를 화면에 표시) ──
+  function showLoadError(msg){
+    let el=document.getElementById('loadErrBanner');
+    if(!el){
+      el=document.createElement('div');
+      el.id='loadErrBanner';
+      el.style.cssText='background:#fef2f2;border:1.5px solid #fca5a5;color:#b91c1c;font-weight:700;font-size:13px;border-radius:10px;padding:12px 16px;margin:0 0 14px;display:flex;align-items:center;gap:8px;';
+      const anchor=document.querySelector('#mainWrap .container')||document.getElementById('mainWrap');
+      anchor.insertBefore(el, anchor.firstChild);
+    }
+    el.innerHTML='⚠️ '+msg+' <button onclick="location.reload()" style="margin-left:auto;background:#b91c1c;color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;">새로고침</button>';
+    el.style.display='flex';
+  }
+  function hideLoadError(){ const el=document.getElementById('loadErrBanner'); if(el) el.style.display='none'; }
+
   async function loadAll() {
-    const res=await fetch('/api/records?limit=2000&client_code=mettler',{headers:authH()}).then(r=>r.json());
-    allData=(res.data||[]);
+    try{
+      const r=await fetch('/api/records?limit=2000&client_code=mettler',{headers:authH()});
+      if(r.status===401){
+        // 세션 만료 (서버 재배포 등) → 재로그인 유도
+        sessionStorage.removeItem('adminToken');
+        sessionStorage.removeItem('staffToken');
+        adminToken='';
+        allData=[];
+        showLoadError('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');
+        document.getElementById('loginModal').classList.add('show');
+        return;
+      }
+      if(!r.ok){
+        const t=await r.text().catch(()=> '');
+        allData=[];
+        showLoadError(`서버 오류(${r.status})로 목록을 불러오지 못했습니다. ${t.slice(0,120)}`);
+        return;
+      }
+      const res=await r.json();
+      allData=(res.data||[]);
+      hideLoadError();
+    }catch(e){
+      allData=[];
+      showLoadError('네트워크 오류로 목록을 불러오지 못했습니다: '+e.message);
+    }
   }
 
   function updateStats(data){
