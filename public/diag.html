@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>조회 진단</title>
+  <style>
+    body{font-family:'Noto Sans KR',sans-serif;background:#f0f4f8;margin:0;padding:24px;color:#1a202c;}
+    .card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:22px;max-width:760px;margin:0 auto 16px;}
+    h1{font-size:18px;margin:0 0 16px;}
+    .row{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid #eef2f7;font-size:14px;}
+    .row b{font-size:15px;}
+    .ok{color:#059669;font-weight:800;}
+    .bad{color:#dc2626;font-weight:800;}
+    .warn{color:#b45309;font-weight:800;}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+    th{background:#1e293b;color:#fff;padding:6px;}
+    td{padding:6px;border-bottom:1px solid #e2e8f0;text-align:center;}
+    .muted{color:#94a3b8;font-size:12px;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔍 배차 조회 진단 <span class="muted" id="now"></span></h1>
+    <div id="rows"><div class="muted">진단 중...</div></div>
+  </div>
+  <div class="card">
+    <h1>최근 등록 10건 (전체 화주)</h1>
+    <table>
+      <thead><tr><th>DN번호</th><th>배송일</th><th>화주코드</th><th>상태</th><th>등록시각</th></tr></thead>
+      <tbody id="recent"><tr><td colspan="5" class="muted">불러오는 중...</td></tr></tbody>
+    </table>
+  </div>
+<script>
+  const token = sessionStorage.getItem('adminToken') || sessionStorage.getItem('staffToken') || '';
+  const H = { 'Authorization': 'Bearer ' + token };
+  const R = [];
+  const add = (label, val, cls) => R.push(`<div class="row"><span>${label}</span><b class="${cls||''}">${val}</b></div>`);
+  const draw = () => document.getElementById('rows').innerHTML = R.join('');
+  document.getElementById('now').textContent = new Date().toLocaleString('ko-KR');
+
+  (async () => {
+    // 1. 서버
+    try {
+      const r = await fetch('/api/config');
+      add('① 서버 연결', r.ok ? '정상' : 'HTTP ' + r.status, r.ok ? 'ok' : 'bad');
+    } catch(e) { add('① 서버 연결', '실패: ' + e.message, 'bad'); }
+
+    // 2. 로그인 토큰
+    if (!token) add('② 로그인 토큰', '없음 — 로그인 필요', 'bad');
+    else {
+      try {
+        const r = await fetch('/api/auth/check', { headers: H });
+        add('② 로그인 토큰', r.ok ? '유효' : '만료됨(' + r.status + ') — 재로그인 필요', r.ok ? 'ok' : 'bad');
+      } catch(e) { add('② 로그인 토큰', '확인 실패: ' + e.message, 'bad'); }
+    }
+
+    // 3~6. 데이터 조회
+    const q = async (params) => {
+      const r = await fetch('/api/records?' + params, { headers: H });
+      if (!r.ok) return { err: 'HTTP ' + r.status };
+      const j = await r.json();
+      return { n: (j.data || []).length, data: j.data || [] };
+    };
+    const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const today = new Date();
+    const mon = new Date(today); mon.setDate(today.getDate() - ((today.getDay()+6)%7));
+
+    try {
+      const all = await q('limit=2000');
+      add('③ 전체 데이터 (화주 필터 없음)', all.err || all.n + '건', all.err ? 'bad' : (all.n ? 'ok' : 'warn'));
+
+      const met = await q('limit=2000&client_code=mettler');
+      add('④ 메틀러 필터 (조회화면과 동일)', met.err || met.n + '건', met.err ? 'bad' : (met.n ? 'ok' : 'warn'));
+
+      const wk = await q(`limit=2000&client_code=mettler&dateFrom=${ymd(mon)}&dateTo=${ymd(today)}`);
+      add(`⑤ 이번주 (${ymd(mon)}~${ymd(today)}) 메틀러`, wk.err || wk.n + '건', wk.err ? 'bad' : (wk.n ? 'ok' : 'warn'));
+
+      if (!met.err && all.n > met.n) {
+        const codes = {};
+        all.data.forEach(d => { const c = d.client_code || '(없음)'; codes[c] = (codes[c]||0)+1; });
+        add('⑥ 화주코드 분포', Object.entries(codes).map(([k,v])=>`${k}:${v}`).join(' / '), 'warn');
+      }
+
+      // 최근 10건
+      const rec = all.data.slice(0, 10);
+      document.getElementById('recent').innerHTML = rec.length ? rec.map(d => `
+        <tr><td><b>${d.order_no||'-'}</b></td><td>${d.delivery_date||'-'}</td><td>${d.client_code||'(없음)'}</td>
+        <td>${d.status==='signed'?'완료':'대기'}</td><td>${(d.created_at||'-').slice(0,16)}</td></tr>`).join('')
+        : '<tr><td colspan="5" class="muted">데이터 없음</td></tr>';
+    } catch(e) {
+      add('③ 데이터 조회', '실패: ' + e.message, 'bad');
+    }
+    draw();
+  })();
+</script>
+</body>
+</html>
