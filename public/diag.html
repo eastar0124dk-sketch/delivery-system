@@ -32,7 +32,8 @@
     </table>
   </div>
 <script>
-  const token = sessionStorage.getItem('adminToken') || sessionStorage.getItem('staffToken') || '';
+  const token = sessionStorage.getItem('adminToken') || sessionStorage.getItem('staffToken')
+    || localStorage.getItem('ls_adminToken') || localStorage.getItem('ls_staffToken') || '';
   const H = { 'Authorization': 'Bearer ' + token };
   const R = [];
   const add = (label, val, cls) => R.push(`<div class="row"><span>${label}</span><b class="${cls||''}">${val}</b></div>`);
@@ -83,7 +84,7 @@
       }
 
       // 최근 10건
-      const rec = all.data.slice(0, 10);
+      const rec = (all.data || []).slice(0, 10);
       document.getElementById('recent').innerHTML = rec.length ? rec.map(d => `
         <tr><td><b>${d.order_no||'-'}</b></td><td>${d.delivery_date||'-'}</td><td>${d.client_code||'(없음)'}</td>
         <td>${d.status==='signed'?'완료':'대기'}</td><td>${(d.created_at||'-').slice(0,16)}</td></tr>`).join('')

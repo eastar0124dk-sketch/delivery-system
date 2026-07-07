@@ -358,6 +358,7 @@
         // 세션 만료 (서버 재배포 등) → 재로그인 유도
         sessionStorage.removeItem('adminToken');
         sessionStorage.removeItem('staffToken');
+        try{ ['adminToken','staffToken','userRole','userClient','userName'].forEach(k=>localStorage.removeItem('ls_'+k)); }catch(_){}
         adminToken='';
         allData=[];
         showLoadError('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');

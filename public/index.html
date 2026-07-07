@@ -396,6 +396,13 @@
         sessionStorage.setItem('userRole', currentRole);
         sessionStorage.setItem('userClient', currentClientId);
         if (data.username) sessionStorage.setItem('userName', data.name || data.username);
+        // localStorage 미러 — 새 탭/브라우저 재시작에도 로그인 유지 (auth-guard.js가 복원)
+        try {
+          ['adminToken','staffToken','userRole','userClient','userName'].forEach(k => {
+            const v = sessionStorage.getItem(k);
+            if (v) localStorage.setItem('ls_' + k, v); else localStorage.removeItem('ls_' + k);
+          });
+        } catch(_) {}
         closeLogin();
         renderMenu();
       } catch(e) {

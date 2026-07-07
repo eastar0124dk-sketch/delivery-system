@@ -687,6 +687,16 @@ class Handler(BaseHTTPRequestHandler):
         db_staff = (db_fetch('SELECT value FROM app_settings WHERE key=?', ('staff_pw',)) or {}).get('value') or STAFF_PW
         if t == make_token(db_admin): return True
         if not admin_only and t == make_token(db_staff): return True
+        # 화주별 직원 계정(staff_users) 토큰도 재시작 후 유효하도록 검증
+        if not admin_only:
+            try:
+                for u in db_fetchall('SELECT password FROM staff_users'):
+                    pw = (u or {}).get('password')
+                    if pw and t == make_token(pw):
+                        valid_staff_tokens.add(t)  # 캐시 (다음부터 DB 조회 생략)
+                        return True
+            except Exception:
+                pass
         return False
 
     def _serve_static(self, req_path):

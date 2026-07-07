@@ -22,6 +22,17 @@ window.toYmdKST = window.todayKST;
  */
 (function() {
   const need = window.AUTH_REQUIRE || 'admin';
+
+  // 새 탭/브라우저 재시작 시 localStorage 미러에서 세션 복원 (index.html 로그인 시 저장됨)
+  try {
+    ['adminToken','staffToken','userRole','userClient','userName'].forEach(k => {
+      if (!sessionStorage.getItem(k)) {
+        const v = localStorage.getItem('ls_' + k);
+        if (v) sessionStorage.setItem(k, v);
+      }
+    });
+  } catch(_) {}
+
   const adminToken = sessionStorage.getItem('adminToken');
   const staffToken = sessionStorage.getItem('staffToken');
   const role       = sessionStorage.getItem('userRole');     // 'admin' | 'staff'
@@ -32,6 +43,7 @@ window.toYmdKST = window.todayKST;
     sessionStorage.removeItem('adminToken');
     sessionStorage.removeItem('staffToken');
     sessionStorage.removeItem('userRole');
+    try { ['adminToken','staffToken','userRole','userClient','userName'].forEach(k => localStorage.removeItem('ls_' + k)); } catch(_) {}
     location.replace('index.html');
   }
 
