@@ -353,7 +353,7 @@
 
   async function loadAll() {
     try{
-      const r=await fetch('/api/records?limit=2000&client_code=mettler',{headers:authH()});
+      const r=await fetch('/api/records?limit=2000&client_code=mettler&light=1',{headers:authH()});
       if(r.status===401){
         // 세션 만료 (서버 재배포 등) → 재로그인 유도
         sessionStorage.removeItem('adminToken');
@@ -721,9 +721,12 @@
       const ph = pdf.internal.pageSize.getHeight();
       let first = true;
 
-      // 이미 로드된 목록 데이터에서 부족한 건만 병렬 prefetch (개별 순차 fetch 제거)
+      // 목록은 light 조회(서명 제외)라 서명 없는 건은 개별 전체 조회로 병렬 prefetch
       const byId = {}; allData.forEach(d => byId[String(d.id)] = d);
-      const missing = checked.map(c => c.dataset.id).filter(id => !byId[String(id)]);
+      const missing = checked.map(c => c.dataset.id).filter(id => {
+        const d = byId[String(id)];
+        return !d || d.driver_signature === undefined;
+      });
       if (missing.length) {
         const fetched = await Promise.all(missing.map(id =>
           fetch(`/api/records/${id}`, { headers: authH() }).then(res => res.json()).catch(() => null)));
@@ -819,9 +822,12 @@
       const { jsPDF } = window.jspdf;
       const zip = (mode === 'zip') ? new JSZip() : null;
 
-      // 목록 데이터에서 부족한 건만 병렬 prefetch
+      // 목록은 light 조회(서명 제외)라 서명 없는 건은 개별 전체 조회로 병렬 prefetch
       const byId = {}; allData.forEach(d => byId[String(d.id)] = d);
-      const missing = checked.map(c => c.dataset.id).filter(id => !byId[String(id)]);
+      const missing = checked.map(c => c.dataset.id).filter(id => {
+        const d = byId[String(id)];
+        return !d || d.driver_signature === undefined;
+      });
       if (missing.length) {
         const fetched = await Promise.all(missing.map(id =>
           fetch(`/api/records/${id}`, { headers: authH() }).then(res => res.json()).catch(() => null)));

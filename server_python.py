@@ -860,8 +860,21 @@ class Handler(BaseHTTPRequestHandler):
             search = g('search'); dn = g('dn'); company = g('company')
             date_from = g('dateFrom'); date_to = g('dateTo'); status = g('status')
             client_code = g('client_code')
-            limit = int(g('limit','1000') or 1000)
-            sql = 'SELECT * FROM delivery_records WHERE 1=1'; params = []
+            limit = min(int(g('limit','1000') or 1000), 3000)  # 메모리 보호 상한
+            # light=1 → 서명 이미지(대용량 base64) 제외한 목록 전용 조회 (OOM 방지)
+            cols = '*'
+            if g('light'):
+                try:
+                    if DATABASE_URL:
+                        cs = [r['column_name'] for r in db_fetchall(
+                            "SELECT column_name FROM information_schema.columns WHERE table_name='delivery_records'")]
+                    else:
+                        cs = [r['name'] for r in db_fetchall('PRAGMA table_info(delivery_records)')]
+                    cs = [c for c in cs if c not in ('driver_signature', 'receiver_signature')]
+                    if cs: cols = ','.join(cs)
+                except Exception:
+                    cols = '*'
+            sql = f'SELECT {cols} FROM delivery_records WHERE 1=1'; params = []
             if search:
                 sql += ' AND (order_no LIKE ? OR customer_company LIKE ? OR receiver_name LIKE ? OR product_name LIKE ?)'
                 s = f'%{search}%'; params += [s,s,s,s]
