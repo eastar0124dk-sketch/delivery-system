@@ -473,25 +473,9 @@
 
       <!-- 오늘 서명 / 서명 대기 -->
       <div class="card">
-        <div class="card-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div class="card-title">
           <span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;">LIVE</span>
-          <span>서명 / 대기 목록</span>
-          <span style="font-size:11px;font-weight:600;color:#94a3b8;" id="todayLabel"></span>
-          <div style="margin-left:auto;display:flex;gap:6px;">
-            <select id="liveStatus" onchange="loadLiveList()" style="font-size:12px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#475569;cursor:pointer;">
-              <option value="all">전체</option>
-              <option value="pending">대기</option>
-              <option value="signed">완료</option>
-            </select>
-            <select id="livePeriod" onchange="loadLiveList()" style="font-size:12px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#475569;cursor:pointer;">
-              <option value="today">오늘</option>
-              <option value="yesterday">어제</option>
-              <option value="week">이번주</option>
-              <option value="month">이번달</option>
-              <option value="lastmonth">지난달</option>
-              <option value="all">전체</option>
-            </select>
-          </div>
+          오늘 서명 / 서명 대기 목록 <span style="font-size:11px;font-weight:600;color:#94a3b8;margin-left:6px;" id="todayLabel"></span>
         </div>
         <table>
           <thead>
@@ -796,100 +780,76 @@
         document.getElementById('sum-rate').textContent      = rate + '%';
         document.getElementById('sumRateBar').style.width    = rate + '%';
 
-        /* 서명 / 대기 목록 테이블 (기간·상태 필터) */
-        loadLiveList();
+        /* 오늘 서명 / 서명 대기 테이블 */
+        const tbody = document.getElementById('recentTable');
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+        const lblEl = document.getElementById('todayLabel');
+        if (lblEl) lblEl.textContent = `(${today.getMonth()+1}월 ${today.getDate()}일 기준)`;
+
+        const isToday = (val) => {
+          if (!val) return false;
+          const d = new Date(val);
+          const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          return ds === todayStr;
+        };
+
+        // 오늘 서명 완료
+        const signedRaw = d.recent_signed || [];
+        const signedList = signedRaw.filter(r => isToday(r.completed_at || r.signed_at || r.signedAt))
+          .map(r => ({
+            dn: r.dn_number || r.order_no || r.orderNo || '-',
+            customer: r.customer || r.customer_company || r.customerCompany || r.customer_name || '-',
+            time: r.completed_at || r.signed_at || r.signedAt || null,
+            status: 'signed'
+          }));
+
+        // 오늘 서명 대기 (다양한 API 필드명 대응)
+        let pendingRaw = d.recent_pending || d.pending_orders || d.pending_list || d.recent_orders || [];
+        // 1차로 안 들어온 경우 /api/records로 오늘 분 직접 조회
+        if (!pendingRaw.length) {
+          try {
+            const ordRes = await fetch(`/api/records?dateFrom=${todayStr}&dateTo=${todayStr}&limit=100`, { headers: authH() });
+            if (ordRes.ok) {
+              const oj = await ordRes.json();
+              pendingRaw = oj.data || oj || [];
+            }
+          } catch(_){}
+        }
+        const pendingList = pendingRaw.filter(r => {
+          // 미서명 상태이며 오늘 등록된 건
+          const isPending = (r.status === 'draft' || r.status === 'pending' || !r.signed_at);
+          return isPending && isToday(r.delivery_date || r.created_at || r.deliveryDate);
+        }).map(r => ({
+          dn: r.dn_number || r.order_no || r.orderNo || '-',
+          customer: r.customer || r.customer_company || r.customerCompany || r.customer_name || '-',
+          time: r.delivery_date || r.created_at || r.deliveryDate || null,
+          status: 'pending'
+        }));
+
+        const allList = [...signedList, ...pendingList];
+
+        if (!allList.length) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:28px;">오늘 서명/대기 내역이 없습니다.</td></tr>';
+        } else {
+          tbody.innerHTML = allList.map((r, i) => {
+            const badge = r.status === 'signed'
+              ? '<span class="badge b-green">완료</span>'
+              : '<span class="badge b-orange">대기</span>';
+            const timeLabel = r.status === 'signed' ? '완료' : '등록';
+            const timeStr = r.time ? new Date(r.time).toLocaleString('ko-KR') : '-';
+            return `
+            <tr>
+              <td style="color:#94a3b8;font-size:12px;">${i+1}</td>
+              <td><strong>${r.dn}</strong></td>
+              <td style="color:#475569;">${r.customer}</td>
+              <td style="font-size:12px;color:#94a3b8;" title="${timeLabel} 시각">${timeStr}</td>
+              <td>${badge}</td>
+            </tr>`;
+          }).join('');
+        }
       } catch(e) {
         console.error('stats load failed', e);
-      }
-    }
-
-    /* ── 기간 선택 → 날짜 범위 (YYYY-MM-DD) ── */
-    function ymd(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-    function livePeriodRange(period){
-      const now = new Date();
-      const t = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // 오늘 00:00
-      if (period === 'today')     return { from: ymd(t), to: ymd(t), label: '오늘' };
-      if (period === 'yesterday'){ const y = new Date(t); y.setDate(t.getDate()-1); return { from: ymd(y), to: ymd(y), label: '어제' }; }
-      if (period === 'week'){
-        // 이번주 (월요일 시작 ~ 일요일)
-        const dow = (t.getDay()+6)%7; // 월=0 … 일=6
-        const mon = new Date(t); mon.setDate(t.getDate()-dow);
-        const sun = new Date(mon); sun.setDate(mon.getDate()+6);
-        return { from: ymd(mon), to: ymd(sun), label: '이번주' };
-      }
-      if (period === 'month'){
-        const first = new Date(t.getFullYear(), t.getMonth(), 1);
-        const last  = new Date(t.getFullYear(), t.getMonth()+1, 0);
-        return { from: ymd(first), to: ymd(last), label: '이번달' };
-      }
-      if (period === 'lastmonth'){
-        const first = new Date(t.getFullYear(), t.getMonth()-1, 1);
-        const last  = new Date(t.getFullYear(), t.getMonth(), 0);
-        return { from: ymd(first), to: ymd(last), label: '지난달' };
-      }
-      return { from: null, to: null, label: '전체' }; // all
-    }
-
-    /* ── 서명/대기 목록 로드 (독립 함수) ── */
-    async function loadLiveList(){
-      const tbody = document.getElementById('recentTable');
-      if (!tbody) return;
-      const period = document.getElementById('livePeriod')?.value || 'today';
-      const statusF = document.getElementById('liveStatus')?.value || 'all';
-      const { from, to, label } = livePeriodRange(period);
-
-      const lblEl = document.getElementById('todayLabel');
-      if (lblEl) lblEl.textContent = (from && to && from === to) ? `(${from})` : (from ? `(${from} ~ ${to})` : '(전체 기간)');
-
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:28px;">불러오는 중...</td></tr>';
-
-      try {
-        let url = `/api/records?limit=1000`;
-        if (from) url += `&dateFrom=${from}`;
-        if (to)   url += `&dateTo=${to}`;
-        const res = await fetch(url, { headers: authH() });
-        const oj = res.ok ? await res.json() : {};
-        const raw = oj.data || oj || [];
-
-        let list = raw.map(r => {
-          const signed = (r.status === 'signed') || !!r.signed_at;
-          return {
-            dn: r.order_no || r.dn_number || '-',
-            customer: r.customer_company || r.customer || r.customer_name || '-',
-            time: signed ? (r.signed_at || r.completed_at || r.updated_at || r.delivery_date)
-                         : (r.delivery_date || r.created_at),
-            status: signed ? 'signed' : 'pending'
-          };
-        });
-
-        if (statusF === 'pending') list = list.filter(r => r.status === 'pending');
-        else if (statusF === 'signed') list = list.filter(r => r.status === 'signed');
-
-        // 최신순 정렬
-        list.sort((a,b) => new Date(b.time||0) - new Date(a.time||0));
-
-        if (!list.length) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:28px;">${label} 조회 내역이 없습니다.</td></tr>`;
-          return;
-        }
-        tbody.innerHTML = list.map((r, i) => {
-          const badge = r.status === 'signed'
-            ? '<span class="badge b-green">완료</span>'
-            : '<span class="badge b-orange">대기</span>';
-          const timeLabel = r.status === 'signed' ? '완료' : '등록';
-          const timeStr = r.time ? new Date(r.time).toLocaleString('ko-KR') : '-';
-          return `
-          <tr>
-            <td style="color:#94a3b8;font-size:12px;">${i+1}</td>
-            <td><strong>${r.dn}</strong></td>
-            <td style="color:#475569;">${r.customer}</td>
-            <td style="font-size:12px;color:#94a3b8;" title="${timeLabel} 시각">${timeStr}</td>
-            <td>${badge}</td>
-          </tr>`;
-        }).join('');
-      } catch(e) {
-        console.error('live list load failed', e);
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#ef4444;padding:28px;">목록을 불러오지 못했습니다.</td></tr>';
       }
     }
 
