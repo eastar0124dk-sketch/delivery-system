@@ -486,6 +486,7 @@
 
       document.getElementById('orderInfoContent').innerHTML=`
         <div class="info-row"><div class="lbl">DN 번호</div><div class="val" style="font-weight:700;color:#f5576c;font-size:16px;">${r.order_no}</div></div>
+        ${r.dn_list?`<div class="info-row"><div class="lbl">전체 DN (${r.dn_list.split(',').length}건)</div><div class="val" style="font-size:12px;line-height:1.7;word-break:break-all;">${r.dn_list.split(',').join(', ')}</div></div>`:''}
         <div class="info-row"><div class="lbl">배송일자</div><div class="val">${r.delivery_date||'-'}</div></div>
         <div class="info-row"><div class="lbl">고객사</div><div class="val">${r.customer_company||'-'}</div></div>
         <div class="info-row"><div class="lbl">배송지</div><div class="val">${r.customer_address||'-'}</div></div>

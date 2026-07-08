@@ -70,7 +70,7 @@ if DATABASE_URL:
         for col in ['work_fee TEXT','return_fee TEXT','delivery_note TEXT','vehicle_type TEXT',
                     'origin TEXT','origin_address TEXT','contact_person TEXT','contact_phone TEXT',
                     'transport_type TEXT','dest_sido TEXT','dest_sigun TEXT','origin_sido TEXT','origin_sigun TEXT',
-                    'client_code TEXT']:
+                    'client_code TEXT','dn_list TEXT']:
             try: cur.execute(f"ALTER TABLE delivery_records ADD COLUMN IF NOT EXISTS {col}")
             except: pass
         cur.execute('''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)''')
@@ -231,7 +231,7 @@ else:
         for col in ['work_fee TEXT','return_fee TEXT','delivery_note TEXT','vehicle_type TEXT',
                     'origin TEXT','origin_address TEXT','contact_person TEXT','contact_phone TEXT',
                     'transport_type TEXT','dest_sido TEXT','dest_sigun TEXT','origin_sido TEXT','origin_sigun TEXT',
-                    'client_code TEXT']:
+                    'client_code TEXT','dn_list TEXT']:
             try: c.execute(f'ALTER TABLE delivery_records ADD COLUMN {col}'); c.commit()
             except: pass
         c.execute('''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)''')
@@ -814,11 +814,11 @@ class Handler(BaseHTTPRequestHandler):
             order_no = g('order_no').strip()
             if not order_no: return self.send_json({'data': []})
             row = db_fetch(
-                'SELECT id,order_no,delivery_date,product_name,quantity,customer_company,'
+                'SELECT id,order_no,dn_list,delivery_date,product_name,quantity,customer_company,'
                 'customer_address,receiver_name,driver_name,driver_phone,vehicle_no,'
                 'status,extra_locations,wait_time,work_time,work_fee,notes '
-                'FROM delivery_records WHERE order_no=? OR order_no LIKE ? OR order_no LIKE ? OR order_no LIKE ?',
-                (order_no, f'{order_no} 외%', f'{order_no}외%', f'{order_no}%'))
+                'FROM delivery_records WHERE order_no=? OR order_no LIKE ? OR order_no LIKE ? OR order_no LIKE ? OR dn_list LIKE ?',
+                (order_no, f'{order_no} 외%', f'{order_no}외%', f'{order_no}%', f'%{order_no}%'))
             return self.send_json({'data': [row] if row else []})
 
         # 운송사 검색 (공개)
@@ -876,9 +876,9 @@ class Handler(BaseHTTPRequestHandler):
                     cols = '*'
             sql = f'SELECT {cols} FROM delivery_records WHERE 1=1'; params = []
             if search:
-                sql += ' AND (order_no LIKE ? OR customer_company LIKE ? OR receiver_name LIKE ? OR product_name LIKE ?)'
-                s = f'%{search}%'; params += [s,s,s,s]
-            if dn:          sql += ' AND order_no LIKE ?';         params.append(f'%{dn}%')
+                sql += ' AND (order_no LIKE ? OR customer_company LIKE ? OR receiver_name LIKE ? OR product_name LIKE ? OR dn_list LIKE ?)'
+                s = f'%{search}%'; params += [s,s,s,s,s]
+            if dn:          sql += ' AND (order_no LIKE ? OR dn_list LIKE ?)'; params += [f'%{dn}%', f'%{dn}%']
             if company:     sql += ' AND customer_company LIKE ?'; params.append(f'%{company}%')
             if date_from:   sql += ' AND delivery_date >= ?';      params.append(date_from)
             if date_to:     sql += ' AND delivery_date <= ?';      params.append(date_to)
@@ -1317,8 +1317,8 @@ class Handler(BaseHTTPRequestHandler):
                          driver_name,driver_phone,vehicle_no,wait_time,work_time,
                          waste_collection,extra_locations,notes,
                          delivery_note,vehicle_type,
-                         origin,origin_address,contact_person,contact_phone,client_code)
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                         origin,origin_address,contact_person,contact_phone,client_code,dn_list)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
                     (body['order_no'], body.get('delivery_date'), body.get('arrival_time'),
                      body.get('product_name'), body.get('quantity'), body.get('customer_company'),
                      body.get('customer_address'), body.get('receiver_name'), body.get('receiver_phone'),
@@ -1328,7 +1328,7 @@ class Handler(BaseHTTPRequestHandler):
                      body.get('delivery_note'), body.get('vehicle_type'),
                      body.get('origin'), body.get('origin_address'),
                      body.get('contact_person'), body.get('contact_phone'),
-                     body.get('client_code', '')))
+                     body.get('client_code', ''), body.get('dn_list', '')))
                 return self.send_json({'id': new_id, **body})
             except INTEGRITY_EXC:
                 return self.send_json({'error': f"DN번호 [{body.get('order_no')}]이 이미 등록되어 있습니다."}, 400)

@@ -247,6 +247,14 @@
           <div style="font-size:11px;color:#a0aec0;margin-top:3px;">복수 건인 경우 건수 입력 (단건은 비워두세요)</div>
         </div>
         <div class="form-group">
+          <label>📋 DN 넘버 붙여넣기 입력 <span style="font-size:11px;color:#a0aec0;font-weight:400;">(복수 DN — 인수증에 전체 표시)</span></label>
+          <textarea id="dn_paste" rows="2" placeholder="DN 여러 개를 복사해서 붙여넣으세요 (줄바꿈·쉼표·공백 무관, 7로 시작하는 8자리 자동 인식)"
+            style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;background:#fafafa;resize:vertical;"
+            oninput="parseDnPaste()"></textarea>
+          <div id="dn_chips" style="display:none;flex-wrap:wrap;gap:5px;margin-top:6px;"></div>
+          <div id="dn_paste_info" style="font-size:11px;color:#a0aec0;margin-top:3px;">붙여넣으면 대표 DN·건수가 자동 입력되고, 인식된 DN을 눌러 삭제할 수 있습니다.</div>
+        </div>
+        <div class="form-group">
           <label>배송일자 <span class="req">*</span></label>
           <input type="date" id="delivery_date" class="req-field">
         </div>
@@ -1058,10 +1066,47 @@
     }
   }
 
+  // ── DN 넘버 붙여넣기 입력 ──
+  let dnParsed = [];   // 인식된 DN 목록
+  function parseDnPaste() {
+    const raw = document.getElementById('dn_paste').value;
+    const found = raw.match(/\b7\d{7}\b/g) || [];   // 7로 시작하는 8자리
+    dnParsed = [...new Set(found)];                  // 중복 제거, 순서 유지
+    renderDnChips();
+    // 대표 DN + 외 N건 자동 입력
+    if (dnParsed.length) {
+      document.getElementById('order_no').value = dnParsed[0];
+      document.getElementById('order_extra').value = dnParsed.length > 1 ? dnParsed.length - 1 : '';
+    }
+  }
+  function removeDn(i) {
+    dnParsed.splice(i, 1);
+    renderDnChips();
+    if (dnParsed.length) {
+      document.getElementById('order_no').value = dnParsed[0];
+      document.getElementById('order_extra').value = dnParsed.length > 1 ? dnParsed.length - 1 : '';
+    }
+  }
+  function renderDnChips() {
+    const box = document.getElementById('dn_chips');
+    const info = document.getElementById('dn_paste_info');
+    if (!dnParsed.length) {
+      box.style.display = 'none'; box.innerHTML = '';
+      info.textContent = '붙여넣으면 대표 DN·건수가 자동 입력되고, 인식된 DN을 눌러 삭제할 수 있습니다.';
+      return;
+    }
+    box.style.display = 'flex';
+    box.innerHTML = dnParsed.map((dn, i) =>
+      `<span onclick="removeDn(${i})" title="눌러서 삭제" style="background:${i===0?'#ebf8ff':'#f0fff4'};border:1px solid ${i===0?'#90cdf4':'#9ae6b4'};color:${i===0?'#2b6cb0':'#276749'};border-radius:16px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;">${i===0?'★ ':''}${dn} ✕</span>`
+    ).join('');
+    info.innerHTML = `✅ <b>${dnParsed.length}건 인식</b> — 대표 DN: <b>${dnParsed[0]}</b>${dnParsed.length>1?` 외 ${dnParsed.length-1}건`:''} (인수증에 전체 표시됩니다)`;
+  }
+
   async function saveOrder() {
     const order_no_base=document.getElementById('order_no').value.trim();
     const order_extra=parseInt(document.getElementById('order_extra').value)||0;
     const order_no=order_extra>0?`${order_no_base} 외 ${order_extra}건`:order_no_base;
+    const dn_list = dnParsed.length > 1 ? dnParsed.join(',') : '';
     const delivery_date=document.getElementById('delivery_date').value;
     // 제품명: 드롭다운 선택값 또는 직접입력값
     const selVal = document.getElementById('product_name_select').value;
@@ -1109,7 +1154,8 @@
           dest_sigun:  document.getElementById('dest_sigun').value,
           origin_sido:  document.getElementById('origin_sido') ? document.getElementById('origin_sido').value : '',
           origin_sigun: document.getElementById('origin_sigun') ? document.getElementById('origin_sigun').value : '',
-          client_code: (typeof ClientsLib !== 'undefined') ? ClientsLib.getCurrentCode() : ''
+          client_code: (typeof ClientsLib !== 'undefined') ? ClientsLib.getCurrentCode() : '',
+          dn_list
         })
       });
       const data = await res.json();
@@ -1175,6 +1221,9 @@
     document.getElementById('arrival_time').value='';
     document.getElementById('vehicle_type').value='';
     document.getElementById('waste_collection').value='';
+    // DN 붙여넣기 초기화
+    document.getElementById('dn_paste').value='';
+    dnParsed=[]; renderDnChips();
     document.getElementById('product_name_select').value='';
     document.getElementById('product_name').style.display='none';
     // 경유지: 1개만 남기고 나머지 삭제 후 초기화

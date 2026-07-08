@@ -652,6 +652,7 @@
         </div>
         <div style="background:#2d3748;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:600;margin-bottom:12px;">
           DN 번호 : ${r.order_no}${r.vehicle_no?`  |  차량번호 : ${r.vehicle_no}`:''}
+          ${r.dn_list?`<div style="font-weight:400;font-size:11px;margin-top:5px;padding-top:5px;border-top:1px solid #4a5568;line-height:1.6;word-break:break-all;">전체 DN (${r.dn_list.split(',').length}건) : ${r.dn_list.split(',').join(', ')}</div>`:''}
         </div>
         <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
           <thead><tr style="background:#f7fafc;">
@@ -951,7 +952,7 @@
         <div class="ii" style="grid-column:span 2;"><span class="l">제품명 :</span><span class="v">${r.product_name||'-'}</span></div>
         <div class="ii" style="grid-column:span 2;"><span class="l">비고 :</span><span class="v">${r.notes||'없음'}</span></div>
       </div>
-      <div class="dn-bar">DN 번호 : <span>${r.order_no}</span>${r.vehicle_no?` &nbsp;|&nbsp; 차량번호 : <span>${r.vehicle_no}</span>`:''}</div>
+      <div class="dn-bar">DN 번호 : <span>${r.order_no}</span>${r.vehicle_no?` &nbsp;|&nbsp; 차량번호 : <span>${r.vehicle_no}</span>`:''}${r.dn_list?`<div style="font-weight:400;font-size:11px;margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.3);line-height:1.6;word-break:break-all;">전체 DN (${r.dn_list.split(',').length}건) : ${r.dn_list.split(',').join(', ')}</div>`:''}</div>
       <table class="wt">
         <thead><tr><th style="width:34%">작업 내용</th><th style="width:30%">단위</th><th>기타</th></tr></thead>
         <tbody>
