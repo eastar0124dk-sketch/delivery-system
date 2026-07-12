@@ -22,12 +22,13 @@
     .btn-sm       { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
 
     /* ── 통계 카드 ── */
-    .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; margin-bottom: 20px; }
     .stat-card { background: #fff; border-radius: 14px; padding: 18px 20px; box-shadow: 0 2px 10px rgba(0,0,0,.07); border-left: 4px solid; }
     .stat-card.blue   { border-color: #667eea; }
     .stat-card.green  { border-color: #38a169; }
     .stat-card.orange { border-color: #ed8936; }
     .stat-card.red    { border-color: #e53e3e; }
+    .stat-card.purple { border-color: #7c3aed; }
     .stat-label { font-size: 11px; color: #718096; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
     .stat-val   { font-size: 26px; font-weight: 800; color: #1a202c; line-height: 1; }
     .stat-unit  { font-size: 13px; color: #718096; margin-left: 4px; font-weight: 400; }
@@ -145,6 +146,10 @@
       <div class="stat-card orange">
         <div class="stat-label">🍱 식권 사용</div>
         <div class="stat-val" id="statMeal">0<span class="stat-unit">건</span></div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-label">🚨 캐논 긴급출고</div>
+        <div class="stat-val" id="statUrgent">0<span class="stat-unit">건</span></div>
       </div>
       <div class="stat-card red">
         <div class="stat-label">💰 OT 총 금액</div>
@@ -565,9 +570,11 @@
       const mealDeduct  = mealCount * 8000;
       const totalAmt    = Math.round(totalHours * otRate) - mealDeduct;
 
+      const urgentCount = records.filter(r => (r.work_content || '').includes('긴급출고')).length;
       document.getElementById('statCount').innerHTML  = `${records.length}<span class="stat-unit">회</span>`;
       document.getElementById('statHours').innerHTML  = `${Math.round(totalHours*10)/10}<span class="stat-unit">h</span>`;
       document.getElementById('statMeal').innerHTML   = `${mealCount}<span class="stat-unit">건</span>`;
+      document.getElementById('statUrgent').innerHTML = `${urgentCount}<span class="stat-unit">건</span>`;
       document.getElementById('statAmount').innerHTML = `${totalAmt.toLocaleString('ko-KR')}<span class="stat-unit">원</span>`;
 
       // tfoot도 업데이트
