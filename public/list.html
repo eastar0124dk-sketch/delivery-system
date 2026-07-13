@@ -130,6 +130,7 @@
     @media print{
       body *{visibility:hidden;}
       #printArea,#printArea *{visibility:visible;}
+      .no-print{display:none!important;}
       #printArea{position:fixed;inset:0;margin:0;padding:20px;border:none;border-radius:0;}
     }
   </style>
@@ -269,6 +270,17 @@
       <button class="btn btn-pdf" id="pdfBtn" onclick="doPDF()"><i class="fas fa-file-pdf"></i> PDF 저장</button>
     </div>
     <div id="printArea"></div>
+    <!-- 전체 DN 편집 패널 (인쇄 영역 밖 — 출력물에 미포함) -->
+    <div id="dnEditPanel" style="display:none;background:#f0f9ff;border:1.5px solid #90cdf4;border-radius:10px;padding:14px;margin-top:12px;">
+      <div style="font-weight:800;color:#2b6cb0;font-size:13px;margin-bottom:8px;">📋 전체 DN 목록 입력/수정 <span style="font-weight:400;color:#718096;">(화주 전달분 붙여넣기 — 7로 시작 8자리 자동 인식)</span></div>
+      <textarea id="dnEditTa" rows="3" oninput="dnEditPreview()" placeholder="DN 목록을 붙여넣으세요 (줄바꿈·쉼표·공백 무관)"
+        style="width:100%;padding:9px;border:1.5px solid #bee3f8;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>
+      <div id="dnEditInfo" style="font-size:12px;color:#4a5568;margin:7px 0;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" onclick="saveDnEdit()" style="background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#fff;flex:1;"><i class="fas fa-save"></i> 저장 (POD에 전체 표시)</button>
+        <button class="btn btn-sm" onclick="document.getElementById('dnEditPanel').style.display='none'" style="background:#e2e8f0;color:#475569;">닫기</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -917,7 +929,37 @@
     document.body.style.overflow='hidden';
   }
 
-  function closeModal(){ document.getElementById('detailModal').classList.remove('show'); document.body.style.overflow=''; }
+  function closeModal(){ document.getElementById('detailModal').classList.remove('show'); document.body.style.overflow=''; document.getElementById('dnEditPanel').style.display='none'; }
+
+  // ── 전체 DN 목록 입력/수정 (상세 모달에서 DN 바 클릭) ──
+  function dnParseList(text){ return [...new Set(text.match(/\b7\d{7}\b/g) || [])]; }
+  function openDnEdit(){
+    if(!currentModalRecord) return;
+    const panel=document.getElementById('dnEditPanel');
+    document.getElementById('dnEditTa').value=(currentModalRecord.dn_list||'').split(',').filter(Boolean).join('\n');
+    dnEditPreview();
+    panel.style.display='block';
+    panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  function dnEditPreview(){
+    const list=dnParseList(document.getElementById('dnEditTa').value);
+    document.getElementById('dnEditInfo').innerHTML = list.length
+      ? `✅ <b>${list.length}건 인식</b> — 대표 DN: <b>${list[0]}</b>${list.length>1?` 외 ${list.length-1}건`:''}`
+      : '인식된 DN 없음 — 비우고 저장하면 대표 DN만 표시됩니다.';
+  }
+  async function saveDnEdit(){
+    if(!currentModalRecord) return;
+    const list=dnParseList(document.getElementById('dnEditTa').value);
+    const body={ dn_list: list.length>1 ? list.join(',') : '' };
+    if(list.length) body.order_no = list.length>1 ? `${list[0]} 외 ${list.length-1}건` : list[0];
+    try{
+      const res=await fetch(`/api/records/${currentModalRecord.id}`,{method:'PATCH',headers:authH(),body:JSON.stringify(body)});
+      if(!res.ok){ const t=await res.json().catch(()=>({})); alert('저장 실패: '+(t.error||res.status)); return; }
+      document.getElementById('dnEditPanel').style.display='none';
+      await openDetail(currentModalRecord.id);   // 모달 갱신 (전체 DN 표시)
+      await loadAll(); applyFilter();            // 목록의 DN 표기 갱신
+    }catch(e){ alert('저장 실패: '+e.message); }
+  }
 
   function renderPrintArea(r){
     let locRows='';
@@ -952,7 +994,7 @@
         <div class="ii" style="grid-column:span 2;"><span class="l">제품명 :</span><span class="v">${r.product_name||'-'}</span></div>
         <div class="ii" style="grid-column:span 2;"><span class="l">비고 :</span><span class="v">${r.notes||'없음'}</span></div>
       </div>
-      <div class="dn-bar">DN 번호 : <span>${r.order_no}</span>${r.vehicle_no?` &nbsp;|&nbsp; 차량번호 : <span>${r.vehicle_no}</span>`:''}${r.dn_list?`<div style="font-weight:400;font-size:11px;margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.3);line-height:1.6;word-break:break-all;">전체 DN (${r.dn_list.split(',').length}건) : ${r.dn_list.split(',').join(', ')}</div>`:''}</div>
+      <div class="dn-bar" onclick="openDnEdit()" style="cursor:pointer;" title="클릭하여 전체 DN 목록 입력/수정">DN 번호 : <span>${r.order_no}</span>${r.vehicle_no?` &nbsp;|&nbsp; 차량번호 : <span>${r.vehicle_no}</span>`:''} <span class="no-print" style="font-size:11px;opacity:.75;">✏️</span>${r.dn_list?`<div style="font-weight:400;font-size:11px;margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.3);line-height:1.6;word-break:break-all;">전체 DN (${r.dn_list.split(',').length}건) : ${r.dn_list.split(',').join(', ')}</div>`:''}</div>
       <table class="wt">
         <thead><tr><th style="width:34%">작업 내용</th><th style="width:30%">단위</th><th>기타</th></tr></thead>
         <tbody>
@@ -992,8 +1034,11 @@
       const el=document.getElementById('printArea');
       const st=el.querySelector('.status-tag');
       if(st) st.style.display='none';
+      const nps=[...el.querySelectorAll('.no-print')];
+      nps.forEach(n=>n.style.display='none');
       const canvas=await html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#fff',logging:false});
       if(st) st.style.display='';
+      nps.forEach(n=>n.style.display='');
       const pdf=new jsPDF('p','mm','a4');
       const pw=pdf.internal.pageSize.getWidth();
       const iw=pw-20;
