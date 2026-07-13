@@ -496,21 +496,6 @@
         <label>DN 번호 (오더번호) *</label>
         <input type="text" id="edit_order_no">
       </div>
-      <div class="form-group" style="grid-column:span 2;">
-        <label>📋 전체 DN 목록 <span style="font-size:11px;color:#a0aec0;font-weight:400;">(화주 전달분 붙여넣기 — POD에 전체 표시)</span></label>
-        <textarea id="edit_dn_paste" rows="2" placeholder="화주가 보내준 DN 목록을 붙여넣으세요 (7로 시작하는 8자리 자동 인식)"
-          style="width:100%;padding:9px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"
-          oninput="parseDnPasteEdit()"></textarea>
-        <div style="display:flex;gap:6px;margin-top:5px;">
-          <button type="button" id="dnPhotoBtnEdit" onclick="document.getElementById('edit_dn_photo').click()"
-            style="flex:1;padding:8px;border:1.5px dashed #90cdf4;border-radius:8px;background:#ebf8ff;color:#2b6cb0;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">
-            📷 서류 사진으로 DN 인식
-          </button>
-          <input type="file" id="edit_dn_photo" accept="image/*" multiple style="display:none;" onchange="ocrDnPhotos(this.files,'edit')">
-        </div>
-        <div id="edit_dn_chips" style="display:none;flex-wrap:wrap;gap:5px;margin-top:6px;"></div>
-        <div id="edit_dn_info" style="font-size:11px;color:#a0aec0;margin-top:3px;"></div>
-      </div>
       <div class="form-group">
         <label>배송일자 *</label>
         <input type="date" id="edit_delivery_date">
@@ -1140,13 +1125,9 @@
     });
   }
 
-  async function ocrDnPhotos(files, mode) {
+  async function ocrDnPhotos(files) {
     if (!files || !files.length) return;
-    const isEdit = mode === 'edit';
-    const btn = document.getElementById(isEdit ? 'dnPhotoBtnEdit' : 'dnPhotoBtn');
-    const taId = isEdit ? 'edit_dn_paste' : 'dn_paste';
-    const fileId = isEdit ? 'edit_dn_photo' : 'dn_photo';
-    const cur = isEdit ? editDnParsed : dnParsed;
+    const btn = document.getElementById('dnPhotoBtn');
     const orig = btn.innerHTML;
     btn.disabled = true;
     try {
@@ -1164,13 +1145,13 @@
         found.push(...(data.text.match(/\b7\d{7}\b/g) || []), ...(joined.match(/\b7\d{7}\b/g) || []));
       }
       await worker.terminate();
-      found = [...new Set(found)].filter(dn => !cur.includes(dn));
+      found = [...new Set(found)].filter(dn => !dnParsed.includes(dn));
       if (!found.length) {
         showAlert('사진에서 DN(7로 시작하는 8자리)을 찾지 못했습니다. 서류를 더 가까이, 초점을 맞춰 다시 촬영해 보세요.', 'error');
       } else {
-        const ta = document.getElementById(taId);
+        const ta = document.getElementById('dn_paste');
         ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + found.join('\n');
-        isEdit ? parseDnPasteEdit() : parseDnPaste();
+        parseDnPaste();
         showAlert(`📷 사진에서 DN ${found.length}건 인식 — 목록을 확인하고 잘못된 건 눌러서 삭제하세요.`, 'success');
       }
     } catch (e) {
@@ -1178,43 +1159,8 @@
     } finally {
       btn.disabled = false;
       btn.innerHTML = orig;
-      document.getElementById(fileId).value = '';
+      document.getElementById('dn_photo').value = '';
     }
-  }
-
-  // ── 수정 모달용 DN 목록 (추후 화주 전달분 추가 → POD 전체 표시) ──
-  let editDnParsed = [];
-  function parseDnPasteEdit(fillOrderNo = true) {
-    const raw = document.getElementById('edit_dn_paste').value;
-    editDnParsed = [...new Set(raw.match(/\b7\d{7}\b/g) || [])];
-    renderDnChipsEdit();
-    if (fillOrderNo && editDnParsed.length) {
-      document.getElementById('edit_order_no').value =
-        editDnParsed.length > 1 ? `${editDnParsed[0]} 외 ${editDnParsed.length - 1}건` : editDnParsed[0];
-    }
-  }
-  function removeDnEdit(i) {
-    editDnParsed.splice(i, 1);
-    document.getElementById('edit_dn_paste').value = editDnParsed.join('\n');
-    renderDnChipsEdit();
-    if (editDnParsed.length) {
-      document.getElementById('edit_order_no').value =
-        editDnParsed.length > 1 ? `${editDnParsed[0]} 외 ${editDnParsed.length - 1}건` : editDnParsed[0];
-    }
-  }
-  function renderDnChipsEdit() {
-    const box = document.getElementById('edit_dn_chips');
-    const info = document.getElementById('edit_dn_info');
-    if (!editDnParsed.length) {
-      box.style.display = 'none'; box.innerHTML = '';
-      info.textContent = '비워두면 대표 DN만 표시됩니다. 붙여넣거나 촬영하면 전체 목록이 POD에 표시됩니다.';
-      return;
-    }
-    box.style.display = 'flex';
-    box.innerHTML = editDnParsed.map((dn, i) =>
-      `<span onclick="removeDnEdit(${i})" title="눌러서 삭제" style="background:${i===0?'#ebf8ff':'#f0fff4'};border:1px solid ${i===0?'#90cdf4':'#9ae6b4'};color:${i===0?'#2b6cb0':'#276749'};border-radius:16px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;">${i===0?'★ ':''}${dn} ✕</span>`
-    ).join('');
-    info.innerHTML = `✅ <b>${editDnParsed.length}건</b> — 대표 DN: <b>${editDnParsed[0]}</b>${editDnParsed.length>1?` 외 ${editDnParsed.length-1}건`:''} (POD에 전체 표시)`;
   }
 
   function renderDnChips() {
@@ -1531,9 +1477,6 @@
     document.getElementById('edit_arrival_hour').value = parts[0] || '';
     document.getElementById('edit_arrival_min').value = parts[1] || '';
     document.getElementById('edit_arrival_time').value = at;
-    // 전체 DN 목록 (기존 저장분 표시 — order_no는 건드리지 않음)
-    document.getElementById('edit_dn_paste').value = (r.dn_list || '').split(',').filter(Boolean).join('\n');
-    parseDnPasteEdit(false);
     // 내용 & 시도/시군구
     document.getElementById('edit_transport_type').value = r.transport_type || '';
     populateSido('edit_dest_sido');
@@ -1571,8 +1514,7 @@
       notes:             document.getElementById('edit_notes').value.trim(),
       transport_type:    document.getElementById('edit_transport_type').value,
       dest_sido:         document.getElementById('edit_dest_sido').value,
-      dest_sigun:        document.getElementById('edit_dest_sigun').value,
-      dn_list:           editDnParsed.length > 1 ? editDnParsed.join(',') : ''
+      dest_sigun:        document.getElementById('edit_dest_sigun').value
     };
     if(!data.order_no || !data.delivery_date || !data.customer_company || !data.receiver_name) {
       alert('필수 항목(DN번호, 배송일자, 고객사명, 수취인)을 입력해주세요.'); return;
