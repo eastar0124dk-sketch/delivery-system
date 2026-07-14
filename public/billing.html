@@ -1023,7 +1023,7 @@
         order_no:      r.order_no||'',
         origin:        originDisplay,
         origin_name:   originNameDisplay,
-        district:      billingDistrict,
+        district:      cleanRegion(billingDistrict) || billingDistrict,
         dest_name:     destNameDisplay,
         content:       contentDisplay,
         vehicle_type:  vt,
@@ -1061,6 +1061,7 @@
         if (a && !lookupRate(a, row.vehicle_type)) a = aliasMatch(row.district || '') || a;
         if (a) altDistrict = a;
       }
+      if (altDistrict) altDistrict = cleanRegion(altDistrict) || altDistrict;
       if (altDistrict && altDistrict !== row.district) {
         console.log(`[자동정정] ${row.order_no}: ${row.district || '(없음)'} → ${altDistrict}`);
         row.district = altDistrict;
@@ -1104,8 +1105,8 @@
           if(sv.src)     row.origin = sv.src;
           if(sv.srcCode) row.origin_name = sv.srcCode;
           if(sv.destCode) row.dest_name = sv.destCode;
-          // 도착지는 저장값이 운임표에 매칭될 때만 복원
-          if(sv.dest && lookupRate(sv.dest, row.vehicle_type)) row.district = sv.dest;
+          // 도착지는 저장값이 운임표에 매칭될 때만 복원 — 항상 시단위 정규화 (퇴계원 → 남양주)
+          if(sv.dest && lookupRate(sv.dest, row.vehicle_type)) row.district = cleanRegion(sv.dest) || sv.dest;
           // (b) 운임 기본값은 최신 운임표 재계산 우선
           const found = lookupRate(row.district, row.vehicle_type);
           if(found){ row.carrier_base = found.carrier; row.client_base = found.client; row.rate_matched = true; }
@@ -1122,7 +1123,7 @@
             no:billingRows.length+1, id:null,
             delivery_date:sv.date||'', order_no:sv.dn||'',
             origin:sv.src||'', origin_name:sv.srcCode||'',
-            district:sv.dest||'', dest_name:sv.destCode||'',
+            district:cleanRegion(sv.dest)||sv.dest||'', dest_name:sv.destCode||'',
             content:sv.type||'', vehicle_type:sv.vehicle||'',
             carrier_base: found?found.carrier:n(sv.cBase), carrier_add:n(sv.cExtra),
             client_base:  found?found.client :n(sv.sBase), client_add :n(sv.sExtra),
@@ -1197,7 +1198,7 @@
         <td><input value="${r.origin}" onchange="upd(${i},'origin',this.value)"></td>
         <td style="text-align:left;"><input value="${r.origin_name||''}" onchange="upd(${i},'origin_name',this.value)"></td>
         <td title="${r.rate_info||''}">
-          ${matchDot}<input value="${r.district}" onchange="updDistrict(${i},this.value)" style="width:calc(100% - 14px);">
+          ${matchDot}<input value="${r.district}" onchange="updDistrict(${i},this.value,this)" style="width:calc(100% - 14px);">
         </td>
         <td style="text-align:left;"><input value="${r.dest_name}" onchange="upd(${i},'dest_name',this.value)"></td>
         <td><input value="${r.content}" onchange="upd(${i},'content',this.value)"></td>
@@ -1216,12 +1217,14 @@
     }).join('')+makeTotalRow();
   }
 
-  // 도착지 변경 → 운임 자동조회
-  function updDistrict(i, val){
+  // 도착지 변경 → 운임 자동조회 (입력 즉시 시단위 정규화: 퇴계원 → 남양주)
+  function updDistrict(i, val, el){
     const r=billingRows[i];
-    r.district=val;
+    const norm = cleanRegion(val) || val;
+    r.district = norm;
+    if (el && norm !== val) el.value = norm;
     // ① 학습: 도착지 상호 → 방금 입력한 시군구 기억 (다음에 같은 상호면 자동)
-    if(r.dest_name && val) saveDestRegion(r.dest_name, val);
+    if(r.dest_name && norm) saveDestRegion(r.dest_name, norm);
     const found=autoCalcRow(i);
     if(found){
       const tr=document.getElementById('brow'+i);
