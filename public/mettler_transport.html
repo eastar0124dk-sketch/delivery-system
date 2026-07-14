@@ -794,7 +794,7 @@ async function loadBilling() {
         dn: o.order_no || '',
         src: originDisplay,
         srcCode: originNameDisplay || 'ACT',
-        dest: billingDistrict,
+        dest: cleanRegion(billingDistrict) || billingDistrict,
         destCode: destNameDisplay,
         type: content,
         vehicle: vt,
@@ -863,8 +863,8 @@ async function loadBilling() {
         if (sv.type)   row.type  = sv.type;
         // 차종은 저장값 우선 (사용자가 수정했을 수 있음)
         if (sv.vehicle) row.vehicle = sv.vehicle;
-        // 도착지는 저장값이 운임표에 매칭될 때만 복원 (billing.html과 동일)
-        if (sv.dest && lookupRate(sv.dest, row.vehicle, 'carrier') > 0) row.dest = sv.dest;
+        // 도착지는 저장값이 운임표에 매칭될 때만 복원 — 항상 시단위로 정규화 (퇴계원 → 남양주)
+        if (sv.dest && lookupRate(sv.dest, row.vehicle, 'carrier') > 0) row.dest = cleanRegion(sv.dest);
         if (sv.destCode) row.destCode = sv.destCode;
         if (sv.src)     row.src     = sv.src;
         if (sv.srcCode) row.srcCode = sv.srcCode;
@@ -876,10 +876,10 @@ async function loadBilling() {
         if ((!row.sBase || row.sBase === 0) && num(sv.sBase) > 0) row.sBase = num(sv.sBase);
         merged++;
       });
-      // 저장본에만 있고 fresh 오더에는 없는 행 추가 (수동 입력행 보존)
+      // 저장본에만 있고 fresh 오더에는 없는 행 추가 (수동 입력행 보존, 도착지 시단위 정규화)
       serverRows.forEach(sv => {
         if (!usedDN.has(sv)) {
-          rows.push({ ...sv, no: rows.length + 1, _src: sv._src || 'manual' });
+          rows.push({ ...sv, dest: cleanRegion(sv.dest) || sv.dest, no: rows.length + 1, _src: sv._src || 'manual' });
         }
       });
       console.log(`[병합] 저장본 ${serverRows.length}건 중 ${merged}건 병합, 추가 ${serverRows.length - merged}건`);
@@ -947,21 +947,35 @@ const DEST_REGION_KEY = 'mettler_dest_region_v1';
 const RATE_LEARN_KEY  = 'mettler_rate_learned_v1';
 
 function loadDestRegion(){ try{ return JSON.parse(localStorage.getItem(DEST_REGION_KEY)||'{}'); }catch(e){ return {}; } }
+// 학습값도 항상 시단위로 정규화해서 반환 (예: "퇴계원" → "남양주")
+function cleanRegion(v){
+  if(!v) return '';
+  const n = normalizeRegion(String(v).trim());
+  return n || String(v).trim();
+}
 function regionFromLearned(name){
   if(!name) return '';
   const d = loadDestRegion();
   const key = String(name).replace(/\s+/g,'');
   // 정확 → 부분 포함 매칭
-  if (d[key]) return d[key];
-  for (const k in d){ if (key && (key.includes(k) || k.includes(key))) return d[k]; }
+  if (d[key]) return cleanRegion(d[key]);
+  for (const k in d){ if (key && (key.includes(k) || k.includes(key))) return cleanRegion(d[k]); }
   return '';
 }
 function saveDestRegion(name, region){
   if(!name || !region) return;
   const d = loadDestRegion();
-  d[String(name).replace(/\s+/g,'')] = String(region).trim();
+  d[String(name).replace(/\s+/g,'')] = cleanRegion(region);
   localStorage.setItem(DEST_REGION_KEY, JSON.stringify(d));
 }
+// 예전에 읍·면 단위로 저장된 학습값 일괄 정정 (1회 마이그레이션)
+(function(){
+  try{
+    const d = loadDestRegion(); let changed = false;
+    for (const k in d){ const nv = cleanRegion(d[k]); if (nv && nv !== d[k]){ d[k] = nv; changed = true; } }
+    if (changed) localStorage.setItem(DEST_REGION_KEY, JSON.stringify(d));
+  }catch(e){}
+})();
 
 function loadRateLearn(){ try{ return JSON.parse(localStorage.getItem(RATE_LEARN_KEY)||'{}'); }catch(e){ return {}; } }
 function rateLearnKey(sigun, vehicle){ return normalizeDistrict(sigun) + '|' + vehicle; }
@@ -1027,11 +1041,11 @@ function onCellChange(idx, field, value) {
       saveDestRegion(row.destCode, row.dest);
     }
   }
-  // 도착지번호(상호) 입력 시 시군구 자동 채움: 고정사전 → 학습사전
+  // 도착지번호(상호) 입력 시 시군구 자동 채움: 고정사전 → 학습사전 (시단위 정규화)
   if (field === 'destCode') {
     let auto = regionFromDestName(value);
     if (!auto) auto = regionFromLearned(value);   // ① 학습된 상호→시군구
-    if (auto) row.dest = auto;
+    if (auto) row.dest = cleanRegion(auto) || auto;
   }
   // 도착지/차종/출발지번호/도착지번호 변경 시 자동계산 갱신
   if (['dest','vehicle','srcCode','destCode'].includes(field)) {

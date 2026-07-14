@@ -650,18 +650,34 @@
   const _fmt = n => (Number(n)||0).toLocaleString('ko-KR');
 
   function loadDestRegion(){ try{ return JSON.parse(localStorage.getItem(DEST_REGION_KEY)||'{}'); }catch(e){ return {}; } }
+  // 학습값도 항상 시단위로 정규화 (예: "퇴계원" → "남양주")
+  function cleanRegion(v){
+    if(!v) return '';
+    const s=String(v).trim();
+    const a=aliasMatch(s);
+    if(a) return a;
+    return normalizeDistrict(s) || s;
+  }
   function regionFromLearned(name){
     if(!name) return '';
     const d=loadDestRegion(); const key=String(name).replace(/\s+/g,'');
-    if(d[key]) return d[key];
-    for(const k in d){ if(key && (key.includes(k)||k.includes(key))) return d[k]; }
+    if(d[key]) return cleanRegion(d[key]);
+    for(const k in d){ if(key && (key.includes(k)||k.includes(key))) return cleanRegion(d[k]); }
     return '';
   }
   function saveDestRegion(name, region){
     if(!name||!region) return;
-    const d=loadDestRegion(); d[String(name).replace(/\s+/g,'')]=String(region).trim();
+    const d=loadDestRegion(); d[String(name).replace(/\s+/g,'')]=cleanRegion(region);
     localStorage.setItem(DEST_REGION_KEY, JSON.stringify(d));
   }
+  // 예전에 읍·면 단위로 저장된 학습값 일괄 정정 (1회 마이그레이션)
+  (function(){
+    try{
+      const d=loadDestRegion(); let ch=false;
+      for(const k in d){ const nv=cleanRegion(d[k]); if(nv && nv!==d[k]){ d[k]=nv; ch=true; } }
+      if(ch) localStorage.setItem(DEST_REGION_KEY, JSON.stringify(d));
+    }catch(e){}
+  })();
   function loadRateLearn(){ try{ return JSON.parse(localStorage.getItem(RATE_LEARN_KEY)||'{}'); }catch(e){ return {}; } }
   function rateLearnKey(sigun, vehicle){ return normalizeDistrict(sigun)+'|'+String(vehicle).trim(); }
   function getLearnedRate(sigun, vehicle){
