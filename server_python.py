@@ -793,6 +793,36 @@ class Handler(BaseHTTPRequestHandler):
             if self.token_ok(): return self.send_json({'ok': True})
             return self.send_json({'error':'Unauthorized'}, 401)
 
+        # ── 일일 출고건수 리포트 (카톡 자동보고용 — key 인증) ──
+        if path == '/api/report/daily-out':
+            expect = os.environ.get('REPORT_KEY', 'act-daily-report-7f3k9')
+            if g('key') != expect: return self.send_json({'error':'Unauthorized'}, 401)
+            now_kst = datetime.utcnow() + timedelta(hours=9)
+            target = now_kst - timedelta(days=1)
+            if now_kst.weekday() == 0:              # 월요일 → 전주 금요일
+                target = now_kst - timedelta(days=3)
+            ds = target.strftime('%Y-%m-%d')
+            rows = db_fetchall('SELECT status, order_no, customer_company, transport_type, quantity FROM delivery_records WHERE delivery_date=?', (ds,))
+            def ttype(r):
+                t = (r.get('transport_type') or '').strip()
+                return t if t in ('출고','입고','이동') else '출고'   # 미지정은 출고로 간주
+            total = len(rows)
+            out_rows = [r for r in rows if ttype(r) == '출고']
+            in_rows  = [r for r in rows if ttype(r) == '입고']
+            move_rows = [r for r in rows if ttype(r) == '이동']
+            signed = sum(1 for r in rows if (r or {}).get('status') == 'signed')
+            items = [{'dn': (r.get('order_no') or ''), 'customer': (r.get('customer_company') or ''),
+                      'qty': (r.get('quantity') or ''), 'type': ttype(r),
+                      'signed': r.get('status') == 'signed'} for r in rows]
+            return self.send_json({
+                'date': ds,
+                'weekday': ['월','화','수','목','금','토','일'][target.weekday()],
+                'total': total,
+                'out': len(out_rows), 'in': len(in_rows), 'move': len(move_rows),
+                'signed': signed, 'pending': total - signed,
+                'items': items
+            })
+
         if path == '/api/telegram-status':
             return self.send_json({'enabled': bool(TELEGRAM_TOKEN and TELEGRAM_CHAT_ID)})
 
