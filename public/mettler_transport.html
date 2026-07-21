@@ -446,6 +446,16 @@ const REGION_ALIAS = {
   '상당구':'청주','서원구':'청주','청원구':'청주','흥덕구':'청주','상당':'청주','서원':'청주','청원':'청주','흥덕':'청주',
   // 창원시
   '의창구':'창원','마산합포구':'창원','마산회원구':'창원','진해구':'창원','의창':'창원','마산합포':'창원','마산회원':'창원','진해':'창원',
+  // 창녕군
+  '창녕읍':'창녕','남지읍':'창녕','대합면':'창녕','이방면':'창녕','유어면':'창녕','대지면':'창녕','계성면':'창녕','영산면':'창녕','장마면':'창녕','도천면':'창녕','길곡면':'창녕','부곡면':'창녕','고암면':'창녕','성산면':'창녕',
+  // 안성시
+  '공도읍':'안성','미양면':'안성','보개면':'안성','금광면':'안성','서운면':'안성','대덕면':'안성','양성면':'안성','원곡면':'안성','일죽면':'안성','죽산면':'안성','삼죽면':'안성','고삼면':'안성',
+  // 김해시
+  '진영읍':'김해','주촌면':'김해','진례면':'김해','한림면':'김해','생림면':'김해','상동면':'김해','대동면':'김해',
+  // 밀양시
+  '삼랑진읍':'밀양','하남읍':'밀양','부북면':'밀양','상남면':'밀양','초동면':'밀양','무안면':'밀양','산외면':'밀양','산내면':'밀양','단장면':'밀양',
+  // 시흥시 (도로명 포함)
+  '군자천로':'시흥','정왕동':'시흥','정왕':'시흥','시화공단':'시흥','시화':'시흥',
 };
 
 // 시도 prefix 제거 패턴
@@ -984,9 +994,31 @@ function getLearnedRate(sigun, vehicle){
   const d = loadRateLearn();
   return d[rateLearnKey(sigun, vehicle)] || null;   // {cBase, sBase}
 }
+// 오염된 학습운임 정화 (1회) — 운임표에 없는 지역키(대합면 등)로 저장된 학습값 제거
+// (읍·면 오입력 → 수기 운임 학습 → 오청구 반복 방지)
+(function(){
+  try{
+    if (typeof RATE_TABLE === 'undefined') return;
+    const valid = new Set(Object.values(RATE_TABLE).map(e => e.sigun));
+    const d = loadRateLearn(); let ch = false;
+    for (const k in d){
+      const reg = k.split('|')[0];
+      if (!valid.has(reg) && !valid.has(cleanRegion(reg))) { delete d[k]; ch = true; }
+    }
+    if (ch) localStorage.setItem(RATE_LEARN_KEY, JSON.stringify(d));
+  }catch(e){}
+})();
+
 // 검증 포함 저장: 기존 학습값과 다르면 confirm으로 충돌 확인
 function saveLearnedRate(sigun, vehicle, cBase, sBase){
   if(!sigun || !vehicle) return false;
+  // 운임표에 존재하는 시군만 학습 허용 — 읍·면 오입력 지역(대합면 등)은 학습 금지
+  const cs = cleanRegion(sigun) || sigun;
+  if (!rtHas(cs)) {
+    alert(`⚠ [${sigun}] 은(는) 운임표에 없는 지역이라 운임을 학습하지 않습니다.\n도착지(구/군)를 정확한 시군(예: 창녕, 안성)으로 수정한 뒤 입력하세요.`);
+    return false;
+  }
+  sigun = cs;
   const d = loadRateLearn();
   const k = rateLearnKey(sigun, vehicle);
   const ex = d[k];
