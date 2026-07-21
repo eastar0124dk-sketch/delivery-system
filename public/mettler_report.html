@@ -13,6 +13,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
     if (window.pdfjsLib) {
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -276,6 +278,7 @@
   <h1>📊 메틀러토레도 청구 보고서</h1>
   <div class="actions">
     <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> A4 인쇄</button>
+    <button class="btn-print" id="pdfBtn" onclick="downloadReportPDF()" style="background:linear-gradient(135deg,#ec4899,#db2777);"><i class="fas fa-file-pdf"></i> PDF 다운로드</button>
     <button onclick="restoreSeed()"><i class="fas fa-database"></i> 샘플 복원</button>
     <button onclick="exportData()"><i class="fas fa-file-export"></i> 데이터 내보내기</button>
     <button onclick="document.getElementById('importJson').click()"><i class="fas fa-file-import"></i> 가져오기</button>
@@ -1181,6 +1184,47 @@ mountHubSidebar();
 loadData();
 refresh();
 bindRangeFilter();
+
+/* ── PDF 다운로드 (A4 가로, 여러 페이지 자동 분할) ── */
+async function downloadReportPDF(){
+  const btn = document.getElementById('pdfBtn');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 생성중...';
+  try{
+    const el = document.querySelector('.wrap');
+    const canvas = await html2canvas(el, { scale: 1.6, useCORS: true, backgroundColor: '#ffffff', logging: false });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('l', 'mm', 'a4');           // A4 가로 (인쇄와 동일)
+    const pw = pdf.internal.pageSize.getWidth();
+    const ph = pdf.internal.pageSize.getHeight();
+    const margin = 8;
+    const imgW = pw - margin * 2;
+    const pageHpx = Math.floor(canvas.width * (ph - margin * 2) / imgW);  // 한 페이지에 들어갈 캔버스 px 높이
+
+    let y = 0, first = true;
+    while (y < canvas.height) {
+      const sliceH = Math.min(pageHpx, canvas.height - y);
+      const pc = document.createElement('canvas');
+      pc.width = canvas.width; pc.height = sliceH;
+      pc.getContext('2d').drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+      const sliceHmm = sliceH * imgW / canvas.width;
+      if (!first) pdf.addPage();
+      pdf.addImage(pc.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, imgW, sliceHmm);
+      first = false;
+      y += sliceH;
+    }
+    const stamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    pdf.save(`메틀러_청구보고서_${stamp}.pdf`);
+    toast('✅ PDF 다운로드 완료');
+  }catch(e){
+    console.error(e);
+    toast('PDF 생성 오류: ' + e.message, 'error');
+  }finally{
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
 </script>
 </body>
 </html>
