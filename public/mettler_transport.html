@@ -229,7 +229,7 @@
           <th class="grp-shipper" colspan="2">화주 청구 운임</th>
           <th class="grp-carrier" rowspan="2">운송사<br>합계</th>
           <th class="grp-shipper" rowspan="2">화주<br>합계</th>
-          <th class="grp-info" rowspan="2">차액<br>(화주-운송사)</th>
+          <th class="grp-info" rowspan="2">차액<br>(화주-실제청구)</th>
           <th class="grp-info" rowspan="2">Q'ty</th>
           <th class="grp-info" rowspan="2">비고</th>
         </tr>
@@ -1120,7 +1120,9 @@ function renderRows() {
     const cExtraN = num(r.cExtra) || 0;
     const cTotal = cBaseN + cExtraN;
     const sTotal = (num(r.sBase) || 0) + (num(r.sExtra) || 0);
-    const diff   = sTotal - cTotal;
+    // 차액 = 화주합계 − 실제 운송사 청구금액 (실제청구 미입력 시 운송사합계로 대체)
+    const cCompare = num(r.cActual) > 0 ? num(r.cActual) : cTotal;
+    const diff   = sTotal - cCompare;
     const diffCls = diff > 0 ? 'diff-pos' : (diff < 0 ? 'diff-neg' : 'diff-zero');
     const isACT = isActSource(r.srcCode);
     return `<tr>
@@ -1151,7 +1153,12 @@ function renderRows() {
   const totalC = rows.reduce((s,r) => s + num(r.cBase) + num(r.cExtra), 0);
   const totalActual = rows.reduce((s,r) => s + num(r.cActual), 0);
   const totalS = rows.reduce((s,r) => s + num(r.sBase) + num(r.sExtra), 0);
-  const totalDiff = totalS - totalC;
+  // 차액 합계 = Σ(화주합계 − (실제청구 있으면 실제청구, 없으면 운송사합계))
+  const totalDiff = rows.reduce((s,r) => {
+    const ct = num(r.cBase) + num(r.cExtra);
+    const cc = num(r.cActual) > 0 ? num(r.cActual) : ct;
+    return s + (num(r.sBase) + num(r.sExtra)) - cc;
+  }, 0);
   document.getElementById('billFoot').innerHTML = `
     <tr>
       <td class="lbl" colspan="12">합계 (${rows.length}건)</td>
@@ -1291,7 +1298,7 @@ function exportExcel() {
     '운송사 운임','',
     '운송사 실제\n청구금액',
     '화주 청구 운임','',
-    '운송사\n합계','화주\n합계','차액\n(화주-운송사)',"Q'ty",'비고'
+    '운송사\n합계','화주\n합계','차액\n(화주-실제청구)',"Q'ty",'비고'
   ]);
   // Row 5: 컬럼 헤더
   aoa.push(HDRS);
@@ -1301,7 +1308,8 @@ function exportExcel() {
     const cExtraN = num(r.cExtra) || 0;
     const cTotal  = cBaseN + cExtraN;
     const sTotal  = num(r.sBase) + num(r.sExtra);
-    const diff    = sTotal - cTotal;
+    // 차액 = 화주합계 − 실제청구 (실제청구 미입력 시 운송사합계)
+    const diff    = sTotal - (num(r.cActual) > 0 ? num(r.cActual) : cTotal);
     aoa.push([
       r.no, r.date, r.dn, r.src, r.srcCode, r.dest, r.destCode, r.type, r.vehicle,
       cBaseN, cExtraN, num(r.cActual),
@@ -1313,7 +1321,11 @@ function exportExcel() {
   const totalC = rows.reduce((s,r) => s + num(r.cBase) + num(r.cExtra), 0);
   const totalActual = rows.reduce((s,r) => s + num(r.cActual), 0);
   const totalS = rows.reduce((s,r) => s + num(r.sBase) + num(r.sExtra), 0);
-  const totalDiff = totalS - totalC;
+  const totalDiff = rows.reduce((s,r) => {
+    const ct = num(r.cBase) + num(r.cExtra);
+    const cc = num(r.cActual) > 0 ? num(r.cActual) : ct;
+    return s + (num(r.sBase) + num(r.sExtra)) - cc;
+  }, 0);
   aoa.push([
     `합계 (${rows.length}건)`,'','','','','','','','',
     '','', totalActual,
@@ -1337,8 +1349,9 @@ function exportExcel() {
     ws[XLSX.utils.encode_cell({r:sheetR,c:14})] = { t:'n', f:`J${xlRow}+K${xlRow}`, v:cBaseN+cExtraN };
     // P 화주합계 = M + N
     ws[XLSX.utils.encode_cell({r:sheetR,c:15})] = { t:'n', f:`M${xlRow}+N${xlRow}`, v:sBaseN+sExtraN };
-    // Q 차액 = P - O
-    ws[XLSX.utils.encode_cell({r:sheetR,c:16})] = { t:'n', f:`P${xlRow}-O${xlRow}`, v:(sBaseN+sExtraN)-(cBaseN+cExtraN) };
+    // Q 차액 = P − 실제청구(L, 미입력 시 운송사합계 O)
+    const cActN = num(r.cActual) || 0;
+    ws[XLSX.utils.encode_cell({r:sheetR,c:16})] = { t:'n', f:`P${xlRow}-IF(L${xlRow}>0,L${xlRow},O${xlRow})`, v:(sBaseN+sExtraN)-(cActN>0?cActN:cBaseN+cExtraN) };
   });
   // 합계 행 수식 (SUM)
   if (rows.length) {
@@ -1347,7 +1360,7 @@ function exportExcel() {
     ws[XLSX.utils.encode_cell({r:totR,c:11})] = { t:'n', f:`SUM(L${firstDataRow}:L${lastDataRow})`, v:totalActual };
     ws[XLSX.utils.encode_cell({r:totR,c:14})] = { t:'n', f:`SUM(O${firstDataRow}:O${lastDataRow})`, v:totalC };
     ws[XLSX.utils.encode_cell({r:totR,c:15})] = { t:'n', f:`SUM(P${firstDataRow}:P${lastDataRow})`, v:totalS };
-    ws[XLSX.utils.encode_cell({r:totR,c:16})] = { t:'n', f:`P${totRow}-O${totRow}`, v:totalDiff };
+    ws[XLSX.utils.encode_cell({r:totR,c:16})] = { t:'n', f:`SUM(Q${firstDataRow}:Q${lastDataRow})`, v:totalDiff };
   }
 
   // 셀 스타일 적용
