@@ -94,6 +94,13 @@ function initNav(currentPage) {
     @media (min-width: 769px) {
       .hub-mobile-toggle { display: none !important; }
     }
+    /* 인쇄 시 사이드바·메뉴버튼 완전 숨김 (제목 가림 방지) */
+    @media print {
+      .hub-sidebar, .hub-mobile-toggle, .hub-mobile-overlay { display: none !important; }
+      .hub-main { margin-left: 0 !important; padding: 0 !important; }
+      body.has-hub-sidebar { padding-left: 0 !important; }
+      #sidebar { display: none !important; }
+    }
   `;
   document.head.appendChild(style);
 
