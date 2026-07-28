@@ -240,7 +240,7 @@
           <th class="w-dn">DN No.</th>
           <th class="w-text">출발지</th>
           <th class="w-text">출발지<br>상호</th>
-          <th class="w-text">도착지<br>(구/군)</th>
+          <th class="w-text">도착지<br>시도·시군구</th>
           <th class="w-text2">도착지 상호</th>
           <th class="w-text">내용</th>
           <th class="w-text">차종</th>
@@ -515,6 +515,26 @@ function normalizeRegion(input) {
 
 // 도착지(시/군)와 차종으로 운임 조회
 // billing.html(운송내역서)과 동일 — RATE_TABLE + rate_override(운임표 수정값) 적용
+/* ── 시도 + 시군구 형태를 요율표 이름으로 바꾼다 ─────────────────
+   도착지를 '인천 서구' 로 적든 '인천광역시 서구' 로 적든 같은 요율이 나와야 한다.
+   '서구' 만 있으면 인천인지 대전인지 알 수 없어 엉뚱한 요율이 잡혔다.
+     · 서울만 구 단위로 요율이 있다     (서울특별시 송파구 → 송파)
+     · 나머지 광역시는 시 하나뿐이다     (인천광역시 서구 → 인천)
+     · 광주는 경기 광주와 겹쳐 광역시를 구분한다
+     · 도는 시·군 단위                 (경기도 화성시 → 화성) */
+const METRO_ONE = { '인천':'인천','대전':'대전','대구':'대구','부산':'부산','울산':'울산','광주':'광주광역시' };
+function regionKey(v) {
+  const t = String(v||'').trim().split(/\s+/).filter(Boolean);
+  if (!t.length) return '';
+  if (t.length === 1) return t[0];
+  const sido = t[0], sigun = t.slice(1).join(' ');
+  const sd = sido.replace(/(특별자치시|특별자치도|특별시|광역시|도)$/,'');
+  if (sd === '서울') return sigun.replace(/구$/,'');
+  if (METRO_ONE[sd]) return METRO_ONE[sd];
+  if (sd === '세종') return '세종';
+  return (sigun || sd).replace(/(시|군)$/,'');
+}
+
 function lookupRate(sigungu, vehicle, side) {
   if (!sigungu || !vehicle) return 0;
   if (typeof RATE_TABLE === 'undefined') return 0;
@@ -546,6 +566,12 @@ function lookupRate(sigungu, vehicle, side) {
   // 1차: 정확 매칭
   let v = tryExact(d);
   if (v != null) return v;
+  // 1.5차: '시도 + 시군구' 해석 (인천 서구 / 인천광역시 서구 → 인천)
+  const rk = regionKey(sigungu);
+  if (rk && rk !== d) {
+    v = tryExact(rk);
+    if (v != null) return v;
+  }
   // 2차: 별칭 매핑 후 정확 매칭 (예: "분당구" → "성남")
   v = tryExact(aliasMatch(d));
   if (v != null) return v;
@@ -755,9 +781,14 @@ async function loadBilling() {
       // 운임 기준 시군구 결정
       let billingDistrict = '';
       if (tt === '회수') {
-        billingDistrict = o.origin_sigun || extractSigungu(o.origin_address || '');
+        billingDistrict = o.origin_sigun
+          ? ((o.origin_sido ? o.origin_sido + ' ' : '') + o.origin_sigun).trim()
+          : extractSigungu(o.origin_address || '');
       } else {
-        billingDistrict = o.dest_sigun || extractSigungu(o.customer_address || '');
+        /* '서구' 만 보이면 인천인지 대전인지 알 수 없다 → 시도를 함께 표시한다 */
+        billingDistrict = o.dest_sigun
+          ? ((o.dest_sido ? o.dest_sido + ' ' : '') + o.dest_sigun).trim()
+          : extractSigungu(o.customer_address || '');
       }
       // 인라인 정정 — billing.html과 동일: 매칭 실패 시 주소 별칭으로 1차 시도
       if (vt && billingDistrict && lookupRate(billingDistrict, vt, 'carrier') === 0) {
