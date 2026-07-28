@@ -6,6 +6,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>오더 관리 - 관리자</title>
+
+  <!-- 휴대폰 홈 화면에 앱처럼 설치하기 위한 설정 -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="오더등록">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <script src="rates.js"></script>
   <script src="clients.js"></script>
@@ -152,6 +161,7 @@
   <div style="display:flex;gap:14px;align-items:center;">
     <a href="list.html">조회/출력</a>
     <a href="index.html">홈</a>
+    <button type="button" id="btnInstall" onclick="installApp()" style="display:none;align-items:center;gap:5px;background:#fff;color:#4f46e5;border:0;padding:6px 13px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">📲 휴대폰에 설치</button>
     <a href="#" id="pwChangeBtn" style="display:none;background:rgba(255,255,255,.2);padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;" onclick="document.getElementById('pwModal').classList.add('show');return false;">🔐 비밀번호 변경</a>
   </div>
 </div>
@@ -783,6 +793,48 @@
       // 네트워크 오류 시 낙관적으로 허용 유지
     }
   }
+
+  /* ── 휴대폰 홈 화면 앱 ─────────────────────────────────────
+     서비스 워커를 등록해야 안드로이드에서 '앱 설치' 가 뜬다.
+     실패해도 화면은 그대로 돌아가야 하므로 조용히 넘어간다. */
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+
+  /* 아이콘을 길게 눌러 나오는 바로가기(오더 등록 / 오더 조회) 처리 */
+  (function openRequestedTab() {
+    const t = new URLSearchParams(location.search).get('tab');
+    if (t !== 'register' && t !== 'search') return;
+    window.addEventListener('DOMContentLoaded', () => {
+      try { switchTab(t); } catch (e) { /* 화면이 아직 없으면 그냥 기본 탭 */ }
+    });
+  })();
+
+  /* 안드로이드 설치 버튼 — 크롬이 설치 가능하다고 알려줄 때만 보여 준다 */
+  let deferredInstall = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstall = e;
+    const b = document.getElementById('btnInstall');
+    if (b) b.style.display = 'inline-flex';
+  });
+  window.installApp = async () => {
+    if (!deferredInstall) {
+      alert('아이폰(사파리)에서는 아래쪽 공유 단추 → "홈 화면에 추가" 를 눌러 주세요.');
+      return;
+    }
+    deferredInstall.prompt();
+    await deferredInstall.userChoice;
+    deferredInstall = null;
+    const b = document.getElementById('btnInstall');
+    if (b) b.style.display = 'none';
+  };
+  window.addEventListener('appinstalled', () => {
+    const b = document.getElementById('btnInstall');
+    if (b) b.style.display = 'none';
+  });
 
   function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach((b,i)=>{
