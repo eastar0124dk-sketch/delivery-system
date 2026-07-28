@@ -79,21 +79,6 @@ if DATABASE_URL:
             try: cur.execute(f"ALTER TABLE delivery_records ADD COLUMN IF NOT EXISTS {col}")
             except: pass
         cur.execute('''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)''')
-        # 서명 링크 암호 — 앞으로 만들어지는 모든 건에 자동으로 붙게 기본값을 건다.
-        # 이렇게 해두면 이 서버가 넣든 ACTOS가 넣든 빠짐없이 발급된다.
-        try:
-            cur.execute("ALTER TABLE delivery_records ALTER COLUMN sign_token "
-                        "SET DEFAULT substr(replace(gen_random_uuid()::text,'-',''),1,12)")
-        except Exception as e:
-            print('[sign] 기본값 설정 건너뜀:', e)
-        # 기존 건에도 한 번 채워 넣는다 (이미 다 차 있으면 아무 것도 바꾸지 않는다)
-        try:
-            cur.execute("UPDATE delivery_records "
-                        "SET sign_token = substr(replace(gen_random_uuid()::text,'-',''),1,12) "
-                        "WHERE sign_token IS NULL OR sign_token = ''")
-            if cur.rowcount: print(f'[sign] 기존 {cur.rowcount}건에 서명 암호 발급')
-        except Exception as e:
-            print('[sign] 기존 건 암호 발급 건너뜀:', e)
         # ── 신규 테이블 ──
         cur.execute('''CREATE TABLE IF NOT EXISTS todos (
             id SERIAL PRIMARY KEY, title TEXT NOT NULL,
@@ -1672,8 +1657,31 @@ class Handler(BaseHTTPRequestHandler):
 
 
 # ── 실행 ─────────────────────────────────────────────────────────────
+def ensure_sign_tokens():
+    """서명 링크 암호를 빠짐없이 채운다.
+
+    init_db 안에 두었더니, 앞선 구문 하나가 실패하면 트랜잭션이 통째로 무효가 되어
+    조용히 건너뛰어졌다(그래서 차단이 걸리지 않았다). 여기서 따로, 각각 커밋한다.
+    """
+    gen = "substr(replace(gen_random_uuid()::text,'-',''),1,12)"
+    try:
+        db_exec("ALTER TABLE delivery_records ALTER COLUMN sign_token SET DEFAULT " + gen)
+        print('[sign] 새 건 자동 발급 설정 완료')
+    except Exception as e:
+        print('[sign] 자동 발급 설정 실패:', e)
+    try:
+        db_exec("UPDATE delivery_records SET sign_token = " + gen +
+                " WHERE sign_token IS NULL OR sign_token = ''")
+        left = db_fetch("SELECT COUNT(*) AS c FROM delivery_records "
+                        "WHERE sign_token IS NULL OR sign_token = ''")
+        print(f"[sign] 암호 없는 건: {(left or {}).get('c')}")
+    except Exception as e:
+        print('[sign] 기존 건 발급 실패:', e)
+
+
 if __name__ == '__main__':
     init_db()
+    ensure_sign_tokens()
     local_ip = '127.0.0.1'
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
