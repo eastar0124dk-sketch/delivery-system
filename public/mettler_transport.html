@@ -835,7 +835,7 @@ async function loadBilling() {
         dn: o.order_no || '',
         src: originDisplay,
         srcCode: originNameDisplay || 'ACT',
-        dest: cleanRegion(billingDistrict) || billingDistrict,
+        dest: withSido(cleanRegion(billingDistrict) || billingDistrict),
         destCode: destNameDisplay,
         type: content,
         vehicle: vt,
@@ -1004,6 +1004,27 @@ function cleanRegion(v){
   if (hasSido(s)) return s;
   const n = normalizeRegion(s);
   return n || s;
+}
+/* 원본에 시·도가 비어 있는 건이 많다. 요율표에 지역마다 시·도가 들어 있으므로 그것으로 채운다.
+   '동대문구' → 서울특별시, '화성' → 경기도.
+   '서구' 처럼 여러 시·도에 다 있는 이름은 채우지 않는다 — 잘못 붙이면 운임이 틀린다. */
+function sidoOf(v){
+  if (typeof RATE_TABLE === 'undefined') return '';
+  const cand = [String(v||'').trim(), regionKey(v), normalizeRegion(String(v||'').trim()), aliasMatch(String(v||'').trim())];
+  for (const c of cand) {
+    if (!c) continue;
+    const hit = [];
+    for (const key in RATE_TABLE) if (RATE_TABLE[key].sigun === c) hit.push(RATE_TABLE[key].sido || '');
+    if (hit.length === 1 && hit[0]) return hit[0];
+  }
+  return '';
+}
+/* 화면에 보여줄 도착지 — 시·도가 없으면 붙여 준다 */
+function withSido(v){
+  const s = String(v||'').trim();
+  if (!s || hasSido(s)) return s;
+  const sd = sidoOf(s);
+  return sd ? `${sd} ${s}` : s;
 }
 function regionFromLearned(name){
   if(!name) return '';
