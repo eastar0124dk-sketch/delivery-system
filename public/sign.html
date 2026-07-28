@@ -430,7 +430,9 @@
       if(!orderNo){ showAlert('DN번호를 입력해주세요.','error'); return; }
       showAlert('검색 중...','info');
       try {
-        const res = await fetch(`/api/sign/search?order_no=${encodeURIComponent(orderNo)}`).then(r=>r.json());
+        const _t = new URLSearchParams(location.search).get('t') || '';
+        const res = await fetch(`/api/sign/search?order_no=${encodeURIComponent(orderNo)}`
+          + (_t ? `&t=${encodeURIComponent(_t)}` : '')).then(r=>r.json());
         const found = (res.data||[])[0];
         if(!found){ showAlert(`DN번호 [${orderNo}]를 찾을 수 없습니다. 담당자에게 확인하세요.`,'error'); return; }
         if(found.status==='signed'){ showAlert(`DN번호 [${orderNo}]는 이미 서명이 완료된 오더입니다.`,'error'); return; }
@@ -561,7 +563,8 @@
             vehicle_no: document.getElementById('inp_vehicle_no').value.trim(),
             receiver_name: receiverName,
             driver_signature: getSigData('driver'),
-            receiver_signature: receiverSigData
+            receiver_signature: receiverSigData,
+            t: new URLSearchParams(location.search).get('t') || ''
           })
         });
         const data=await res.json();

@@ -1591,17 +1591,19 @@ DN번호: ${d.order_no}
 수취인: ${d.receiver_name}${phone}${delivery_note}${notes}
 
 * 배송 완료 후 아래 링크를 눌러 서명해 주세요 (누르면 이 건이 바로 뜹니다)
-${signLink(d.order_no)}`;
+${signLink(d.order_no, d.sign_token)}`;
     document.getElementById('dispatchMsgText').value = msg;
     document.getElementById('dispatchModal').classList.add('show');
   }
 
   // 기사에게 보낼 서명 링크 — 묶음 건('72077306 외 8건')은 앞의 대표번호만 쓴다.
   // 서버 검색이 부분 일치라 대표번호만으로 그 건이 찾아진다.
-  function signLink(orderNo) {
+  function signLink(orderNo, token) {
     const raw  = String(orderNo || '').trim();
     const head = (raw.split(/[\s,]|외/)[0] || '').trim() || raw;   // 비면 원본 그대로
-    return `${location.origin}/sign.html?dn=${encodeURIComponent(head)}`;
+    // 암호(t)가 붙어야 그 건이 열린다. 없으면 기사가 검색으로 들어갈 수 없다.
+    const t = token ? `&t=${encodeURIComponent(token)}` : '';
+    return `${location.origin}/sign.html?dn=${encodeURIComponent(head)}${t}`;
   }
 
   function copyDispatchMsg() {

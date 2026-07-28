@@ -28,6 +28,11 @@ _tg_raw          = os.environ.get('TELEGRAM_TOKEN', '')
 _tg_match        = re.search(r'(\d+:[A-Za-z0-9_-]+)', _tg_raw)
 TELEGRAM_TOKEN   = _tg_match.group(1) if _tg_match else ''
 TELEGRAM_CHAT_ID = re.sub(r'[^0-9-]', '', os.environ.get('TELEGRAM_CHAT_ID', ''))
+# 기사 서명 링크에 고유 암호를 요구할지. 문제가 생기면 0 으로 바꿔 즉시 되돌린다.
+SIGN_TOKEN_REQUIRED = os.environ.get('SIGN_TOKEN_REQUIRED', '1') != '0'
+
+def new_sign_token():
+    return secrets.token_urlsafe(9)          # 12자 안팎, 추측 불가
 
 valid_tokens       = set()
 valid_staff_tokens = set()
@@ -70,10 +75,25 @@ if DATABASE_URL:
         for col in ['work_fee TEXT','return_fee TEXT','delivery_note TEXT','vehicle_type TEXT',
                     'origin TEXT','origin_address TEXT','contact_person TEXT','contact_phone TEXT',
                     'transport_type TEXT','dest_sido TEXT','dest_sigun TEXT','origin_sido TEXT','origin_sigun TEXT',
-                    'client_code TEXT','dn_list TEXT']:
+                    'client_code TEXT','dn_list TEXT','sign_token TEXT']:
             try: cur.execute(f"ALTER TABLE delivery_records ADD COLUMN IF NOT EXISTS {col}")
             except: pass
         cur.execute('''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)''')
+        # 서명 링크 암호 — 앞으로 만들어지는 모든 건에 자동으로 붙게 기본값을 건다.
+        # 이렇게 해두면 이 서버가 넣든 ACTOS가 넣든 빠짐없이 발급된다.
+        try:
+            cur.execute("ALTER TABLE delivery_records ALTER COLUMN sign_token "
+                        "SET DEFAULT substr(replace(gen_random_uuid()::text,'-',''),1,12)")
+        except Exception as e:
+            print('[sign] 기본값 설정 건너뜀:', e)
+        # 기존 건에도 한 번 채워 넣는다 (이미 다 차 있으면 아무 것도 바꾸지 않는다)
+        try:
+            cur.execute("UPDATE delivery_records "
+                        "SET sign_token = substr(replace(gen_random_uuid()::text,'-',''),1,12) "
+                        "WHERE sign_token IS NULL OR sign_token = ''")
+            if cur.rowcount: print(f'[sign] 기존 {cur.rowcount}건에 서명 암호 발급')
+        except Exception as e:
+            print('[sign] 기존 건 암호 발급 건너뜀:', e)
         # ── 신규 테이블 ──
         cur.execute('''CREATE TABLE IF NOT EXISTS todos (
             id SERIAL PRIMARY KEY, title TEXT NOT NULL,
@@ -676,6 +696,20 @@ class Handler(BaseHTTPRequestHandler):
     def get_token(self):
         return self.headers.get('Authorization','').replace('Bearer ','').strip()
 
+    def sign_link_ok(self, rec, given):
+        """기사가 이 건을 열어도 되는지 확인한다.
+
+        기사는 우리가 보낸 링크(고유 암호 t=)로만 들어올 수 있다.
+        DN번호는 연속된 숫자라 검색창에 아무 번호나 넣으면 남의 건이 열리기 때문이다.
+        사내 직원(admin/staff 로그인)은 예전처럼 검색으로 찾을 수 있다.
+        문제가 생기면 환경변수 SIGN_TOKEN_REQUIRED=0 으로 즉시 되돌릴 수 있다.
+        """
+        if not SIGN_TOKEN_REQUIRED: return True
+        if self.token_ok(): return True                      # 사내 직원 로그인
+        want = (rec or {}).get('sign_token')
+        if not want: return True                             # 아직 암호가 없는 옛 건은 막지 않는다
+        return bool(given) and secrets.compare_digest(str(given), str(want))
+
     def token_ok(self, admin_only=False):
         t = self.get_token()
         if not t: return False
@@ -839,7 +873,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self.send_json({'error': str(e)})
 
-        # 기사 검색 (공개)
+        # 기사 검색 — 우리가 보낸 링크(암호 포함)로만 열린다. 사내 직원은 검색 가능
         if path == '/api/sign/search':
             order_no = g('order_no').strip()
             if not order_no: return self.send_json({'data': []})
@@ -849,6 +883,8 @@ class Handler(BaseHTTPRequestHandler):
                 'status,extra_locations,wait_time,work_time,work_fee,notes '
                 'FROM delivery_records WHERE order_no=? OR order_no LIKE ? OR order_no LIKE ? OR order_no LIKE ? OR dn_list LIKE ?',
                 (order_no, f'{order_no} 외%', f'{order_no}외%', f'{order_no}%', f'%{order_no}%'))
+            if row and not self.sign_link_ok(row, g('t').strip()):
+                return self.send_json({'data': [], 'error': '배송 담당 기사에게 보내드린 링크로만 서명할 수 있습니다.'}, 403)
             return self.send_json({'data': [row] if row else []})
 
         # 운송사 검색 (공개)
@@ -1307,7 +1343,8 @@ class Handler(BaseHTTPRequestHandler):
             cnt = (db_fetch('SELECT COUNT(*) as c FROM delivery_records WHERE client_code=?', (target_code,)) or {}).get('c', 0)
             return self.send_json({'success': True, 'updated_client_code': target_code, 'total_count': cnt})
 
-        # 기사 서명 (공개)
+        # 기사 서명 (링크에 담긴 암호로만)
+        qs_t = (parse_qs(urlparse(self.path).query).get('t', ['']) or [''])[0].strip()
         m = re.match(r'^/api/sign/(\d+)$', p)
         if m:
             rid = m.group(1)
@@ -1316,6 +1353,10 @@ class Handler(BaseHTTPRequestHandler):
             if rec['status'] == 'signed': return self.send_json({'error':'이미 서명 완료된 오더입니다.'}, 400)
             if not body.get('driver_signature') or not body.get('receiver_signature'):
                 return self.send_json({'error':'서명 데이터가 없습니다.'}, 400)
+            # 검색만 막으면 이 저장 요청을 직접 불러 우회할 수 있으므로 여기서도 확인한다
+            rec_tok = db_fetch('SELECT sign_token FROM delivery_records WHERE id=?', (rid,))
+            if not self.sign_link_ok(rec_tok, (body.get('t') or qs_t or '').strip()):
+                return self.send_json({'error':'배송 담당 기사에게 보내드린 링크로만 서명할 수 있습니다.'}, 403)
             now = (datetime.utcnow() + timedelta(hours=9)).strftime('%Y-%m-%d %H:%M:%S')
             db_exec('''UPDATE delivery_records SET
                 driver_name=?,driver_phone=?,vehicle_no=?,receiver_name=?,
