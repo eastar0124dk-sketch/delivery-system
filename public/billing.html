@@ -803,18 +803,19 @@
       if (r) return r;
     }
 
-    // 3차: 시/구/군/도 제거 후 포함 매칭 (기존 fallback)
+    /* 3차: 글자가 비슷한 지역 — 후보가 하나뿐일 때만 쓴다.
+       여럿이면 어느 쪽이 맞는지 알 수 없어 조용히 틀린 요율이 들어간다. */
     const clean=d.replace(/[시도구군읍면동로길]/g,'');
+    const cands=[];
     for(const key in RATE_TABLE){
       const e=RATE_TABLE[key];
       const sc=e.sigun.replace(/[시도구군읍면동]/g,'');
-      if(clean&&sc&&(clean.includes(sc)||sc.includes(clean))){
-        const base=e.carrier[vt], kbase=e.client[vt];
-        if(base!=null||kbase!=null){
-          const {c,k}=applyOverride(key,base||0,kbase||0);
-          return {carrier:c,client:k,matched:e.sigun,sido:e.sido};
-        }
-      }
+      if(clean&&sc&&(clean.includes(sc)||sc.includes(clean))&&(e.carrier[vt]!=null||e.client[vt]!=null))cands.push(key);
+    }
+    if(cands.length===1){
+      const e=RATE_TABLE[cands[0]];
+      const {c,k}=applyOverride(cands[0],e.carrier[vt]||0,e.client[vt]||0);
+      return {carrier:c,client:k,matched:e.sigun,sido:e.sido};
     }
     return null;
   }
