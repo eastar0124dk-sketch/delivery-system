@@ -865,11 +865,12 @@ class Handler(BaseHTTPRequestHandler):
             row = db_fetch(
                 'SELECT id,order_no,dn_list,delivery_date,product_name,quantity,customer_company,'
                 'customer_address,receiver_name,driver_name,driver_phone,vehicle_no,'
-                'status,extra_locations,wait_time,work_time,work_fee,notes '
+                'status,extra_locations,wait_time,work_time,work_fee,notes,sign_token '
                 'FROM delivery_records WHERE order_no=? OR order_no LIKE ? OR order_no LIKE ? OR order_no LIKE ? OR dn_list LIKE ?',
                 (order_no, f'{order_no} 외%', f'{order_no}외%', f'{order_no}%', f'%{order_no}%'))
             if row and not self.sign_link_ok(row, g('t').strip()):
                 return self.send_json({'data': [], 'error': '배송 담당 기사에게 보내드린 링크로만 서명할 수 있습니다.'}, 403)
+            if row: row.pop('sign_token', None)      # 암호 자체는 절대 돌려주지 않는다
             return self.send_json({'data': [row] if row else []})
 
         # 운송사 검색 (공개)
