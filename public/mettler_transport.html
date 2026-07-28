@@ -873,7 +873,9 @@ async function loadBilling() {
         if (a && lookupRate(a, row.vehicle, 'carrier') === 0) a = aliasMatch(row.dest || '') || a;
         if (a) alt = a;
       }
-      if (alt && alt !== row.dest) {
+      /* 시·도가 붙어 있고 요율이 이미 나오면 건드리지 않는다 (도로 줄어들면 안 된다) */
+      const keep = hasSido(row.dest) && lookupRate(row.dest, row.vehicle, 'carrier') > 0;
+      if (!keep && alt && alt !== row.dest) {
         console.log(`[자동정정] ${row.dn}: ${row.dest || '(없음)'} → ${alt}`);
         row.dest = alt;
       }
@@ -989,10 +991,19 @@ const RATE_LEARN_KEY  = 'mettler_rate_learned_v1';
 
 function loadDestRegion(){ try{ return JSON.parse(localStorage.getItem(DEST_REGION_KEY)||'{}'); }catch(e){ return {}; } }
 // 학습값도 항상 시단위로 정규화해서 반환 (예: "퇴계원" → "남양주")
+/* 앞에 시·도가 붙어 있으면 그대로 둔다.
+   '인천광역시 서구' 를 '서구' 로 줄여 버리면 인천인지 대전인지 다시 알 수 없어진다.
+   요율 조회는 lookupRate 의 regionKey 가 알아서 처리하므로 줄일 이유가 없다. */
+function hasSido(v){
+  const t = String(v||'').trim().split(/\s+/);
+  return t.length >= 2 && /(도|특별시|광역시|특별자치시|특별자치도)$/.test(t[0]);
+}
 function cleanRegion(v){
   if(!v) return '';
-  const n = normalizeRegion(String(v).trim());
-  return n || String(v).trim();
+  const s = String(v).trim();
+  if (hasSido(s)) return s;
+  const n = normalizeRegion(s);
+  return n || s;
 }
 function regionFromLearned(name){
   if(!name) return '';
@@ -1095,9 +1106,11 @@ function onCellChange(idx, field, value) {
   row[field] = value;
   // 도착지 입력 시 자동 정규화 (예: "경기도 용인시" → "용인")
   if (field === 'dest') {
-    const normalized = normalizeRegion(value);
-    if (normalized && normalized !== value) {
-      row.dest = normalized;
+    if (!hasSido(value)) {                     // 시·도가 붙어 있으면 그대로 둔다
+      const normalized = normalizeRegion(value);
+      if (normalized && normalized !== value) {
+        row.dest = normalized;
+      }
     }
     // ① 학습: 도착지 상호 → 방금 입력한 시군구 기억 (다음에 같은 상호면 자동 입력)
     if (row.destCode && row.dest) {
