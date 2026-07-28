@@ -273,7 +273,7 @@
             <th class="th-base" rowspan="2" style="min-width:120px;">DN No.</th>
             <th class="th-base" rowspan="2" style="min-width:72px;">출발지<br>시군구</th>
             <th class="th-base" rowspan="2" style="min-width:100px;">출발지 상호</th>
-            <th class="th-base" rowspan="2" style="min-width:80px;">도착지<br>시군구</th>
+            <th class="th-base" rowspan="2" style="min-width:80px;">도착지<br>시도·시군구</th>
             <th class="th-base" rowspan="2" style="min-width:110px;">도착지 상호</th>
             <th class="th-base" rowspan="2" style="min-width:90px;">내용</th>
             <th class="th-base" rowspan="2" style="min-width:60px;">차종</th>
@@ -737,6 +737,27 @@
     return true;
   }
 
+  /* ── 시도 + 시군구 형태를 요율표 이름으로 바꾼다 ─────────────────
+     도착지를 '인천 서구' 로 적든 '인천광역시 서구' 로 적든 같은 요율이 나와야 한다.
+     '서구' 만 있으면 인천인지 대전인지 알 수 없어 엉뚱한 요율이 잡혔다.
+       · 서울만 구 단위로 요율이 있다        (서울특별시 송파구 → 송파)
+       · 나머지 광역시는 시 하나뿐이다        (인천광역시 서구 → 인천)
+       · 광주는 경기 광주와 겹쳐 광역시를 구분한다
+       · 도는 시·군 단위                    (경기도 화성시 → 화성) */
+  const METRO_ONE = { '인천':'인천','대전':'대전','대구':'대구','부산':'부산','울산':'울산','광주':'광주광역시' };
+  function regionKey(v){
+    const t = String(v||'').trim().split(/\s+/).filter(Boolean);
+    if(!t.length) return '';
+    if(t.length===1) return t[0];
+    const sido  = t[0];
+    const sigun = t.slice(1).join(' ');
+    const sd = sido.replace(/(특별자치시|특별자치도|특별시|광역시|도)$/,'');
+    if(sd==='서울') return sigun.replace(/구$/,'');
+    if(METRO_ONE[sd]) return METRO_ONE[sd];
+    if(sd==='세종') return '세종';
+    return (sigun||sd).replace(/(시|군)$/,'');
+  }
+
   function lookupRate(district, vehicleType){
     if(!district||!vehicleType||typeof RATE_TABLE==='undefined') return null;
     const d=normalizeDistrict(district);
@@ -767,6 +788,13 @@
     // 1차: 정확히 sigun 일치
     let r = tryMatch(d);
     if (r) return r;
+
+    // 1.5차: '시도 + 시군구' 형태 해석 (인천 서구 / 인천광역시 서구 → 인천)
+    const rk = regionKey(district);
+    if (rk && rk !== d) {
+      r = tryMatch(rk);
+      if (r) return r;
+    }
 
     // 2차: 별칭 매핑 (예: "처인구" → "용인", "경기도 용인시" → "용인")
     const aliased = aliasMatch(d);
@@ -1002,7 +1030,10 @@
       if(tt==='회수'){
         billingDistrict=r.origin_sigun||extractSigun(r.origin_address||'');
       } else {
-        billingDistrict=r.dest_sigun||extractSigun(r.customer_address||'');
+        /* '서구' 만 보이면 인천인지 대전인지 알 수 없다 → 시도를 함께 표시한다 */
+        billingDistrict = r.dest_sigun
+          ? ((r.dest_sido ? r.dest_sido + ' ' : '') + r.dest_sigun).trim()
+          : extractSigun(r.customer_address||'');
       }
       // 운임표에 매칭되는지 확인. 안되면 customer_address 전체에서 별칭 매칭 시도
       // 예: dest_sigun="천호대로" → 운임표 매칭 X → customer_address="서울 강동구..." → 강동구 매칭 ✓
