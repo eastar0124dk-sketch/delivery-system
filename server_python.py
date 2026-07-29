@@ -684,16 +684,18 @@ class Handler(BaseHTTPRequestHandler):
     def sign_link_ok(self, rec, given):
         """기사가 이 건을 열어도 되는지 확인한다.
 
-        기사는 우리가 보낸 링크(고유 암호 t=)로만 들어올 수 있다.
-        DN번호는 연속된 숫자라 검색창에 아무 번호나 넣으면 남의 건이 열리기 때문이다.
-        사내 직원(admin/staff 로그인)은 예전처럼 검색으로 찾을 수 있다.
-        문제가 생기면 환경변수 SIGN_TOKEN_REQUIRED=0 으로 즉시 되돌릴 수 있다.
+        접근 경로 두 가지를 모두 허용한다:
+        ① 액토스 e-pod 링크(고유 암호 t=) — 암호가 틀리면 차단
+        ② 통합 물류앱 DN 검색(암호 없음) — 기존 방식 그대로 허용
+        사내 직원(admin/staff 로그인)도 검색 가능.
+        환경변수 SIGN_TOKEN_REQUIRED=0 으로 전체 비활성화 가능.
         """
         if not SIGN_TOKEN_REQUIRED: return True
         if self.token_ok(): return True                      # 사내 직원 로그인
+        if not given: return True                            # 통합 물류앱 DN 검색 (토큰 없음) 허용
         want = (rec or {}).get('sign_token')
         if not want: return True                             # 아직 암호가 없는 옛 건은 막지 않는다
-        return bool(given) and secrets.compare_digest(str(given), str(want))
+        return secrets.compare_digest(str(given), str(want)) # 링크로 온 경우 암호가 맞아야 함
 
     def token_ok(self, admin_only=False):
         t = self.get_token()
