@@ -845,16 +845,25 @@
       const { jsPDF } = window.jspdf;
       const zip = (mode === 'zip') ? new JSZip() : null;
 
-      // 목록은 light 조회(서명 제외)라 서명 없는 건은 개별 전체 조회로 병렬 prefetch
+      // 목록은 light 조회(서명 제외)라 서명 없는 건은 개별 전체 조회로 prefetch
+      // (동시 6건씩 제한 — 수십 건 동시 요청으로 서버가 밀려 실패하는 것 방지)
       const byId = {}; allData.forEach(d => byId[String(d.id)] = d);
       const missing = checked.map(c => c.dataset.id).filter(id => {
         const d = byId[String(id)];
         return !d || d.driver_signature === undefined;
       });
-      if (missing.length) {
-        const fetched = await Promise.all(missing.map(id =>
-          fetch(`/api/records/${id}`, { headers: authH() }).then(res => res.json()).catch(() => null)));
-        fetched.forEach((d, i) => { if (d) byId[String(missing[i])] = d; });
+      let fetchFail = 0;
+      for (let s = 0; s < missing.length; s += 6) {
+        const chunk = missing.slice(s, s + 6);
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 데이터 조회 ${Math.min(s + 6, missing.length)}/${missing.length}`;
+        const fetched = await Promise.all(chunk.map(id =>
+          fetch(`/api/records/${id}`, { headers: authH() })
+            .then(res => res.ok ? res.json() : null).catch(() => null)));
+        fetched.forEach((d, i) => {
+          const id = String(chunk[i]);
+          if (d && d.id) byId[id] = { ...(byId[id] || {}), ...d };  // 목록 데이터와 병합 (DN번호 보존)
+          else fetchFail++;
+        });
       }
 
       const waitImages = el => {
@@ -864,9 +873,10 @@
       };
 
       const usedNames = {};
+      let made = 0;
       for (let ci = 0; ci < checked.length; ci++) {
         const r = byId[String(checked[ci].dataset.id)];
-        if (!r) continue;
+        if (!r || !r.order_no) continue;   // DN번호 없는 건(조회 실패)은 건너뜀
         btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 생성중 ${ci + 1}/${checked.length}`;
         await new Promise(res => requestAnimationFrame(res));
 
@@ -877,12 +887,13 @@
         const pdf = new jsPDF('p', 'mm', 'a4');
         addCanvasToPdf(pdf, canvas);
 
-        // 파일명: 인수증명서_DN번호.pdf (중복 시 _2, _3 …)
-        let base = `인수증명서_${safeFileName(r.order_no)}`;
+        // 파일명: "인수인계서 - DN번호.pdf" (중복 시 _2, _3 …)
+        let base = `인수인계서 - ${safeFileName(r.order_no)}`;
         if (usedNames[base]) { usedNames[base]++; base = `${base}_${usedNames[base]}`; }
         else usedNames[base] = 1;
         const fileName = `${base}.pdf`;
         const blob = pdf.output('blob');
+        made++;
 
         if (mode === 'folder') {
           const fh = await dirHandle.getFileHandle(fileName, { create: true });
@@ -895,17 +906,19 @@
       }
 
       const today = todayKST();
+      const failMsg = fetchFail ? `\n⚠ ${fetchFail}건은 데이터 조회에 실패해 제외됐습니다. 다시 시도해 주세요.` : '';
       if (mode === 'folder') {
-        alert(`완료! 선택한 폴더에 ${checked.length}개의 PDF 파일을 저장했습니다.`);
+        alert(`완료! 선택한 폴더에 ${made}개의 PDF 파일을 저장했습니다.${failMsg}`);
       } else {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 압축중...';
         const zblob = await zip.generateAsync({ type: 'blob' });
         const url = URL.createObjectURL(zblob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `인수증명서_DN별_${today}_${checked.length}건.zip`;
+        a.download = `인수인계서_DN별_${today}_${made}건.zip`;
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+        if (failMsg) alert(`ZIP 저장 완료 (${made}건)${failMsg}`);
       }
     } catch (e) {
       alert('PDF 생성 오류: ' + e.message);
