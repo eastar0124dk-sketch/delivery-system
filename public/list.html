@@ -800,38 +800,13 @@
     }
   }
 
-  // ── DN별 개별 PDF (각 1건 = 1파일) ──
-  // 저장 방식 선택: ① 폴더에 직접 64개 PDF 저장(Chrome/Edge) ② ZIP 한 파일
+  // ── DN별 개별 PDF — 선택 건을 건별 PDF로 만들어 ZIP 한 파일로 저장 ──
   async function bulkPDFperDN() {
     const checked = [...document.querySelectorAll('.row-chk:checked')];
     if (!checked.length) { alert('항목을 선택하세요.'); return; }
-
-    const canFolder = (typeof window.showDirectoryPicker === 'function');
-    let mode; // 'folder' | 'zip'
-    if (canFolder) {
-      // 확인=폴더에 개별 저장 / 취소=ZIP / Esc(=null) 처리는 confirm 특성상 취소로 들어감
-      const useFolder = confirm(
-        `선택한 ${checked.length}건을 어떻게 저장할까요?\n\n` +
-        `[확인]  폴더를 지정해 ${checked.length}개의 PDF 파일을 그대로 저장\n` +
-        `[취소]  ZIP 파일 1개로 압축해서 저장`);
-      mode = useFolder ? 'folder' : 'zip';
-    } else {
-      if (typeof JSZip === 'undefined') { alert('압축 라이브러리 로드 실패. 새로고침 후 다시 시도하세요.'); return; }
-      if (!confirm(`선택한 ${checked.length}건을 DN별 개별 PDF 파일로 만들어 ZIP으로 저장하시겠습니까?`)) return;
-      mode = 'zip';
-    }
-
-    // 폴더 모드: 디렉터리 선택을 먼저 받아야(사용자 제스처) 권한 팝업이 정상 동작
-    let dirHandle = null;
-    if (mode === 'folder') {
-      try {
-        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      } catch (e) {
-        return; // 사용자가 폴더 선택을 취소
-      }
-    } else if (typeof JSZip === 'undefined') {
-      alert('압축 라이브러리 로드 실패. 새로고침 후 다시 시도하세요.'); return;
-    }
+    if (typeof JSZip === 'undefined') { alert('압축 라이브러리 로드 실패. 새로고침 후 다시 시도하세요.'); return; }
+    if (!confirm(`선택한 ${checked.length}건을 DN별 개별 PDF로 만들어 ZIP 파일 하나로 저장하시겠습니까?`)) return;
+    const mode = 'zip';
 
     const btn = document.getElementById('perDnPdfBtn');
     btn.disabled = true;
@@ -843,7 +818,7 @@
 
     try {
       const { jsPDF } = window.jspdf;
-      const zip = (mode === 'zip') ? new JSZip() : null;
+      const zip = new JSZip();
 
       // 목록은 light 조회(서명 제외)라 서명 없는 건은 개별 전체 조회로 prefetch
       // (동시 6건씩 제한 — 수십 건 동시 요청으로 서버가 밀려 실패하는 것 방지)
@@ -892,34 +867,22 @@
         if (usedNames[base]) { usedNames[base]++; base = `${base}_${usedNames[base]}`; }
         else usedNames[base] = 1;
         const fileName = `${base}.pdf`;
-        const blob = pdf.output('blob');
+        zip.file(fileName, pdf.output('blob'));
         made++;
-
-        if (mode === 'folder') {
-          const fh = await dirHandle.getFileHandle(fileName, { create: true });
-          const w = await fh.createWritable();
-          await w.write(blob);
-          await w.close();
-        } else {
-          zip.file(fileName, blob);
-        }
       }
 
       const today = todayKST();
       const failMsg = fetchFail ? `\n⚠ ${fetchFail}건은 데이터 조회에 실패해 제외됐습니다. 다시 시도해 주세요.` : '';
-      if (mode === 'folder') {
-        alert(`완료! 선택한 폴더에 ${made}개의 PDF 파일을 저장했습니다.${failMsg}`);
-      } else {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 압축중...';
-        const zblob = await zip.generateAsync({ type: 'blob' });
-        const url = URL.createObjectURL(zblob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `인수인계서_DN별_${today}_${made}건.zip`;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        if (failMsg) alert(`ZIP 저장 완료 (${made}건)${failMsg}`);
-      }
+      if (!made) { alert('생성된 PDF가 없습니다.' + failMsg); return; }
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 압축중...';
+      const zblob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zblob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `인수인계서_DN별_${today}_${made}건.zip`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      alert(`✅ ZIP 저장 완료 — 인수인계서 ${made}건${failMsg}`);
     } catch (e) {
       alert('PDF 생성 오류: ' + e.message);
       console.error(e);
