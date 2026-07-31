@@ -28,6 +28,22 @@ _tg_raw          = os.environ.get('TELEGRAM_TOKEN', '')
 _tg_match        = re.search(r'(\d+:[A-Za-z0-9_-]+)', _tg_raw)
 TELEGRAM_TOKEN   = _tg_match.group(1) if _tg_match else ''
 TELEGRAM_CHAT_ID = re.sub(r'[^0-9-]', '', os.environ.get('TELEGRAM_CHAT_ID', ''))
+
+def _tg_ids(raw):
+    """쉼표로 여러 명을 적을 수 있다. '111111111, -1002222222' → ['111111111','-1002222222']
+    (개인은 양수, 그룹방은 -100 으로 시작하는 음수)"""
+    out = []
+    for x in str(raw or '').replace(';', ',').split(','):
+        c = re.sub(r'[^0-9-]', '', x)
+        if c and c not in out:
+            out.append(c)
+    return out
+
+# 기본 수신자 — 지금까지 쓰던 것(메틀러토레도 배송완료 등). 설정을 바꾸지 않으면 그대로 동작한다.
+TG_IDS = _tg_ids(os.environ.get('TELEGRAM_CHAT_ID', ''))
+# 캐논메디칼 전용 수신자 (2026-07-31 추가). 캐논 담당 직원들만 캐논 건을 받는다.
+# 비워두면 기본 수신자에게 간다 — 즉 예전과 똑같이 동작한다.
+TG_IDS_CANON = _tg_ids(os.environ.get('TELEGRAM_CHAT_ID_CANON', ''))
 # 기사 서명 링크에 고유 암호를 요구할지. 문제가 생기면 0 으로 바꿔 즉시 되돌린다.
 SIGN_TOKEN_REQUIRED = os.environ.get('SIGN_TOKEN_REQUIRED', '1') != '0'
 
@@ -41,16 +57,22 @@ def make_token(pw: str) -> str:
     """비밀번호 기반 결정적 토큰 — 서버 재시작 후에도 유효"""
     return hashlib.sha256(('totalmogul_salt_' + pw).encode()).hexdigest()
 
-def send_telegram(msg):
-    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
-    try:
-        data = json.dumps({'chat_id': TELEGRAM_CHAT_ID, 'text': msg, 'parse_mode': 'HTML'}).encode()
-        req  = urllib.request.Request(
-            f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage',
-            data=data, headers={'Content-Type': 'application/json'})
-        urllib.request.urlopen(req, timeout=5)
-    except Exception as e:
-        print(f'Telegram 알림 오류: {e}')
+def send_telegram(msg, client_code=''):
+    """client_code='canon' 이면 캐논 담당자에게, 그 외에는 기본 수신자에게 보낸다.
+    캐논 전용 수신자를 지정하지 않았으면 기본 수신자에게 간다(예전과 동일).
+    ⚠️ 한 명이 실패해도 나머지에게는 계속 보낸다 — 한 사람 때문에 전체가 막히면 안 된다."""
+    if not TELEGRAM_TOKEN: return
+    cc  = str(client_code or '').lower()
+    ids = TG_IDS_CANON if (cc in ('canon', '캐논메디칼시스템즈') and TG_IDS_CANON) else TG_IDS
+    for chat_id in ids:
+        try:
+            data = json.dumps({'chat_id': chat_id, 'text': msg, 'parse_mode': 'HTML'}).encode()
+            req  = urllib.request.Request(
+                f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage',
+                data=data, headers={'Content-Type': 'application/json'})
+            urllib.request.urlopen(req, timeout=5)
+        except Exception as e:
+            print(f'Telegram 알림 오류 (chat_id={chat_id}): {e}')
 
 # ── DB 레이어 ─────────────────────────────────────────────────────────
 if DATABASE_URL:
@@ -848,9 +870,48 @@ class Handler(BaseHTTPRequestHandler):
             })
 
         if path == '/api/telegram-status':
-            return self.send_json({'enabled': bool(TELEGRAM_TOKEN and TELEGRAM_CHAT_ID)})
+            return self.send_json({
+                'enabled': bool(TELEGRAM_TOKEN and TG_IDS),
+                '기본수신자': len(TG_IDS),                 # 메틀러 등 — 지금까지 쓰던 것
+                '캐논수신자': len(TG_IDS_CANON),           # 0 이면 캐논도 기본수신자에게 감
+                '캐논전용_설정됨': bool(TG_IDS_CANON),
+            })
+
+        # 받을 사람의 chat_id 찾기 — 각자 봇에게 아무 말이나 보낸 뒤 이 주소를 열면 번호가 보인다
+        if path == '/api/telegram-ids':
+            if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
+            if not TELEGRAM_TOKEN: return self.send_json({'error':'TELEGRAM_TOKEN 없음'})
+            try:
+                res = urllib.request.urlopen(
+                    f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates', timeout=10)
+                j = json.loads(res.read().decode())
+                seen, out = set(), []
+                for u in (j.get('result') or []):
+                    ch = ((u.get('message') or u.get('my_chat_member') or {}).get('chat')) or {}
+                    cid = str(ch.get('id', ''))
+                    if not cid or cid in seen: continue
+                    seen.add(cid)
+                    out.append({
+                        'chat_id': cid,
+                        '이름': (f"{ch.get('first_name','')} {ch.get('last_name','')}".strip()
+                                or ch.get('title', '') or ch.get('username', '')),
+                        '종류': '그룹방' if str(ch.get('type','')) in ('group','supergroup') else '개인',
+                    })
+                return self.send_json({
+                    '찾은대화': out,
+                    '안내': '받을 분들이 봇에게 아무 말이나 한 번 보낸 뒤 이 주소를 새로고침하세요. '
+                            '나온 chat_id 들을 쉼표로 이어 TELEGRAM_CHAT_ID_CANON 에 넣으면 됩니다.',
+                })
+            except Exception as e:
+                return self.send_json({'error': str(e)})
 
         if path == '/api/test-telegram':
+            # ?target=canon 이면 캐논 수신자에게 시험 발송
+            if str(g('target') or '').lower() == 'canon':
+                if not TELEGRAM_TOKEN or not TG_IDS_CANON:
+                    return self.send_json({'error':'캐논 수신자(TELEGRAM_CHAT_ID_CANON)가 설정되지 않았습니다'})
+                send_telegram('🔔 <b>캐논메디칼 서명완료 알림 시험</b>\n이 메시지가 보이면 설정이 끝난 것입니다.', 'canon')
+                return self.send_json({'ok': True, '보낸사람수': len(TG_IDS_CANON)})
             if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
                 return self.send_json({'error':'환경변수 없음'})
             try:
@@ -1368,15 +1429,20 @@ class Handler(BaseHTTPRequestHandler):
                  body.get('receiver_name'), body['driver_signature'], body['receiver_signature'], now, rid))
             rec2 = db_fetch('SELECT * FROM delivery_records WHERE id=?', (rid,))
             if rec2:
+                # 화주에 따라 받는 사람이 다르다 — 캐논 건은 캐논 담당자에게 (2026-07-31)
+                cc = rec2.get('client_code') or ''
+                if not cc and '캐논' in str(rec2.get('customer_company', '')):
+                    cc = 'canon'           # 옛 자료는 client_code 가 비어 있을 수 있다
                 send_telegram(
                     f'📦 <b>서명 완료 알림</b>\n'
                     f'DN번호: {rec2.get("order_no","")}\n'
                     f'고객사: {rec2.get("customer_company","")}\n'
+                    f'도착지: {rec2.get("customer_address","")}\n'
                     f'제품명: {rec2.get("product_name","")}\n'
                     f'수량: {rec2.get("quantity","")}\n'
                     f'수취인: {rec2.get("receiver_name","")}\n'
                     f'기사: {body.get("driver_name","")}\n'
-                    f'완료시각: {now}')
+                    f'완료시각: {now}', cc)
             return self.send_json({'success': True})
 
         # 오더 등록 (admin/staff)
