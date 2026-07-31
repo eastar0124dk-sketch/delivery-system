@@ -896,15 +896,19 @@ class Handler(BaseHTTPRequestHandler):
             if not self.token_ok(admin_only=True):
                 return self.send_json({'error':'Unauthorized'}, 401)
             today = (datetime.utcnow() + timedelta(hours=9)).strftime('%Y-%m-%d')
-            total_today    = (db_fetch('SELECT COUNT(*) as c FROM delivery_records WHERE delivery_date=?', (today,)) or {}).get('c',0)
-            signed_today   = (db_fetch('SELECT COUNT(*) as c FROM delivery_records WHERE delivery_date=? AND status=?', (today,'signed')) or {}).get('c',0)
-            pending_today  = (db_fetch('SELECT COUNT(*) as c FROM delivery_records WHERE delivery_date=? AND status=?', (today,'draft')) or {}).get('c',0)
+            # 캐논메디칼 건은 ACTOS(E-POD 관리)에서 본다 — 이 앱 대시보드에서는 빼고 센다
+            # (2026-07-31 사용자 지시). /api/records 의 기본 제외와 같은 기준을 쓴다.
+            NOCANON = " AND COALESCE(client_code,'') NOT IN ('canon','캐논메디칼시스템즈')"
+            total_today    = (db_fetch('SELECT COUNT(*) as c FROM delivery_records WHERE delivery_date=?'+NOCANON, (today,)) or {}).get('c',0)
+            signed_today   = (db_fetch('SELECT COUNT(*) as c FROM delivery_records WHERE delivery_date=? AND status=?'+NOCANON, (today,'signed')) or {}).get('c',0)
+            pending_today  = (db_fetch('SELECT COUNT(*) as c FROM delivery_records WHERE delivery_date=? AND status=?'+NOCANON, (today,'draft')) or {}).get('c',0)
             open_claims    = (db_fetch("SELECT COUNT(*) as c FROM claims WHERE status='open'") or {}).get('c',0)
             pending_todos  = (db_fetch("SELECT COUNT(*) as c FROM todos WHERE done=0") or {}).get('c',0)
             bonded_in      = (db_fetch("SELECT COUNT(*) as c FROM bonded_records WHERE record_date=? AND record_type='반입'", (today,)) or {}).get('c',0)
             bonded_out     = (db_fetch("SELECT COUNT(*) as c FROM bonded_records WHERE record_date=? AND record_type='반출'", (today,)) or {}).get('c',0)
             recent_signed  = db_fetchall(
-                "SELECT order_no,customer_company,signed_at FROM delivery_records WHERE status='signed' ORDER BY signed_at DESC LIMIT 5")
+                "SELECT order_no,customer_company,signed_at FROM delivery_records WHERE status='signed'"
+                + NOCANON + " ORDER BY signed_at DESC LIMIT 5")
             return self.send_json({
                 'today': today, 'total_today': total_today,
                 'signed_today': signed_today, 'pending_today': pending_today,
@@ -951,6 +955,11 @@ class Handler(BaseHTTPRequestHandler):
                     params.extend([client_code, alt])
                 else:
                     sql += ' AND client_code=?'; params.append(client_code)
+            else:
+                # 캐논메디칼 건은 ACTOS(E-POD 관리)에서 처리한다 —
+                # 화주를 고르지 않은 조회에서는 이 앱에 섞여 나오지 않게 뺀다 (2026-07-31 사용자 지시).
+                # 캐논만 따로 보려면 client_code=canon 을 명시하면 그대로 나온다.
+                sql += " AND COALESCE(client_code,'') NOT IN ('canon','캐논메디칼시스템즈')"
             sql += ' ORDER BY created_at DESC LIMIT ?'; params.append(limit)
             return self.send_json({'data': db_fetchall(sql, params)})
 
