@@ -75,7 +75,10 @@ if DATABASE_URL:
         for col in ['work_fee TEXT','return_fee TEXT','delivery_note TEXT','vehicle_type TEXT',
                     'origin TEXT','origin_address TEXT','contact_person TEXT','contact_phone TEXT',
                     'transport_type TEXT','dest_sido TEXT','dest_sigun TEXT','origin_sido TEXT','origin_sigun TEXT',
-                    'client_code TEXT','dn_list TEXT','sign_token TEXT']:
+                    'client_code TEXT','dn_list TEXT','sign_token TEXT',
+                    # 출고지시서 사진 (JSON 배열의 data URL). 서명 링크로 들어온 사람만 볼 수 있다.
+                    # ⚠️ 서명 이미지와 같이 큰 값이라 목록 조회(light)에서는 절대 select 하지 말 것 — OOM 난다
+                    'shipping_docs TEXT']:
             try: cur.execute(f"ALTER TABLE delivery_records ADD COLUMN IF NOT EXISTS {col}")
             except: pass
         cur.execute('''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)''')
@@ -236,7 +239,7 @@ else:
         for col in ['work_fee TEXT','return_fee TEXT','delivery_note TEXT','vehicle_type TEXT',
                     'origin TEXT','origin_address TEXT','contact_person TEXT','contact_phone TEXT',
                     'transport_type TEXT','dest_sido TEXT','dest_sigun TEXT','origin_sido TEXT','origin_sigun TEXT',
-                    'client_code TEXT','dn_list TEXT']:
+                    'client_code TEXT','dn_list TEXT','sign_token TEXT','shipping_docs TEXT']:
             try: c.execute(f'ALTER TABLE delivery_records ADD COLUMN {col}'); c.commit()
             except: pass
         c.execute('''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)''')
@@ -867,7 +870,9 @@ class Handler(BaseHTTPRequestHandler):
             row = db_fetch(
                 'SELECT id,order_no,dn_list,delivery_date,product_name,quantity,customer_company,'
                 'customer_address,receiver_name,driver_name,driver_phone,vehicle_no,'
-                'status,extra_locations,wait_time,work_time,work_fee,notes,sign_token '
+                # shipping_docs(출고지시서 사진)는 여기서만 내보낸다 —
+                # 이 조회는 아래 sign_link_ok() 로 서명 링크 암호를 확인하므로, 링크를 받은 사람만 보게 된다
+                'status,extra_locations,wait_time,work_time,work_fee,notes,shipping_docs,sign_token '
                 'FROM delivery_records WHERE order_no=? OR order_no LIKE ? OR order_no LIKE ? OR order_no LIKE ? OR dn_list LIKE ?',
                 (order_no, f'{order_no} 외%', f'{order_no}외%', f'{order_no}%', f'%{order_no}%'))
             if row and not self.sign_link_ok(row, g('t').strip()):

@@ -479,6 +479,10 @@
       if(r.driver_name) document.getElementById('inp_driver_name').value=r.driver_name;
       if(r.driver_phone) document.getElementById('inp_driver_phone').value=r.driver_phone;
       if(r.vehicle_no) document.getElementById('inp_vehicle_no').value=r.vehicle_no;
+      /* 수령자 성함은 오더의 수취인으로 미리 채운다 — 기사가 현장에서 다시 적지 않게 (2026-07-31 사용자 지시).
+         실제와 다르면 그 자리에서 고쳐 쓰면 된다. */
+      const rc=document.getElementById('inp_receiver_name_confirm');
+      if(rc && !rc.value) rc.value=cleanName(r.receiver_name);
 
       let locs='';
       try {
@@ -492,15 +496,56 @@
         <div class="info-row"><div class="lbl">배송일자</div><div class="val">${r.delivery_date||'-'}</div></div>
         <div class="info-row"><div class="lbl">고객사</div><div class="val">${r.customer_company||'-'}</div></div>
         <div class="info-row"><div class="lbl">배송지</div><div class="val">${r.customer_address||'-'}</div></div>
-        <div class="info-row"><div class="lbl">수취인</div><div class="val">${r.receiver_name||'-'}</div></div>
+        <div class="info-row"><div class="lbl">수취인</div><div class="val">${cleanName(r.receiver_name)||'-'}</div></div>
         <div class="info-row"><div class="lbl">제품명</div><div class="val">${r.product_name||'-'}</div></div>
         <div class="info-row"><div class="lbl">박스 수량</div><div class="val" style="font-weight:700;font-size:16px;color:#2d3748;">${r.quantity||'-'}</div></div>
         ${r.wait_time?`<div class="info-row"><div class="lbl">현장대기</div><div class="val">${r.wait_time}분</div></div>`:''}
         ${r.work_time?`<div class="info-row"><div class="lbl">수작업</div><div class="val">${r.work_time}분</div></div>`:''}
         ${locs}
         ${r.notes?`<div class="info-row"><div class="lbl">비고</div><div class="val">${r.notes}</div></div>`:''}
+        ${docsHtml(r.shipping_docs)}
       `;
       setStep(2);
+    }
+
+    /* 이미 저장된 오더 중에는 수취인이 "박재영 수석 ()" 처럼 빈 괄호가 남은 건이 있다
+       (연락처를 떼어낼 때 생긴 자국 — 만드는 쪽은 2026-07-31 고쳤지만 예전 자료는 그대로다).
+       화면에 보이거나 자동 입력될 때는 털어내고 쓴다. */
+    function cleanName(v) {
+      return String(v == null ? '' : v)
+        .replace(/[(（]\s*[)）]/g, '')
+        .replace(/[\/,·|(（)）-]+\s*$/, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    }
+
+    /* 출고지시서 — 서명 링크로 들어온 사람만 받아볼 수 있다(서버가 암호 확인 후 내려줌).
+       탭하면 새 창으로 크게 본다. 기사·하차지 담당자가 현장에서 보고 대조하는 용도. */
+    function docsHtml(raw) {
+      let arr = [];
+      try { const v = JSON.parse(raw || '[]'); if (Array.isArray(v)) arr = v.filter(Boolean); } catch (e) {}
+      docList = arr;                    /* 크게 보기에서 쓴다 — 원본을 onclick 속성에 넣으면 너무 길다 */
+      if (!arr.length) return '';
+      /* 작은 썸네일로 두면 상품코드·수량이 안 보여 현장에서 못 쓴다 —
+         화면 폭에 꽉 채워 그대로 보여주고, 누르면 원본 크기로 연다 (2026-07-31 사용자 지시) */
+      return `<div class="info-row" style="display:block;">
+        <div class="lbl" style="margin-bottom:8px;">출고지시서 ${arr.length}장
+          <span style="font-weight:400;color:#718096;font-size:12px;">— 눌러서 원본 크기로 보기</span></div>
+        ${arr.map((d,i)=>`<div style="margin-bottom:10px;">
+          ${arr.length>1?`<div style="font-size:12px;color:#718096;margin-bottom:4px;">${i+1} / ${arr.length}</div>`:''}
+          <img src="${d}" alt="출고지시서 ${i+1}" onclick="openDoc(${i})"
+            style="width:100%;height:auto;display:block;border:1px solid #cbd5e0;border-radius:8px;cursor:zoom-in;background:#fff;">
+        </div>`).join('')}</div>`;
+    }
+    let docList = [];
+    function openDoc(i) {
+      const d = docList[i]; if (!d) return;
+      const w = window.open('', '_blank');
+      if (!w) { alert('팝업이 차단됐습니다. 주소창의 차단 아이콘을 눌러 허용해 주세요.'); return; }
+      w.document.write(`<title>출고지시서 ${i+1}</title>
+        <body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+        <img src="${d}" style="max-width:100%;height:auto;">`);
+      w.document.close();
     }
 
     function goToDriverSign() {
