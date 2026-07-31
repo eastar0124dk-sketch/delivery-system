@@ -162,6 +162,8 @@
     <a href="list.html">조회/출력</a>
     <a href="index.html">홈</a>
     <button type="button" id="btnInstall" onclick="installApp()" style="display:none;align-items:center;gap:5px;background:#fff;color:#4f46e5;border:0;padding:6px 13px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">📲 휴대폰에 설치</button>
+    <!-- 캐논 알림 단톡방 등록 — 주소창으로는 관리자 인증 헤더가 안 붙어 버튼으로 둔다 (2026-07-31) -->
+    <a href="#" id="canonTgBtn" style="background:rgba(255,255,255,.2);padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;" onclick="setupCanonTelegram(this);return false;">🔔 캐논 알림 설정</a>
     <a href="#" id="pwChangeBtn" style="display:none;background:rgba(255,255,255,.2);padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;" onclick="document.getElementById('pwModal').classList.add('show');return false;">🔐 비밀번호 변경</a>
   </div>
 </div>
@@ -767,6 +769,30 @@
 
   function authHeader() {
     return { 'Content-Type':'application/json', 'Authorization': `Bearer ${adminToken}` };
+  }
+
+  /* 캐논 서명완료 알림 단톡방 등록.
+     ⚠️ 주소창으로 /api/telegram-canon-setup 을 열면 Authorization 헤더가 안 붙어 늘 Unauthorized 다.
+        그래서 여기(로그인된 화면)에서 버튼으로 부른다. */
+  async function setupCanonTelegram(btn) {
+    const old = btn.textContent;
+    btn.textContent = '설정 중…';
+    try {
+      const res = await fetch('/api/telegram-canon-setup', { headers: authHeader() });
+      const j = await res.json();
+      if (j.ok) {
+        const 방 = (j['등록됨'] || []).map(x => `${x['이름']} (${x.chat_id})`).join('\n');
+        alert('✅ 캐논 알림 설정 완료\n\n' + 방 + '\n\n단톡방에 확인 메시지를 보냈습니다.');
+      } else if (j.error === 'Unauthorized') {
+        alert('관리자로 로그인한 뒤 다시 눌러 주세요.');
+      } else {
+        alert('설정하지 못했습니다\n\n' + (j.error || '') + '\n' + (j['해야할일'] || ''));
+      }
+    } catch (e) {
+      alert('설정하지 못했습니다\n\n' + (e.message || e));
+    } finally {
+      btn.textContent = old;
+    }
   }
 
   async function checkAuth() {
