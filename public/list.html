@@ -968,6 +968,14 @@
       `<div class="status-tag status-signed-tag">✅ 서명 완료</div>`:
       `<div class="status-tag status-draft-tag">📋 서명 대기 중</div>`;
 
+    /* 도착시간은 실제로 도착한 시각이어야 한다. 기사가 도착지에서 서명을 받으므로
+       서명 시각이 곧 도착 시각이다. 접수 때 적어둔 값은 '예정'일 뿐이라, 서명이 끝났는데도
+       그 값이 남아 있으면 인수증이 사실과 다른 시각을 증명하게 된다 (2026-07-31). */
+    const arrivalOf=x=>{
+      const m=String(x.signed_at||'').match(/(\d{1,2}):(\d{2})/);
+      return m?`${String(m[1]).padStart(2,'0')}:${m[2]}`:(x.arrival_time||'-');
+    };
+
     const driverSig=r.driver_signature?`<img src="${r.driver_signature}" alt="기사서명">`:`<div class="sig-empty-sm">서명 없음</div>`;
     const receiverSig=r.receiver_signature?`<img src="${r.receiver_signature}" alt="수령자서명">`:`<div class="sig-empty-sm">서명 없음</div>`;
 
@@ -983,7 +991,7 @@
         <div class="ii"><span class="l">고객사(배송지) :</span><span class="v">${r.customer_company||'-'}</span></div>
         <div class="ii"><span class="l">수취인 :</span><span class="v">${r.receiver_name||'-'}</span></div>
         ${r.customer_address?`<div class="ii" style="grid-column:span 2;"><span class="l">주소 :</span><span class="v">${r.customer_address}</span></div>`:''}
-        <div class="ii"><span class="l">도착시간 :</span><span class="v">${r.arrival_time||'-'}</span></div>
+        <div class="ii"><span class="l">도착시간 :</span><span class="v">${arrivalOf(r)}</span></div>
         <div class="ii"><span class="l">수취인 연락처 :</span><span class="v">${r.receiver_phone?r.receiver_phone.replace(/(\d{2,3})-?(\d{3,4})-?(\d{4})/,'$1-****-$3'):'-'}</span></div>
         <div class="ii" style="grid-column:span 2;"><span class="l">제품명 :</span><span class="v">${r.product_name||'-'}</span></div>
         <div class="ii" style="grid-column:span 2;"><span class="l">비고 :</span><span class="v">${r.notes||'없음'}</span></div>
