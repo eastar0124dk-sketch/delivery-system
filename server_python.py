@@ -51,11 +51,24 @@ _tgc = re.search(r'(\d+:[A-Za-z0-9_-]+)', os.environ.get('TELEGRAM_TOKEN_CANON',
 TELEGRAM_TOKEN_CANON = _tgc.group(1) if _tgc else ''
 TG_IDS_CANON = _tg_ids(os.environ.get('TELEGRAM_CHAT_ID_CANON', ''))
 
+def canon_ids():
+    """캐논 수신자. DB(app_settings)에 저장된 값이 우선이고, 없으면 환경변수를 쓴다.
+    DB 를 먼저 보는 이유: 관리자가 /api/telegram-canon-setup 을 한 번 누르면
+    Render 설정을 건드리지 않고도 단톡방이 등록되게 하려는 것 (2026-07-31)."""
+    try:
+        v = (db_fetch('SELECT value FROM app_settings WHERE key=?', ('tg_canon_chat_ids',)) or {}).get('value')
+        got = _tg_ids(v)
+        if got: return got
+    except Exception:
+        pass
+    return TG_IDS_CANON
+
 def tg_route(client_code=''):
     """화주에 맞는 (봇 토큰, 받는 사람들) 을 고른다."""
     cc = str(client_code or '').lower()
-    if cc in ('canon', '캐논메디칼시스템즈') and TG_IDS_CANON:
-        return (TELEGRAM_TOKEN_CANON or TELEGRAM_TOKEN), TG_IDS_CANON
+    ids = canon_ids()
+    if cc in ('canon', '캐논메디칼시스템즈') and ids:
+        return (TELEGRAM_TOKEN_CANON or TELEGRAM_TOKEN), ids
     return TELEGRAM_TOKEN, TG_IDS
 # 기사 서명 링크에 고유 암호를 요구할지. 문제가 생기면 0 으로 바꿔 즉시 되돌린다.
 SIGN_TOKEN_REQUIRED = os.environ.get('SIGN_TOKEN_REQUIRED', '1') != '0'
@@ -887,8 +900,8 @@ class Handler(BaseHTTPRequestHandler):
                 '기본_봇있음': bool(TELEGRAM_TOKEN),
                 '기본수신자': len(TG_IDS),                 # 메틀러 등 — 지금까지 쓰던 것
                 '캐논_봇있음': bool(TELEGRAM_TOKEN_CANON),  # 캐논 전용 봇을 따로 만들었는지
-                '캐논수신자': len(TG_IDS_CANON),           # 0 이면 캐논도 기본수신자에게 감
-                '캐논전용_설정됨': bool(TG_IDS_CANON),
+                '캐논수신자': len(canon_ids()),            # 0 이면 캐논도 기본수신자에게 감
+                '캐논전용_설정됨': bool(canon_ids()),
             })
 
         # 받을 사람의 chat_id 찾기 — 각자 봇에게 아무 말이나 보낸 뒤 이 주소를 열면 번호가 보인다
@@ -925,13 +938,50 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self.send_json({'error': str(e)})
 
+        # 캐논 단톡방 자동 등록 — 번호를 손으로 찾아 옮겨 적지 않아도 되게 한다.
+        # 방을 만들고 봇을 초대한 뒤 방에서 /start 를 보낸 다음, 이 주소를 한 번 열면 끝난다.
+        if path == '/api/telegram-canon-setup':
+            if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
+            tok = TELEGRAM_TOKEN_CANON or TELEGRAM_TOKEN
+            if not tok: return self.send_json({'error':'캐논 봇 토큰(TELEGRAM_TOKEN_CANON)이 없습니다'})
+            try:
+                res = urllib.request.urlopen(f'https://api.telegram.org/bot{tok}/getUpdates', timeout=10)
+                j = json.loads(res.read().decode())
+                groups, people, seen = [], [], set()
+                for u in (j.get('result') or []):
+                    ch = ((u.get('message') or u.get('my_chat_member') or {}).get('chat')) or {}
+                    cid = str(ch.get('id', ''))
+                    if not cid or cid in seen: continue
+                    seen.add(cid)
+                    name = (ch.get('title') or f"{ch.get('first_name','')} {ch.get('last_name','')}".strip()
+                            or ch.get('username', ''))
+                    (groups if str(ch.get('type','')) in ('group','supergroup') else people).append(
+                        {'chat_id': cid, '이름': name})
+                # 단톡방이 있으면 그것만 쓴다 (사람이 늘어도 설정을 안 고쳐도 되므로)
+                use = groups or people
+                if not use:
+                    return self.send_json({
+                        'error': '봇이 받은 대화가 없습니다.',
+                        '해야할일': '단톡방에 봇을 초대한 뒤 방에서 /start 를 보내고 다시 눌러 주세요.'})
+                ids = ','.join(x['chat_id'] for x in use)
+                db_exec('INSERT INTO app_settings(key,value) VALUES(?,?) '
+                        'ON CONFLICT(key) DO UPDATE SET value=excluded.value', ('tg_canon_chat_ids', ids))
+                send_telegram('✅ <b>캐논메디칼 알림 설정 완료</b>\n'
+                              '앞으로 캐논 배송 서명이 끝나면 이 방으로 알려 드립니다.', 'canon')
+                return self.send_json({'ok': True, '등록됨': use,
+                    '안내': '시험 메시지를 보냈습니다. 방에 도착했으면 끝입니다. '
+                            '사람이 늘면 이 방에 초대만 하면 되고 설정은 그대로 두시면 됩니다.'})
+            except Exception as e:
+                return self.send_json({'error': str(e)})
+
         if path == '/api/test-telegram':
             # ?target=canon 이면 캐논 수신자에게 시험 발송
             if str(g('target') or '').lower() == 'canon':
-                if not TELEGRAM_TOKEN or not TG_IDS_CANON:
-                    return self.send_json({'error':'캐논 수신자(TELEGRAM_CHAT_ID_CANON)가 설정되지 않았습니다'})
+                ids = canon_ids()
+                if not ids:
+                    return self.send_json({'error':'캐논 수신자가 없습니다. /api/telegram-canon-setup 을 먼저 열어 주세요.'})
                 send_telegram('🔔 <b>캐논메디칼 서명완료 알림 시험</b>\n이 메시지가 보이면 설정이 끝난 것입니다.', 'canon')
-                return self.send_json({'ok': True, '보낸사람수': len(TG_IDS_CANON)})
+                return self.send_json({'ok': True, '보낸곳': ids})
             if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
                 return self.send_json({'error':'환경변수 없음'})
             try:
