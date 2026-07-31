@@ -39,11 +39,24 @@ def _tg_ids(raw):
             out.append(c)
     return out
 
-# 기본 수신자 — 지금까지 쓰던 것(메틀러토레도 배송완료 등). 설정을 바꾸지 않으면 그대로 동작한다.
+# 기본 수신자 — 지금까지 쓰던 것(메틀러토레도 '배송완료알림봇'). 설정을 바꾸지 않으면 그대로 동작한다.
 TG_IDS = _tg_ids(os.environ.get('TELEGRAM_CHAT_ID', ''))
-# 캐논메디칼 전용 수신자 (2026-07-31 추가). 캐논 담당 직원들만 캐논 건을 받는다.
-# 비워두면 기본 수신자에게 간다 — 즉 예전과 똑같이 동작한다.
+
+# ── 캐논메디칼 전용 (2026-07-31 추가) ────────────────────────────────
+# 캐논은 **봇을 따로 만들어** 쓴다 (메틀러 알림봇과 섞이지 않게).
+#   TELEGRAM_TOKEN_CANON   : 새로 만든 캐논 봇 토큰. 없으면 기존 봇을 쓴다.
+#   TELEGRAM_CHAT_ID_CANON : 캐논 담당자들 (쉼표로 여러 명)
+# 둘 다 비워두면 예전과 똑같이 기본 수신자에게 간다.
+_tgc = re.search(r'(\d+:[A-Za-z0-9_-]+)', os.environ.get('TELEGRAM_TOKEN_CANON', ''))
+TELEGRAM_TOKEN_CANON = _tgc.group(1) if _tgc else ''
 TG_IDS_CANON = _tg_ids(os.environ.get('TELEGRAM_CHAT_ID_CANON', ''))
+
+def tg_route(client_code=''):
+    """화주에 맞는 (봇 토큰, 받는 사람들) 을 고른다."""
+    cc = str(client_code or '').lower()
+    if cc in ('canon', '캐논메디칼시스템즈') and TG_IDS_CANON:
+        return (TELEGRAM_TOKEN_CANON or TELEGRAM_TOKEN), TG_IDS_CANON
+    return TELEGRAM_TOKEN, TG_IDS
 # 기사 서명 링크에 고유 암호를 요구할지. 문제가 생기면 0 으로 바꿔 즉시 되돌린다.
 SIGN_TOKEN_REQUIRED = os.environ.get('SIGN_TOKEN_REQUIRED', '1') != '0'
 
@@ -61,14 +74,13 @@ def send_telegram(msg, client_code=''):
     """client_code='canon' 이면 캐논 담당자에게, 그 외에는 기본 수신자에게 보낸다.
     캐논 전용 수신자를 지정하지 않았으면 기본 수신자에게 간다(예전과 동일).
     ⚠️ 한 명이 실패해도 나머지에게는 계속 보낸다 — 한 사람 때문에 전체가 막히면 안 된다."""
-    if not TELEGRAM_TOKEN: return
-    cc  = str(client_code or '').lower()
-    ids = TG_IDS_CANON if (cc in ('canon', '캐논메디칼시스템즈') and TG_IDS_CANON) else TG_IDS
+    token, ids = tg_route(client_code)
+    if not token or not ids: return
     for chat_id in ids:
         try:
             data = json.dumps({'chat_id': chat_id, 'text': msg, 'parse_mode': 'HTML'}).encode()
             req  = urllib.request.Request(
-                f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage',
+                f'https://api.telegram.org/bot{token}/sendMessage',
                 data=data, headers={'Content-Type': 'application/json'})
             urllib.request.urlopen(req, timeout=5)
         except Exception as e:
@@ -872,18 +884,24 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/telegram-status':
             return self.send_json({
                 'enabled': bool(TELEGRAM_TOKEN and TG_IDS),
+                '기본_봇있음': bool(TELEGRAM_TOKEN),
                 '기본수신자': len(TG_IDS),                 # 메틀러 등 — 지금까지 쓰던 것
+                '캐논_봇있음': bool(TELEGRAM_TOKEN_CANON),  # 캐논 전용 봇을 따로 만들었는지
                 '캐논수신자': len(TG_IDS_CANON),           # 0 이면 캐논도 기본수신자에게 감
                 '캐논전용_설정됨': bool(TG_IDS_CANON),
             })
 
         # 받을 사람의 chat_id 찾기 — 각자 봇에게 아무 말이나 보낸 뒤 이 주소를 열면 번호가 보인다
+        # ?bot=canon 이면 캐논 전용 봇에게 온 것을 본다
         if path == '/api/telegram-ids':
             if not self.token_ok(admin_only=True): return self.send_json({'error':'Unauthorized'}, 401)
-            if not TELEGRAM_TOKEN: return self.send_json({'error':'TELEGRAM_TOKEN 없음'})
+            _which = str(g('bot') or '').lower()
+            _tok = (TELEGRAM_TOKEN_CANON or TELEGRAM_TOKEN) if _which == 'canon' else TELEGRAM_TOKEN
+            if not _tok:
+                return self.send_json({'error': ('TELEGRAM_TOKEN_CANON 없음' if _which=='canon' else 'TELEGRAM_TOKEN 없음')})
             try:
                 res = urllib.request.urlopen(
-                    f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates', timeout=10)
+                    f'https://api.telegram.org/bot{_tok}/getUpdates', timeout=10)
                 j = json.loads(res.read().decode())
                 seen, out = set(), []
                 for u in (j.get('result') or []):
@@ -898,9 +916,11 @@ class Handler(BaseHTTPRequestHandler):
                         '종류': '그룹방' if str(ch.get('type','')) in ('group','supergroup') else '개인',
                     })
                 return self.send_json({
+                    '어느봇': ('캐논 전용 봇' if _which == 'canon' else '기본(메틀러) 봇'),
                     '찾은대화': out,
-                    '안내': '받을 분들이 봇에게 아무 말이나 한 번 보낸 뒤 이 주소를 새로고침하세요. '
-                            '나온 chat_id 들을 쉼표로 이어 TELEGRAM_CHAT_ID_CANON 에 넣으면 됩니다.',
+                    '안내': '받을 분들이 봇에게 아무 말이나 한 번 보낸 뒤(그룹방이면 방에서 아무 말) '
+                            '이 주소를 새로고침하세요. 나온 chat_id 를 TELEGRAM_CHAT_ID_CANON 에 넣습니다. '
+                            '캐논 봇을 따로 만들었으면 주소 끝에 ?bot=canon 을 붙이세요.',
                 })
             except Exception as e:
                 return self.send_json({'error': str(e)})
