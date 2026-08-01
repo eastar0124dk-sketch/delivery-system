@@ -58,6 +58,12 @@
     .sig-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#cbd5e0;pointer-events:none;transition:opacity .3s;}
     .sig-hint i{font-size:28px;display:block;margin-bottom:6px;}
     .sig-hint span{font-size:13px;}
+    /* 사인처럼 흘려 쓰면 나중에 누가 받았는지 알 수 없다 — 놓칠 수 없게 크게 띄운다 */
+    .sig-notice{background:#fff5f7;border:2px solid #f5576c;border-left-width:6px;
+      border-radius:10px;padding:12px 14px;margin-bottom:12px;}
+    .sig-notice-t{font-size:17px;font-weight:800;color:#c53030;line-height:1.4;letter-spacing:-.02em;}
+    .sig-notice-t u{text-underline-offset:3px;}
+    .sig-notice-s{font-size:12.5px;color:#4a5568;margin-top:6px;line-height:1.6;}
     .sig-controls{display:flex;gap:8px;margin-top:8px;}
     .complete-box{text-align:center;padding:30px 20px;}
     .complete-box .check-icon{width:72px;height:72px;background:linear-gradient(135deg,#43e97b,#38f9d7);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px;color:#fff;}
@@ -128,10 +134,14 @@
       <!-- STEP 3: 기사 서명 -->
       <div id="driverSignCard" class="card" style="display:none;">
         <div class="card-title"><i class="fas fa-pen"></i>운송담당자 서명</div>
-        <p style="font-size:12px;color:#718096;margin-bottom:12px;">아래 박스에 손가락으로 서명하세요</p>
+        <!-- 흘려 쓴 사인은 나중에 누가 받았는지 알 수가 없다. 이름을 정자로 받는다 (2026-08-01 지시) -->
+        <div class="sig-notice">
+          <div class="sig-notice-t">✍️ 성함을 <u>정자로</u> 써 주세요</div>
+          <div class="sig-notice-s">사인이 아니라 <b>배송기사 이름</b>을 또박또박 적어 주세요.<br>나중에 확인할 때 알아볼 수 있어야 합니다.</div>
+        </div>
         <div class="sig-canvas-container" id="driverSigContainer">
           <canvas id="driverCanvas"></canvas>
-          <div id="driverSigHint" class="sig-hint"><i class="fas fa-pen"></i><span>여기에 서명하세요</span></div>
+          <div id="driverSigHint" class="sig-hint"><i class="fas fa-pen"></i><span>여기에 이름을 정자로</span></div>
         </div>
         <div class="sig-controls">
           <button class="btn btn-secondary" onclick="clearSig('driver')" style="flex:1;"><i class="fas fa-redo"></i>지우기</button>
@@ -159,10 +169,13 @@
 
         <!-- 서명 영역 -->
         <div id="receiverSigArea">
-          <p style="font-size:12px;color:#718096;margin-bottom:12px;">아래 박스에 손가락으로 서명하세요</p>
+          <div class="sig-notice">
+            <div class="sig-notice-t">✍️ 성함을 <u>정자로</u> 써 주세요</div>
+            <div class="sig-notice-s">사인이 아니라 <b>수령자 이름</b>을 또박또박 적어 주세요.<br>나중에 확인할 때 알아볼 수 있어야 합니다.</div>
+          </div>
           <div class="sig-canvas-container" id="receiverSigContainer">
             <canvas id="receiverCanvas"></canvas>
-            <div id="receiverSigHint" class="sig-hint"><i class="fas fa-pen"></i><span>여기에 서명하세요</span></div>
+            <div id="receiverSigHint" class="sig-hint"><i class="fas fa-pen"></i><span>여기에 이름을 정자로</span></div>
           </div>
           <div class="sig-controls">
             <button class="btn btn-secondary" onclick="clearSig('receiver')" style="flex:1;"><i class="fas fa-redo"></i>지우기</button>
