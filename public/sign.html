@@ -472,20 +472,30 @@
       st.n = Math.max(NB_MIN, Math.min(NB_MAX, n));
       wrap.innerHTML = '';
       st.cells = [];
+      /* ⚠️ 칸을 하나 붙일 때마다 크기를 재면 안 된다.
+         칸은 flex:1 로 너비를 나눠 갖기 때문에, 첫 칸은 붙는 순간 혼자라서
+         줄 전체 너비로 잡히고 둘째는 절반으로 잡힌다. 그 크기로 캔버스를 만들어 두면
+         앞 칸일수록 캔버스만 크고 글씨는 그 안에서 작게 찍힌다
+         (2026-08-03: "첫 글자랑 두 번째 글자가 작게 입력된다").
+         그래서 ① 칸과 ＋ 단추를 먼저 다 붙이고 ② 그 다음에 캔버스를 만든다. */
+      const cells = [];
       for (let i = 0; i < st.n; i++) {
         const cell = document.createElement('div');
         cell.className = 'nb-cell';
         cell.innerHTML = '<span class="nb-no">' + (i + 1) + '</span><canvas></canvas>';
         wrap.appendChild(cell);
-        st.cells.push(nbCell(cell, cell.querySelector('canvas'), type, keep[i]));
+        cells.push(cell);
       }
       if (st.n < NB_MAX) {
         const add = document.createElement('button');
         add.type = 'button'; add.className = 'nb-add'; add.textContent = '＋';
         add.title = '칸 늘리기';
         add.onclick = () => nbBuild(type, st.n + 1);
-        wrap.appendChild(add);
+        wrap.appendChild(add);   // ＋ 단추도 너비를 차지하므로 재기 전에 붙여 둔다
       }
+      cells.forEach((cell, i) => {
+        st.cells.push(nbCell(cell, cell.querySelector('canvas'), type, keep[i]));
+      });
     }
 
     function nbCell(cell, canvas, type, restore) {
