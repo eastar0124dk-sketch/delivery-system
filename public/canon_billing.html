@@ -651,6 +651,9 @@
 </div>
 
 <script>
+  /* 서버가 인증을 요구한다 (2026-08-03). auth-guard 가 넣어 둔 토큰을 함께 보낸다 */
+  function cbTok(){ return sessionStorage.getItem('adminToken')||sessionStorage.getItem('staffToken')||''; }
+  function cbAuthH(extra){ return Object.assign({Authorization:'Bearer '+cbTok()}, extra||{}); }
 /* ════════════════════════════════════════════════════════════
    캐논 운임 유틸리티
    (canon_rates.js에서 CANON_CLIENT_RATES, CANON_CARRIER_RATES 로드됨)
@@ -1109,7 +1112,7 @@ async function loadStorage() {
 
   let serverData = null;
   try {
-    const res = await fetch('/api/canon/billing', { cache:'no-store' });
+    const res = await fetch('/api/canon/billing', { cache:'no-store', headers: cbAuthH() });
     if (res.ok) {
       const json = await res.json();
       serverData = json.data || {};
@@ -1147,7 +1150,7 @@ async function loadStorage() {
       try {
         await fetch('/api/canon/billing', {
           method:'POST',
-          headers:{'Content-Type':'application/json'},
+          headers: cbAuthH({'Content-Type':'application/json'}),
           body: JSON.stringify({ month: m, rows: billingData[m], manualSort: [...manualSortMonths] })
         });
       } catch(e) { console.warn('마이그레이션 실패', m, e); }
@@ -1270,7 +1273,7 @@ function flushPendingSave() {
   // 폴백
   try {
     fetch('/api/canon/billing', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers: cbAuthH({'Content-Type':'application/json'}),
       body, keepalive: true
     });
   } catch(e) {}
@@ -1288,7 +1291,7 @@ document.addEventListener('visibilitychange', async () => {
   if (saveStorage._lastEditAt && now - saveStorage._lastEditAt < 5000) return;
   if (saveStorage._lastSyncAt && now - saveStorage._lastSyncAt < 5000) return;
   try {
-    const res = await fetch('/api/canon/billing', { cache:'no-store' });
+    const res = await fetch('/api/canon/billing', { cache:'no-store', headers: cbAuthH() });
     if (!res.ok) return;
     const json = await res.json();
     const serverData = json.data || {};
@@ -1312,7 +1315,7 @@ async function syncCurrentMonthToServer(month) {
   const manualSort = [...manualSortMonths];
   const res = await fetch('/api/canon/billing', {
     method:'POST',
-    headers:{'Content-Type':'application/json'},
+    headers: cbAuthH({'Content-Type':'application/json'}),
     body: JSON.stringify({ month: m, rows, manualSort })
   });
   if (!res.ok) throw new Error('save failed: '+res.status);

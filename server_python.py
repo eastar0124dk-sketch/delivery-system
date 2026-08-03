@@ -809,7 +809,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({'companyName': COMPANY})
 
         # ── 캐논 청구 데이터 (PC 간 공유) ──
+        # ⚠️ 2026-08-03 이전까지 이 엔드포인트에는 인증이 없었다.
+        #    CORS 가 '*' 로 열려 있어, 주소만 알면 누구나 캐논 운임·청구금액·마진을
+        #    통째로 읽고 POST 로 한 달치를 덮어쓸 수도 있었다. 바로 아래 /api/open-file 은
+        #    검사를 하고 있는 것으로 보아 정책이 아니라 빠뜨린 것이다.
         if path == '/api/canon/billing':
+            if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
             rows = db_fetchall('SELECT month, data FROM canon_billing', ())
             out = {}
             for r in rows:
@@ -1379,7 +1384,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({'success': True})
 
         # ── 캐논 청구 데이터 저장 (월별 덮어쓰기) ──
+        # ⚠️ 인증이 없었다 — 아무나 한 달치를 통째로 덮어쓸 수 있었다 (2026-08-03)
         if p == '/api/canon/billing':
+            if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
             month = body.get('month','')
             rows_in = body.get('rows')
             manual_sort = body.get('manualSort')
@@ -1756,9 +1763,12 @@ class Handler(BaseHTTPRequestHandler):
       try:
         p = urlparse(self.path).path.rstrip('/')
 
-        # 캐논 청구: 월 삭제 (인증 없이 허용)
+        # 캐논 청구: 월 삭제
+        # ⚠️ 예전에는 여기 '인증 없이 허용' 이라고 적혀 있었다. CORS 가 '*' 라
+        #    주소만 알면 누구나 한 달치 청구 자료를 지울 수 있는 상태였다 (2026-08-03 수정).
         mc = re.match(r'^/api/canon/billing/([^/]+)$', p)
         if mc:
+            if not self.token_ok(): return self.send_json({'error':'Unauthorized'}, 401)
             db_exec('DELETE FROM canon_billing WHERE month=?', (mc.group(1),))
             return self.send_json({'success': True})
 
