@@ -200,6 +200,7 @@
           </label>
           <select id="origin" onchange="onOriginSelect(this.value)" style="padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;">
             <option value="ACT">ACT</option>
+            <option value="신한인비스타">신한인비스타</option>
             <option value="기타">기타 (회수/직접입력)</option>
           </select>
           <input type="text" id="origin_custom" placeholder="출발지 직접 입력" style="display:none;margin-top:6px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;background:#fafafa;width:100%;">
@@ -368,6 +369,7 @@
         <div class="form-group">
           <label>수취인 이름 <span class="req">*</span></label>
           <input type="text" id="receiver_name" class="req-field" oninput="onReceiverInput(this.value)">
+          <div id="actReceiverPick" style="display:none;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center;"></div>
           <div id="receiverAutoFillHint" style="display:none;background:#f0fff4;border:1px solid #9ae6b4;border-radius:8px;padding:8px 12px;margin-top:6px;align-items:center;justify-content:space-between;gap:8px;">
             <span style="font-size:12px;color:#276749;"><i class="fas fa-history"></i> 이전 배송 정보가 있습니다</span>
             <button type="button" onclick="applyReceiverAutofill()" style="padding:4px 12px;font-size:12px;font-weight:600;border:none;border-radius:6px;background:#38a169;color:#fff;cursor:pointer;">불러오기</button>
@@ -908,6 +910,8 @@
   }
 
   const ACT_ADDRESS = '경기도 김포시 아라육로58번길 35-14 ACT2창고';
+  const SHINHAN_ADDRESS = '경기도 김포시 고촌읍 아라육로95';
+  const SHINHAN_CONTACT = { name: '윤지훈 사원', phone: '010-4923-9279' };
   const CONTACTS = { '전유현': '010-2050-1452', '문범영': '010-7921-7785', '김상민': '010-6775-4066' };
 
   // ── 시도/시군구 드롭다운 헬퍼 ─────────────────────────────────────────
@@ -1004,6 +1008,20 @@
       sidoGroup.style.display = 'none';
       return;
     }
+    if(val === '신한인비스타') {
+      addrEl.value = SHINHAN_ADDRESS;
+      addrEl.readOnly = true;
+      addrEl.style.background = '#f7fafc';
+      customEl.style.display = 'none';
+      customEl.value = '';
+      sidoGroup.style.display = 'none';
+      // 담당자 자동 입력 (윤지훈 사원)
+      contactEl.value = '기타';
+      contactCustom.style.display = 'block';
+      contactCustom.value = SHINHAN_CONTACT.name;
+      phoneEl.value = SHINHAN_CONTACT.phone;
+      return;
+    }
     if(val === '기타') {
       addrEl.value = '';
       addrEl.readOnly = false;
@@ -1054,13 +1072,14 @@
     if(!sel) return;
     const cur = sel.value;
     const presets = JSON.parse(localStorage.getItem('delivery_origin_presets') || '{}');
-    const names = Object.keys(presets).sort();
-    sel.innerHTML = `<option value="ACT">ACT</option>`;
+    // 기본 제공 출발지(신한인비스타)와 같은 이름의 개인 저장분은 중복 표시 제외
+    const names = Object.keys(presets).filter(n => n !== '신한인비스타').sort();
+    sel.innerHTML = `<option value="ACT">ACT</option><option value="신한인비스타">신한인비스타</option>`;
     names.forEach(n => {
       sel.innerHTML += `<option value="${n}">${n} (저장)</option>`;
     });
     sel.innerHTML += `<option value="기타">기타 (회수/직접입력)</option>`;
-    if(cur && (cur === 'ACT' || cur === '기타' || names.includes(cur))) sel.value = cur;
+    if(cur && (cur === 'ACT' || cur === '신한인비스타' || cur === '기타' || names.includes(cur))) sel.value = cur;
   }
 
   function saveOriginPreset() {
@@ -1130,6 +1149,7 @@
 
   function fillActAddress() {
     document.getElementById('customer_address').value = ACT_ADDRESS;
+    updateActReceiverPick();
   }
 
   async function savePasswords() {
@@ -1815,7 +1835,7 @@ ${signLink(d.order_no, d.sign_token)}`;
     if(!val) return;
     const hist = JSON.parse(localStorage.getItem('delivery_customer_history') || '{}');
     const data = hist[val];
-    if(!data) return;
+    if(!data) { updateActReceiverPick(); return; }
     document.getElementById('customer_company').value = val;
     if(data.address)        document.getElementById('customer_address').value = data.address;
     if(data.receiver_name)  document.getElementById('receiver_name').value    = data.receiver_name;
@@ -1824,6 +1844,7 @@ ${signLink(d.order_no, d.sign_token)}`;
       document.getElementById('dest_sido').value = data.dest_sido;
       populateSigun('dest_sigun', data.dest_sido, data.dest_sigun || '');
     }
+    updateActReceiverPick();
     showAlert(`✅ "${val}" 정보를 불러왔습니다. 수취인 정보를 확인 후 수정해주세요.`, 'success');
   }
 
@@ -1831,6 +1852,24 @@ ${signLink(d.order_no, d.sign_token)}`;
     // 직접 입력 시 드롭다운 선택 해제
     const sel = document.getElementById('customer_company_select');
     if(sel && sel.value && sel.value !== val) sel.value = '';
+    updateActReceiverPick();
+  }
+
+  // ── 도착지가 ACT면 출발지 담당자 목록(전유현·문범영·김상민)을 수취인으로 선택 가능 ──
+  function updateActReceiverPick() {
+    const box = document.getElementById('actReceiverPick');
+    if (!box) return;
+    const isAct = /act/i.test((document.getElementById('customer_company').value || '').trim());
+    if (!isAct) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = 'flex';
+    box.innerHTML = '<span style="font-size:11px;color:#718096;">ACT 담당자:</span>' +
+      Object.keys(CONTACTS).map(n =>
+        `<button type="button" onclick="pickActReceiver('${n}')" style="padding:4px 12px;font-size:12px;font-weight:600;border:1px solid #cbd5e1;border-radius:14px;background:#f7fafc;color:#334155;cursor:pointer;">${n}</button>`
+      ).join('');
+  }
+  function pickActReceiver(name) {
+    document.getElementById('receiver_name').value  = name;
+    document.getElementById('receiver_phone').value = CONTACTS[name] || '';
   }
 
   // 저장된 고객사(드롭다운 항목) 삭제 — localStorage에서 제거 (서버 주문 기록은 유지)
