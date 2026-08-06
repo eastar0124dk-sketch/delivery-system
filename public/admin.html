@@ -1505,6 +1505,7 @@
             <button class="btn btn-sm btn-edit" title="수정" onclick='openEditModal(${JSON.stringify(r)})'><i class="fas fa-edit"></i></button>
             <button class="btn btn-sm btn-dispatch" title="배차 요청 메시지" onclick='openDispatchFromRow(${JSON.stringify(r)})'><i class="fas fa-share-alt"></i></button>
             <button class="btn btn-sm btn-cost" title="비용 입력" onclick="openCostModal('${r.id}','${r.order_no}','${r.status||'draft'}','${r.wait_time||''}','${r.work_time||''}','${r.work_fee||''}','${r.return_fee||''}')"><i class="fas fa-won-sign"></i></button>
+            ${sessionStorage.getItem('userRole')==='admin' ? `<button class="btn btn-sm btn-danger" title="삭제 (관리자 전용)" onclick="deleteOrder('${r.id}','${r.order_no}')"><i class="fas fa-trash"></i></button>` : ''}
           </div>
         </td>
       </tr>`;
@@ -1745,10 +1746,13 @@
       + wh.addr + (wh.addr2 ? ` (${whJibun(wh.addr, wh.addr2)})` : ''));
     const dock = whDock(wh, code);
     if (dock) L.push((side === 'from' ? '상차 위치: ' : '하차 위치: ') + dock);
-    const s = code ? `?s=${encodeURIComponent(code)}` : '';
+    /* 주소는 카톡에 그대로 글자로 보인다. 물음표·앰퍼샌드가 붙은 꼴은 휴대폰에서
+       세 줄로 접혀 지저분해, '/w/메틀러코드/판번호' 꼴로 짧게 만들었다 (2026-08-06).
+       설명도 한 줄로 줄였다 — 어차피 카톡이 밑에 「… 찾아오는 길」 카드를 띄워 준다. */
+    const s = code ? '/' + encodeURIComponent(code) : '';
     const v = whVer(wh);
-    L.push('📷 창고 사진·길찾기 (기사님께 그대로 전달해 주세요)');
-    L.push(`${ACTOS_ORIGIN}/w${s}${v ? (s ? '&' : '?') + 'v=' + v : ''}`);
+    L.push('📷 창고 사진·길찾기');
+    L.push(`${ACTOS_ORIGIN}/w${s}${s && v ? '/' + v : ''}`);
     return L;
   }
   const isOurWh = v => /\bACT\b|액트/i.test(String(v || ''));
