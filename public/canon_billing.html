@@ -1132,29 +1132,30 @@ async function loadStorage() {
   // ── 머지 전략 ──
   // - 서버에 있는 월: 서버 데이터 사용
   // - 서버에 없는데 로컬에 있는 월: 로컬 사용 + 서버로 업로드 (최초 마이그레이션)
+  // - 미동기화(dirty) 월: 서버 저장이 실패했던 로컬 수정본이므로 로컬 우선 + 재업로드 (입력 유실 방지)
   billingData = { ...serverData };
   const monthsToUpload = [];
   for (const m of Object.keys(localData)) {
     const localArr = localData[m] || [];
     const serverArr = serverData[m];
-    if (!Array.isArray(serverArr) || serverArr.length === 0) {
-      if (Array.isArray(localArr) && localArr.length > 0) {
-        billingData[m] = localArr;
-        monthsToUpload.push(m);
-      }
+    const serverEmpty = !Array.isArray(serverArr) || serverArr.length === 0;
+    if ((serverEmpty || isDirty(m)) && Array.isArray(localArr) && localArr.length > 0) {
+      billingData[m] = localArr;
+      monthsToUpload.push(m);
     }
   }
-  // 로컬에만 있던 월은 서버로 올림 (최초 1회 마이그레이션)
+  // 로컬 우선 월은 서버로 올림 (마이그레이션 + 미동기화 복구)
   if (monthsToUpload.length) {
-    console.log('로컬 데이터를 서버로 마이그레이션:', monthsToUpload);
+    console.log('로컬 데이터를 서버로 업로드:', monthsToUpload);
     for (const m of monthsToUpload) {
       try {
-        await fetch('/api/canon/billing', {
+        const r = await fetch('/api/canon/billing', {
           method:'POST',
           headers: cbAuthH({'Content-Type':'application/json'}),
           body: JSON.stringify({ month: m, rows: billingData[m], manualSort: [...manualSortMonths] })
         });
-      } catch(e) { console.warn('마이그레이션 실패', m, e); }
+        if (r.ok) clearDirty(m);
+      } catch(e) { console.warn('업로드 실패', m, e); }
     }
   }
   // 로컬 캐시도 최신 상태로
@@ -1229,9 +1230,17 @@ async function manualSave() {
   }
 }
 
+/* ── 미동기화(dirty) 월 추적 — 서버 저장 성공 전까지 로컬 입력을 서버 데이터가 덮지 못하게 ── */
+const DIRTY_KEY = 'canon_billing_dirty_v1';
+function dirtyMap(){ try{ return JSON.parse(localStorage.getItem(DIRTY_KEY)||'{}'); }catch(e){ return {}; } }
+function markDirty(m){ const d=dirtyMap(); d[m]=Date.now(); localStorage.setItem(DIRTY_KEY, JSON.stringify(d)); }
+function clearDirty(m){ const d=dirtyMap(); if(d[m]!==undefined){ delete d[m]; localStorage.setItem(DIRTY_KEY, JSON.stringify(d)); } }
+function isDirty(m){ return dirtyMap()[m] !== undefined; }
+
 function saveStorage() {
   // 로컬 캐시 즉시 저장
   localStorage.setItem(STORE_KEY, JSON.stringify(billingData));
+  markDirty(currentMonth);   // 서버 저장 성공 전까지 이 월은 '미동기화' 상태
   const el = document.getElementById('autoSaveMsg');
   el.textContent = '저장 중...';
   clearTimeout(el._t);
@@ -1241,15 +1250,18 @@ function saveStorage() {
   clearTimeout(saveStorage._srvT);
   saveStorage._srvT = setTimeout(() => {
     saveStorage._inFlight = true; // POST 진행중 표시
-    syncCurrentMonthToServer().then(() => {
+    const m = currentMonth;
+    syncCurrentMonthToServer(m).then(() => {
+      clearDirty(m);
       el.textContent = '서버 저장됨 ✓';
       clearTimeout(el._t);
       el._t = setTimeout(() => { el.textContent = ''; }, 2000);
     }).catch(err => {
       console.warn('서버 저장 실패', err);
-      el.textContent = '⚠ 로컬만 저장됨';
+      el.textContent = '⚠ 서버 저장 실패 — 로컬에만 저장됨 (인터넷/로그인 확인)';
+      el.style.color = '#dc2626';
       clearTimeout(el._t);
-      el._t = setTimeout(() => { el.textContent = ''; }, 3000);
+      el._t = setTimeout(() => { el.textContent = ''; el.style.color=''; }, 6000);
     }).finally(() => {
       saveStorage._inFlight = false;
       saveStorage._pendingMonth = null;
@@ -1266,17 +1278,18 @@ function flushPendingSave() {
   clearTimeout(saveStorage._srvT);
   const rows = billingData[m] || [];
   const body = JSON.stringify({ month: m, rows, manualSort: [...manualSortMonths] });
-  // sendBeacon은 페이지 unload 중에도 보장 전송
-  try {
-    const blob = new Blob([body], { type: 'application/json' });
-    if (navigator.sendBeacon('/api/canon/billing', blob)) return;
-  } catch(e) {}
-  // 폴백
+  // 1순위: fetch keepalive (인증 헤더 포함, unload 중에도 전송)
   try {
     fetch('/api/canon/billing', {
       method:'POST', headers: cbAuthH({'Content-Type':'application/json'}),
       body, keepalive: true
     });
+    return;
+  } catch(e) {}
+  // 2순위: sendBeacon — 헤더를 못 실으므로 토큰을 쿼리로 전달 (서버 ?auth= 지원)
+  try {
+    const blob = new Blob([body], { type: 'application/json' });
+    navigator.sendBeacon('/api/canon/billing?auth=' + encodeURIComponent(cbTok()), blob);
   } catch(e) {}
 }
 window.addEventListener('beforeunload', flushPendingSave);
@@ -1287,6 +1300,8 @@ document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible') return;
   // 내 저장 대기/진행중이면 스킵 (race 방지)
   if (saveStorage._pendingMonth || saveStorage._inFlight) return;
+  // 이 월에 서버 반영 안 된 로컬 수정이 있으면 서버 데이터로 덮지 않음 (입력 유실 방지)
+  if (isDirty(currentMonth)) return;
   // 최근 5초 이내에 편집/저장이 있었으면 스킵 (서버 커밋 지연 대비)
   const now = Date.now();
   if (saveStorage._lastEditAt && now - saveStorage._lastEditAt < 5000) return;
@@ -1320,6 +1335,7 @@ async function syncCurrentMonthToServer(month) {
     body: JSON.stringify({ month: m, rows, manualSort })
   });
   if (!res.ok) throw new Error('save failed: '+res.status);
+  clearDirty(m);   // 서버 반영 완료 → 미동기화 해제
 }
 
 // 전체 월 일괄 동기화 (업로드/붙여넣기 등 대량 변경 시)

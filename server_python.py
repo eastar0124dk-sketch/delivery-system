@@ -732,7 +732,13 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(length)) if length else {}
 
     def get_token(self):
-        return self.headers.get('Authorization','').replace('Bearer ','').strip()
+        t = self.headers.get('Authorization','').replace('Bearer ','').strip()
+        if t: return t
+        # sendBeacon 등 헤더를 못 싣는 요청은 ?auth= 쿼리로 토큰 전달 가능
+        try:
+            return (parse_qs(urlparse(self.path).query).get('auth') or [''])[0].strip()
+        except Exception:
+            return ''
 
     def sign_link_ok(self, rec, given):
         """기사가 이 건을 열어도 되는지 확인한다.
