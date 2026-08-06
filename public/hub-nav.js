@@ -101,8 +101,40 @@ function initNav(currentPage) {
       body.has-hub-sidebar { padding-left: 0 !important; }
       #sidebar { display: none !important; }
     }
+    /* 버튼 클릭 즉각 반응 (눌림 효과) */
+    button:not(:disabled):active { transform: scale(.96); transition: transform .05s; }
+    button:disabled { opacity: .55; }
   `;
   document.head.appendChild(style);
+
+  /* ── 전역 "실행 중" 표시 — 서버 요청 동안 화면 최상단에 진행 바 ── */
+  (function () {
+    if (window.__hubBusyPatched) return;
+    window.__hubBusyPatched = true;
+    const bar = document.createElement('div');
+    bar.id = 'hubBusyBar';
+    bar.style.cssText = 'position:fixed;top:0;left:0;height:3px;width:0;' +
+      'background:linear-gradient(90deg,#667eea,#f093fb,#f5576c);z-index:2147483000;' +
+      'transition:width .35s ease,opacity .4s;opacity:0;pointer-events:none;';
+    (document.body || document.documentElement).appendChild(bar);
+    let inflight = 0;
+    function show() { bar.style.opacity = '1'; bar.style.width = '70%'; }
+    function hide() {
+      bar.style.width = '100%';
+      setTimeout(() => { bar.style.opacity = '0'; setTimeout(() => { bar.style.width = '0'; }, 400); }, 180);
+    }
+    const _fetch = window.fetch;
+    window.fetch = function () {
+      inflight++;
+      if (inflight === 1) show();
+      const done = () => { inflight--; if (inflight <= 0) { inflight = 0; hide(); } };
+      try {
+        const p = _fetch.apply(this, arguments);
+        p.then(done, done);
+        return p;
+      } catch (e) { done(); throw e; }
+    };
+  })();
 
   const adminToken = sessionStorage.getItem('adminToken');
   const staffToken = sessionStorage.getItem('staffToken');
