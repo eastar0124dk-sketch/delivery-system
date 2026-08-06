@@ -1505,7 +1505,6 @@
             <button class="btn btn-sm btn-edit" title="수정" onclick='openEditModal(${JSON.stringify(r)})'><i class="fas fa-edit"></i></button>
             <button class="btn btn-sm btn-dispatch" title="배차 요청 메시지" onclick='openDispatchFromRow(${JSON.stringify(r)})'><i class="fas fa-share-alt"></i></button>
             <button class="btn btn-sm btn-cost" title="비용 입력" onclick="openCostModal('${r.id}','${r.order_no}','${r.status||'draft'}','${r.wait_time||''}','${r.work_time||''}','${r.work_fee||''}','${r.return_fee||''}')"><i class="fas fa-won-sign"></i></button>
-            <button class="btn btn-sm btn-danger" onclick="deleteOrder('${r.id}','${r.order_no}')"><i class="fas fa-trash"></i></button>
           </div>
         </td>
       </tr>`;

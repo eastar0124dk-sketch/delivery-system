@@ -564,7 +564,6 @@
           <div class="action-btns">
             ${r.status!=='signed' ? `<button class="btn btn-sm" style="background:#f5576c;color:#fff;" onclick="goSign('${(r.order_no||'').split(' ')[0]}')" title="기사 서명 등록"><i class="fas fa-signature"></i></button>` : ''}
             <button class="btn btn-sm btn-blue" onclick="openDetail(${r.id})" title="상세/인쇄/PDF"><i class="fas fa-eye"></i></button>
-            ${isAdminUser() ? `<button class="btn btn-sm btn-danger" onclick="deleteRecord(${r.id},'${r.order_no}')"><i class="fas fa-trash"></i></button>` : ''}
           </div>
         </td>
       </tr>
@@ -580,7 +579,6 @@
         <div class="mc-row" style="margin-top:8px;gap:6px;">
           ${r.status!=='signed' ? `<button class="btn btn-sm" style="flex:1;justify-content:center;background:#f5576c;color:#fff;" onclick="goSign('${(r.order_no||'').split(' ')[0]}')"><i class="fas fa-signature"></i> 서명</button>` : ''}
           <button class="btn btn-sm btn-blue" style="flex:1;justify-content:center;" onclick="openDetail(${r.id})"><i class="fas fa-eye"></i> 상세/출력</button>
-          ${isAdminUser() ? `<button class="btn btn-sm btn-danger" onclick="deleteRecord(${r.id},'${r.order_no}')"><i class="fas fa-trash"></i></button>` : ''}
         </div>
       </div>
     `).join('');
