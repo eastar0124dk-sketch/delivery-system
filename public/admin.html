@@ -511,6 +511,22 @@
         <input type="text" id="edit_order_no">
       </div>
       <div class="form-group">
+        <label>상차지 (출발지)</label>
+        <input type="text" id="edit_origin" placeholder="예: ACT, 신한인비스타">
+      </div>
+      <div class="form-group">
+        <label>상차지 주소</label>
+        <input type="text" id="edit_origin_address" placeholder="출발지 주소">
+      </div>
+      <div class="form-group">
+        <label>상차지 담당자</label>
+        <input type="text" id="edit_contact_person" placeholder="담당자 성명">
+      </div>
+      <div class="form-group">
+        <label>상차지 담당자 연락처</label>
+        <input type="tel" id="edit_contact_phone" placeholder="010-0000-0000">
+      </div>
+      <div class="form-group">
         <label>배송일자 *</label>
         <input type="date" id="edit_delivery_date">
       </div>
@@ -1573,6 +1589,11 @@
   function openEditModal(r) {
     document.getElementById('edit_id').value = r.id;
     document.getElementById('edit_order_no').value = r.order_no || '';
+    // 상차지(출발지) 정보
+    document.getElementById('edit_origin').value = r.origin || '';
+    document.getElementById('edit_origin_address').value = r.origin_address || '';
+    document.getElementById('edit_contact_person').value = r.contact_person || '';
+    document.getElementById('edit_contact_phone').value = r.contact_phone || '';
     document.getElementById('edit_delivery_date').value = r.delivery_date || '';
     document.getElementById('edit_quantity').value = r.quantity || '';
     document.getElementById('edit_product_name').value = r.product_name || '';
@@ -1629,7 +1650,11 @@
       notes:             document.getElementById('edit_notes').value.trim(),
       transport_type:    document.getElementById('edit_transport_type').value,
       dest_sido:         document.getElementById('edit_dest_sido').value,
-      dest_sigun:        document.getElementById('edit_dest_sigun').value
+      dest_sigun:        document.getElementById('edit_dest_sigun').value,
+      origin:            document.getElementById('edit_origin').value.trim(),
+      origin_address:    document.getElementById('edit_origin_address').value.trim(),
+      contact_person:    document.getElementById('edit_contact_person').value.trim(),
+      contact_phone:     document.getElementById('edit_contact_phone').value.trim()
     };
     if(!data.order_no || !data.delivery_date || !data.customer_company || !data.receiver_name) {
       alert('필수 항목(DN번호, 배송일자, 고객사명, 수취인)을 입력해주세요.'); return;
@@ -1650,6 +1675,7 @@
 
   function openDispatchFromRow(r) {
     showDispatchModal({
+      client_code:     r.client_code,   /* 화주별 도크·사진 링크를 고르는 데 쓴다 */
       order_no:        r.order_no,
       delivery_date:   r.delivery_date,
       arrival_time:    r.arrival_time,
@@ -1671,15 +1697,75 @@
     });
   }
 
-  function showDispatchModal(d) {
+  /* ── 창고 안내 (ACT 제2 보세창고) ─────────────────────────────
+     김포에 우리 건물이 둘이다. 큰 「ACT 보세창고」 간판은 **주황 건물**에 붙어 있는데
+     화물은 그 옆 빨강·회색 건물에서 싣고 내린다. 배차문에 'ACT' 네 글자만 적어 보내니
+     기사가 간판을 보고 주황 건물로 들어가 경비반장과 언쟁이 났다 (2026-08-06 대표님).
+
+     ⚠️ 주소·도크·사진은 **ACTOS 설정 한 곳**에 두고 여기서 읽어 쓴다.
+        두 군데에 따로 적어 두면 한쪽만 고쳐져 반드시 어긋난다.
+     ⚠️ 카톡은 한 메시지에서 **첫 링크 하나만** 미리보기를 만든다.
+        그래서 이 링크가 서명 링크보다 위에 있어야 사진이 뜬다. */
+  const ACTOS_ORIGIN = 'https://smart-dispatch-red.vercel.app';
+  const WH_FALLBACK = {
+    name:  'ACT 제2 보세창고',
+    addr:  '경기 김포시 고촌읍 아라육로58번길 35-14',
+    addr2: '경기 김포시 고촌읍 전호리 703',
+    photo: '', docks: {}
+  };
+  let whCache = null;
+  async function whLoad() {
+    if (whCache) return whCache;
+    try {
+      const r = await fetch(`${ACTOS_ORIGIN}/api/warehouse?format=json`, { cache: 'no-store' });
+      const j = await r.json();
+      whCache = Object.assign({}, WH_FALLBACK, (j && j.wh) || {});
+    } catch (_) { whCache = Object.assign({}, WH_FALLBACK); }   // 못 읽어도 배차문은 나가야 한다
+    return whCache;
+  }
+  // 도로명과 겹치는 앞머리(경기 김포시 고촌읍)를 걷어낸 지번 — '전호리 703' 만 남는다
+  function whJibun(addr, jibun) {
+    const a = String(addr || '').split(/\s+/), b = String(jibun || '').split(/\s+/);
+    let i = 0; while (i < b.length - 1 && i < a.length && a[i] === b[i]) i++;
+    return b.slice(i).join(' ') || jibun;
+  }
+  function whDock(wh, code) {
+    const want = { mettler: '메틀러', canon: '캐논', chanel: '샤넬' }[code];
+    if (!want) return '';
+    const k = Object.keys(wh.docks || {}).find(x => String(x).replace(/\s/g, '').indexOf(want) === 0);
+    return k ? String(wh.docks[k] || '').trim() : '';
+  }
+  /* 사진을 바꾸면 주소도 바뀌어야 한다 — 안 그러면 카톡이 옛 미리보기를 계속 쓴다 */
+  function whVer(wh) {
+    const m = String(wh.photo || '').match(/(\d{10,})/);
+    return m ? m[1].slice(-6) : '';
+  }
+  function whLines(wh, code, side) {
+    const L = [];
+    if (wh.addr) L.push((side === 'from' ? '상차지 주소: ' : '배송지 주소: ')
+      + wh.addr + (wh.addr2 ? ` (${whJibun(wh.addr, wh.addr2)})` : ''));
+    const dock = whDock(wh, code);
+    if (dock) L.push((side === 'from' ? '상차 위치: ' : '하차 위치: ') + dock);
+    const s = code ? `?s=${encodeURIComponent(code)}` : '';
+    const v = whVer(wh);
+    L.push('📷 창고 사진·길찾기 (기사님께 그대로 전달해 주세요)');
+    L.push(`${ACTOS_ORIGIN}/w${s}${v ? (s ? '&' : '?') + 'v=' + v : ''}`);
+    return L;
+  }
+  const isOurWh = v => /\bACT\b|액트/i.test(String(v || ''));
+
+  async function showDispatchModal(d) {
+    const wh   = await whLoad();
+    const code = d.client_code
+      || ((typeof ClientsLib !== 'undefined') ? ClientsLib.getCurrentCode() : '');
     const arrival      = d.arrival_time    ? `\n도착 희망시간: ${d.arrival_time}` : '';
     const vehicle_type = d.vehicle_type    ? `\n차량 종류: ${d.vehicle_type}` : '';
 
     // 출발지: ACT는 고정, 기타는 시도+시군구+주소 합치기
     let originLabel, originAddr;
-    if(d.origin === 'ACT') {
-      originLabel = 'ACT (경기도 김포시)';
-      originAddr  = '';
+    if(isOurWh(d.origin)) {
+      originLabel = `${wh.name} (경기도 김포시)`;
+      originAddr  = '\n' + whLines(wh, code, 'from').join('\n');
     } else {
       originLabel = d.origin || '';
       const originParts = [d.origin_sido, d.origin_sigun, d.origin_address].filter(Boolean);
@@ -1688,8 +1774,12 @@
     const contactLine  = d.contact_person  ? `\n출발지 담당자: ${d.contact_person}${d.contact_phone ? ' / ' + d.contact_phone : ''}` : '';
 
     // 도착지: 시도+시군구+상세주소 전체 표시
+    // 회수·이고처럼 우리 창고로 들어오는 건은 창고 안내로 갈아 끼운다
+    const toUs         = isOurWh(d.customer_company);
+    const destLabel    = toUs ? wh.name : d.customer_company;
     const addrParts    = [d.dest_sido, d.dest_sigun, d.customer_address].filter(Boolean);
-    const addr         = addrParts.length  ? `\n배송지 주소: ${addrParts.join(' ')}` : '';
+    const addr         = toUs ? '\n' + whLines(wh, code, 'to').join('\n')
+                        : (addrParts.length ? `\n배송지 주소: ${addrParts.join(' ')}` : '');
     const phone        = d.receiver_phone  ? `\n수취인 연락처: ${d.receiver_phone}` : '';
     const delivery_note = d.delivery_note  ? `\n⚠️ 배송 요청사항: ${d.delivery_note}` : '';
     const notes        = d.notes           ? `\n비고: ${d.notes}` : '';
@@ -1702,7 +1792,7 @@ DN번호: ${d.order_no}
 수량: ${d.quantity}
 
 ▶ 출발지: ${originLabel}${originAddr}${contactLine}
-▶ 도착지: ${d.customer_company}${addr}
+▶ 도착지: ${destLabel}${addr}
 수취인: ${d.receiver_name}${phone}${delivery_note}${notes}
 
 * 배송 완료 후 아래 링크를 눌러 서명해 주세요 (누르면 이 건이 바로 뜹니다)

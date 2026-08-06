@@ -564,7 +564,7 @@
           <div class="action-btns">
             ${r.status!=='signed' ? `<button class="btn btn-sm" style="background:#f5576c;color:#fff;" onclick="goSign('${(r.order_no||'').split(' ')[0]}')" title="기사 서명 등록"><i class="fas fa-signature"></i></button>` : ''}
             <button class="btn btn-sm btn-blue" onclick="openDetail(${r.id})" title="상세/인쇄/PDF"><i class="fas fa-eye"></i></button>
-            <button class="btn btn-sm btn-danger" onclick="deleteRecord(${r.id},'${r.order_no}')"><i class="fas fa-trash"></i></button>
+            ${isAdminUser() ? `<button class="btn btn-sm btn-danger" onclick="deleteRecord(${r.id},'${r.order_no}')"><i class="fas fa-trash"></i></button>` : ''}
           </div>
         </td>
       </tr>
@@ -580,7 +580,7 @@
         <div class="mc-row" style="margin-top:8px;gap:6px;">
           ${r.status!=='signed' ? `<button class="btn btn-sm" style="flex:1;justify-content:center;background:#f5576c;color:#fff;" onclick="goSign('${(r.order_no||'').split(' ')[0]}')"><i class="fas fa-signature"></i> 서명</button>` : ''}
           <button class="btn btn-sm btn-blue" style="flex:1;justify-content:center;" onclick="openDetail(${r.id})"><i class="fas fa-eye"></i> 상세/출력</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteRecord(${r.id},'${r.order_no}')"><i class="fas fa-trash"></i></button>
+          ${isAdminUser() ? `<button class="btn btn-sm btn-danger" onclick="deleteRecord(${r.id},'${r.order_no}')"><i class="fas fa-trash"></i></button>` : ''}
         </div>
       </div>
     `).join('');
@@ -901,10 +901,13 @@
     }
   }
 
-  // ── 삭제 ──
+  // ── 삭제 (관리자 전용 — 서버에서도 admin 권한 검증) ──
+  function isAdminUser(){ return sessionStorage.getItem('userRole') === 'admin'; }
   async function deleteRecord(id,dn){
+    if(!isAdminUser()){ alert('오더 삭제는 관리자만 가능합니다.'); return; }
     if(!confirm(`DN번호 [${dn}]를 삭제하시겠습니까?`)) return;
-    await fetch(`/api/records/${id}`,{method:'DELETE',headers:authH()});
+    const res = await fetch(`/api/records/${id}`,{method:'DELETE',headers:authH()});
+    if(!res.ok){ alert('삭제 실패 — 관리자 권한이 필요합니다.'); return; }
     await loadAll(); applyFilter();
   }
 
