@@ -689,8 +689,9 @@ function getDistanceClientRate(km, vehicle) {
 
   let base;
   if (numKm <= 100) {
-    let key = 5;
-    for (const s of DIST_STEPS) { if (numKm >= s) key = s; else break; }
+    // 올림 처리: 거리보다 크거나 같은 첫 구간 적용 (예: 48km → 50km 요율)
+    let key = 100;
+    for (const s of DIST_STEPS) { if (numKm <= s) { key = s; break; } }
     base = DIST_TABLE[key][vehicle];
   } else {
     // 100km 기본 + 초과분 10km당 추가 (다마스/1톤만)
