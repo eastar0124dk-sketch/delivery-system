@@ -1573,8 +1573,18 @@
 
   async function deleteOrder(id, order_no) {
     if(!confirm(`DN번호 [${order_no}]를 삭제하시겠습니까?`)) return;
-    await fetch(`/api/records/${id}`,{method:'DELETE',headers:authHeader()});
-    loadAllOrders();
+    try {
+      const res = await fetch(`/api/records/${id}`,{method:'DELETE',headers:authHeader()});
+      if (res.ok) {
+        showAlert(`🗑 DN [${order_no}] 삭제되었습니다.`, 'success');
+        loadAllOrders();
+      } else {
+        const j = await res.json().catch(()=>({}));
+        showAlert(`삭제 실패 (${res.status}): ${j.error||''} — 관리자 계정으로 로그인했는지 확인하세요.`, 'error');
+      }
+    } catch(e) {
+      showAlert('삭제 실패: 네트워크 오류 — ' + e.message, 'error');
+    }
   }
 
   function showAlert(msg, type='success') {
