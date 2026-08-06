@@ -796,6 +796,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-Type', mime)
         self.send_header('Content-Length', len(data))
+        # html/js는 배포 즉시 반영되도록 브라우저 캐시 금지 (강력 새로고침 없이도 최신 코드)
+        if file_path.endswith(('.html', '.js')):
+            self.send_header('Cache-Control', 'no-cache, must-revalidate')
         self.end_headers()
         self.wfile.write(data)
 
