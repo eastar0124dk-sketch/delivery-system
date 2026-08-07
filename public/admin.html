@@ -425,6 +425,15 @@
       <button class="btn btn-secondary" onclick="resetForm()"><i class="fas fa-redo"></i> 초기화</button>
       <button class="btn btn-primary" onclick="saveOrder()"><i class="fas fa-check-circle"></i> 오더 등록</button>
     </div>
+    <!-- 저장된 출발지·고객사 목록은 이 브라우저 안에만 있다(localStorage). 서버에 없어서
+         ACTOS 가 읽을 방법이 없고, 자리를 옮기면 지금도 처음부터 다시 적어야 했다.
+         ACTOS 의 새 '오더 관리' 로 한 번에 옮기려고 내보내기를 붙였다 (2026-08-07). -->
+    <div style="text-align:center;padding-bottom:24px;">
+      <button class="btn btn-secondary" onclick="exportLocalLists()" style="font-size:13px;">
+        <i class="fas fa-file-export"></i> 저장 목록 내보내기 (ACTOS 로 옮기기)</button>
+      <div style="font-size:11.5px;color:#a0aec0;margin-top:6px;">
+        저장된 출발지·고객사·수취인 목록을 글자로 뽑습니다. ACTOS → 오더 관리에서 붙여넣으면 옮겨집니다.</div>
+    </div>
   </div>
 
   <!-- 조회 탭 -->
@@ -1881,6 +1890,39 @@ ${signLink(d.order_no, d.sign_token)}`;
     }
     localStorage.setItem('delivery_customer_history', JSON.stringify(hist));
     refreshCompanyDropdown();
+  }
+
+  /* 저장 목록을 한 덩어리 글자로 뽑는다. ACTOS 의 '오더 관리'에서 붙여넣으면 그대로 옮겨진다.
+     ⚠️ 이 목록은 **이 브라우저 안에만** 있다(localStorage). 서버에 없어서 ACTOS 가 읽을
+        방법이 없다. 직원 PC 마다 따로이므로 각자 한 번씩 내보내면 합쳐진다 (2026-08-07). */
+  function exportLocalLists() {
+    const g = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || d); } catch (_) { return JSON.parse(d); } };
+    const data = {
+      _from: 'delivery-system',
+      _at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      origins:   g('delivery_origin_presets', '{}'),
+      customers: g('delivery_customer_history', '{}'),
+      receivers: g('delivery_receiver_index', '{}'),
+      blocked:   g('delivery_customer_blocked', '[]'),
+    };
+    const n = Object.keys(data.origins).length, m = Object.keys(data.customers).length;
+    if (!n && !m) { alert('이 브라우저에는 저장된 목록이 없습니다.\n(다른 PC 에서 쓰셨다면 그 PC 에서 내보내 주세요)'); return; }
+    const txt = JSON.stringify(data);
+    const ok = () => alert('복사했습니다.\n\n출발지 ' + n + '곳 · 고객사 ' + m + '곳\n\n'
+      + 'ACTOS → 오더 관리 → [통합물류 목록 가져오기] 에 붙여넣으세요.');
+    /* 클립보드가 막히는 브라우저에서는 글자를 그대로 보여 주고 직접 복사하게 한다 */
+    const manual = () => {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      ta.style.cssText = 'position:fixed;inset:10% 5%;width:90%;height:70%;z-index:99999;font-size:12px';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      alert('아래 칸의 글자를 모두 복사(Ctrl+A → Ctrl+C)한 뒤 아무 곳이나 누르세요.');
+      const off = () => { ta.remove(); document.removeEventListener('click', off, true); };
+      setTimeout(() => document.addEventListener('click', off, true), 0);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(ok, manual);
+    } else manual();
   }
 
   // 저장된 고객사 드롭다운 갱신 (localStorage + 서버 기록 병합, 삭제된 항목 제외)
