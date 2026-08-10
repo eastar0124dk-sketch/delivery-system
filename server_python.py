@@ -1505,10 +1505,20 @@ class Handler(BaseHTTPRequestHandler):
             if rec['status'] == 'signed': return self.send_json({'error':'이미 서명 완료된 오더입니다.'}, 400)
             if not body.get('driver_signature') or not body.get('receiver_signature'):
                 return self.send_json({'error':'서명 데이터가 없습니다.'}, 400)
-            # 검색만 막으면 이 저장 요청을 직접 불러 우회할 수 있으므로 여기서도 확인한다
+            # 검색만 막으면 이 저장 요청을 직접 불러 우회할 수 있으므로 여기서도 확인한다.
+            # ⚠️ 이 확인이 먼저다 — 링크가 없는 사람에게 무엇이 빠졌는지 알려줄 이유가 없다.
             rec_tok = db_fetch('SELECT sign_token FROM delivery_records WHERE id=?', (rid,))
             if not self.sign_link_ok(rec_tok, (body.get('t') or qs_t or '').strip()):
                 return self.send_json({'error':'배송 담당 기사에게 보내드린 링크로만 서명할 수 있습니다.'}, 403)
+            # 기사 정보 세 가지는 반드시 받는다 (2026-08-10 대표님 지시).
+            # 화면에서도 막지만, 이 저장 요청을 직접 불러 우회할 수 있으므로 여기서도 본다.
+            miss = [ko for ko, k in (('기사 성함', 'driver_name'), ('연락처', 'driver_phone'),
+                                     ('차량번호', 'vehicle_no'))
+                    if not str(body.get(k) or '').strip()]
+            if miss:
+                last = miss[-1][-1]
+                josa = '을' if (0xAC00 <= ord(last) <= 0xD7A3 and (ord(last) - 0xAC00) % 28) else '를'
+                return self.send_json({'error': ' · '.join(miss) + josa + ' 입력해 주세요.'}, 400)
             now = (datetime.utcnow() + timedelta(hours=9)).strftime('%Y-%m-%d %H:%M:%S')
             db_exec('''UPDATE delivery_records SET
                 driver_name=?,driver_phone=?,vehicle_no=?,receiver_name=?,

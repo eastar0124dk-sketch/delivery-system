@@ -131,12 +131,15 @@
           <input type="text" id="inp_driver_name" placeholder="성명 입력" maxlength="30">
         </div>
         <div class="form-grid">
+          <!-- 셋 다 반드시 받는다 (2026-08-10 대표님 지시).
+               차량번호가 비면 명세표 대조 때 어느 건인지 좁힐 수 없고,
+               사고·분쟁이 났을 때 어느 차였는지 되짚을 수가 없다. -->
           <div class="form-group">
-            <label>연락처</label>
+            <label>연락처 <span class="required">*</span></label>
             <input type="tel" id="inp_driver_phone" placeholder="010-0000-0000" maxlength="20">
           </div>
           <div class="form-group">
-            <label>차량번호</label>
+            <label>차량번호 <span class="required">*</span></label>
             <input type="text" id="inp_vehicle_no" placeholder="00가 0000" maxlength="20">
           </div>
         </div>
@@ -695,6 +698,18 @@
     function goToDriverSign() {
       const name=document.getElementById('inp_driver_name').value.trim();
       if(!name){ showAlert('운송담당자 성명을 입력해주세요.','error'); return; }
+      /* 성명·연락처·차량번호 셋 다 있어야 다음으로 넘어간다 (2026-08-10 대표님 지시).
+         예전에는 성명만 봤다 — 차량번호가 빈 채로 인수증이 만들어졌다. */
+      const phone=document.getElementById('inp_driver_phone').value.trim();
+      if(phone.replace(/\D/g,'').length<9){
+        showAlert('연락처를 입력해주세요. (예: 010-0000-0000)','error');
+        document.getElementById('inp_driver_phone').focus(); return;
+      }
+      const veh=document.getElementById('inp_vehicle_no').value.trim();
+      if(veh.length<4){
+        showAlert('차량번호를 입력해주세요. (예: 12가3456)','error');
+        document.getElementById('inp_vehicle_no').focus(); return;
+      }
       hideAlert();
       document.getElementById('driverInfoCard').style.display='none';
       document.getElementById('driverSignCard').style.display='block';
