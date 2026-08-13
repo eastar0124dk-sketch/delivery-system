@@ -886,27 +886,75 @@ class Handler(BaseHTTPRequestHandler):
             expect = os.environ.get('REPORT_KEY', 'act-daily-report-7f3k9')
             if g('key') != expect: return self.send_json({'error':'Unauthorized'}, 401)
             now_kst = datetime.utcnow() + timedelta(hours=9)
-            target = now_kst - timedelta(days=1)
-            if now_kst.weekday() == 0:              # 월요일 → 전주 금요일
-                target = now_kst - timedelta(days=3)
-            ds = target.strftime('%Y-%m-%d')
-            rows = db_fetchall('SELECT status, order_no, customer_company, transport_type, quantity FROM delivery_records WHERE delivery_date=?', (ds,))
+            SEL = ('SELECT status, order_no, customer_company, customer_address, dest_co, '
+                   'origin, client_code, transport_type, quantity '
+                   'FROM delivery_records WHERE delivery_date=?')
+            # 전 영업일 — 공휴일 목록을 들고 있지 않아도 되게, 달력이 아니라 "실제 배송기록이
+            # 있는 날"을 거슬러 찾는다. 주말·법정공휴일·임시휴무일이 한꺼번에 걸러진다.
+            # (예: 8/18 화요일 → 8/17 은 광복절 대체공휴일이라 기록이 없다 → 8/14 금요일)
+            rows, ds, target = [], None, None
+            for back in range(1, 11):
+                t = now_kst - timedelta(days=back)
+                if t.weekday() >= 5: continue        # 토·일은 애초에 영업일이 아니다
+                d = t.strftime('%Y-%m-%d')
+                r = db_fetchall(SEL, (d,))
+                if r:
+                    rows, ds, target = r, d, t
+                    break
+            if ds is None:                            # 열흘을 거슬러도 기록이 없다
+                target = now_kst - timedelta(days=3 if now_kst.weekday() == 0 else 1)
+                ds = target.strftime('%Y-%m-%d')
+
+            # 하차지가 우리 창고면 회수 — 되돌아오는 건이다. 창고를 어떻게 적었든 잡히게
+            # 표기를 모아 둔다. 새 표기가 나오면 여기에만 한 줄 더하면 된다.
+            OUR_SITE = ('ACT', '김포창고')
             def ttype(r):
+                # 접수 경로에 따라 하차지가 customer_address / dest_co / customer_company
+                # 중 어디에 들어가 있는지가 달라서 셋을 함께 본다.
+                # 띄어쓰기는 사람마다 달라서('김포 창고') 공백을 지우고 맞춰 본다.
+                dest = ' '.join(str(r.get(k) or '')
+                                for k in ('customer_address','dest_co','customer_company')).upper()
+                dest = re.sub(r'\s+', '', dest)
+                if any(w in dest for w in OUR_SITE): return '회수'
                 t = (r.get('transport_type') or '').strip()
-                return t if t in ('출고','입고','이동') else '출고'   # 미지정은 출고로 간주
+                if t in ('회수','입고'): return '회수'          # '입고'는 예전 표기
+                if t in ('지역간배송','이동'): return '지역간배송'
+                return '출고'                                   # 미지정은 출고로 간주
+
+            # 화주 — client_code 가 정답이고, 비어 있는 예전 건만 상호 글자로 판단한다.
+            CODE_NAME = {'mettler':'메틀러토레도','canon':'캐논메디칼시스템즈','chanel':'샤넬코리아'}
+            def shipper(r):
+                cc = (r.get('client_code') or '').strip().lower()
+                if cc in CODE_NAME: return CODE_NAME[cc]
+                s = ' '.join(str(r.get(k) or '')
+                             for k in ('customer_company','customer_address','origin'))
+                if '메틀러' in s: return '메틀러토레도'
+                if '캐논'  in s: return '캐논메디칼시스템즈'
+                if '샤넬'  in s: return '샤넬코리아'
+                return (r.get('customer_company') or '').strip()
+
             total = len(rows)
-            out_rows = [r for r in rows if ttype(r) == '출고']
-            in_rows  = [r for r in rows if ttype(r) == '입고']
-            move_rows = [r for r in rows if ttype(r) == '이동']
+            out_rows  = [r for r in rows if ttype(r) == '출고']
+            ret_rows  = [r for r in rows if ttype(r) == '회수']
+            move_rows = [r for r in rows if ttype(r) == '지역간배송']
+            mettler   = [r for r in rows if shipper(r) == '메틀러토레도']
+            canon     = [r for r in rows if shipper(r) == '캐논메디칼시스템즈']
             signed = sum(1 for r in rows if (r or {}).get('status') == 'signed')
             items = [{'dn': (r.get('order_no') or ''), 'customer': (r.get('customer_company') or ''),
+                      'shipper': shipper(r), 'dest': (r.get('customer_address') or r.get('dest_co')
+                                                      or r.get('customer_company') or ''),
                       'qty': (r.get('quantity') or ''), 'type': ttype(r),
                       'signed': r.get('status') == 'signed'} for r in rows]
             return self.send_json({
                 'date': ds,
                 'weekday': ['월','화','수','목','금','토','일'][target.weekday()],
                 'total': total,
-                'out': len(out_rows), 'in': len(in_rows), 'move': len(move_rows),
+                'out': len(out_rows), 'return': len(ret_rows), 'move': len(move_rows),
+                'in': len(ret_rows),                       # 예전 이름 — 쓰던 곳이 깨지지 않게 남긴다
+                # 카톡 보고가 그대로 쓰는 값 — 보고 쪽에서 상호 글자를 맞춰볼 필요가 없게 한다
+                'mettler_total': len(mettler),
+                'canon_out':    sum(1 for r in canon if ttype(r) == '출고'),
+                'canon_return': sum(1 for r in canon if ttype(r) == '회수'),
                 'signed': signed, 'pending': total - signed,
                 'items': items
             })
