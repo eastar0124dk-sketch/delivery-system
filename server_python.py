@@ -945,6 +945,11 @@ class Handler(BaseHTTPRequestHandler):
                                                       or r.get('customer_company') or ''),
                       'qty': (r.get('quantity') or ''), 'type': ttype(r),
                       'signed': r.get('status') == 'signed'} for r in rows]
+            if g('debug'):   # 판정이 이상할 때 무엇을 보고 그렇게 됐는지 확인용
+                for it, r in zip(items, rows):
+                    it['_raw'] = {k: r.get(k) for k in
+                                  ('customer_company','customer_address','dest_co',
+                                   'origin','client_code','transport_type')}
             return self.send_json({
                 'date': ds,
                 'weekday': ['월','화','수','목','금','토','일'][target.weekday()],
