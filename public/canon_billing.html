@@ -516,6 +516,9 @@
   <button class="btn btn-gray" id="btnDateSort" onclick="sortByDate()" title="ORDER일자 기준 오름차순 정렬 (수동 이동 후 재정렬)">
     <i class="fas fa-sort-amount-up-alt"></i> 날짜순
   </button>
+  <button class="btn" style="background:#7c3aed;color:#fff;" onclick="document.getElementById('distRateModal').style.display='flex'" title="ACT 거리별 표준요금표 (지역간배송)">
+    <i class="fas fa-ruler-horizontal"></i> 지역간 요금표
+  </button>
   <!-- 행 선택 팔레트 (화면 하단 중앙 고정 — CSS :has() 자동 표시) -->
   <div id="selPalette">
     <span class="pal-info">✅ <strong><span id="palCnt">0</span>건</strong> 선택됨</span>
@@ -2690,6 +2693,73 @@ function importExcel(buffer) {
         `   날짜순으로 정렬하려면 "날짜순" 버튼을 누르세요.\n` +
         `   운송사 운임이 0원인 행은 "운임 재조회" 버튼으로 채울 수 있습니다.`);
 }
+</script>
+
+<!-- ── 지역간 요금표 모달 (ACT 거리별 표준요금표) ── -->
+<div id="distRateModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:flex-start;justify-content:center;padding:30px 14px;overflow:auto;" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:#fff;border-radius:14px;max-width:860px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.3);">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <span style="background:#7c3aed;color:#fff;font-weight:800;padding:6px 12px;border-radius:8px;font-size:14px;">📏 거리별 표준요금표</span>
+      <span style="font-size:12px;color:#64748b;">지역간배송 캐논 청구운임 기준</span>
+      <button onclick="document.getElementById('distRateModal').style.display='none'" style="margin-left:auto;border:none;background:#f1f5f9;border-radius:8px;padding:6px 12px;font-size:14px;font-weight:700;cursor:pointer;">✕ 닫기</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;text-align:right;">
+        <thead>
+          <tr style="background:#1e293b;color:#fff;">
+            <th style="padding:7px 10px;text-align:center;">거리(km)</th>
+            <th style="padding:7px 10px;">오토바이</th><th style="padding:7px 10px;">다마스</th><th style="padding:7px 10px;">1톤</th>
+            <th style="padding:7px 10px;">2.5톤</th><th style="padding:7px 10px;">5톤</th><th style="padding:7px 10px;">11톤</th>
+          </tr>
+        </thead>
+        <tbody id="distRateBody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;align-items:flex-start;">
+      <table style="border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="background:#7c3aed;color:#fff;"><th style="padding:6px 12px;">100km 초과</th><th style="padding:6px 12px;">10km당 추가</th></tr></thead>
+        <tbody>
+          <tr><td style="border:1px solid #e2e8f0;padding:5px 12px;text-align:center;">다마스</td><td style="border:1px solid #e2e8f0;padding:5px 12px;text-align:right;">8,000</td></tr>
+          <tr><td style="border:1px solid #e2e8f0;padding:5px 12px;text-align:center;">1톤</td><td style="border:1px solid #e2e8f0;padding:5px 12px;text-align:right;">10,000</td></tr>
+          <tr><td style="border:1px solid #e2e8f0;padding:5px 12px;text-align:center;">2.5톤</td><td style="border:1px solid #e2e8f0;padding:5px 12px;text-align:right;">11,000</td></tr>
+          <tr><td style="border:1px solid #e2e8f0;padding:5px 12px;text-align:center;">5톤</td><td style="border:1px solid #e2e8f0;padding:5px 12px;text-align:right;">12,000</td></tr>
+        </tbody>
+      </table>
+      <div style="flex:1;min-width:260px;font-size:12.5px;color:#334155;line-height:1.8;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;">
+        <div>• 거리가 구간을 <b>1km라도 초과하면 다음 구간</b> 요율 적용 (예: 48km → 50km 요율)</div>
+        <div>• 예) 1톤 · 150km = 100km 운임 120,000원 + (5 × 10,000원) = <b>170,000원</b></div>
+        <div>• <b>최대 운임 370,000원</b> (350km 이상 구간)</div>
+        <div>• 100km 이상 거리는 별도 운임이 청구됩니다</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+// 요금표 본문은 표준요금표 데이터로 생성 (2.5톤~11톤 포함 — 확인용 표시 전용)
+(function(){
+  const FULL = {
+     5:[8400,30000,48000, 84000,120000,192000],
+    10:[12000,30000,48000, 84000,120000,192000],
+    15:[18000,36000,54000, 96000,132000,204000],
+    20:[24000,36000,60000,108000,144000,216000],
+    25:[30000,42000,66000,120000,156000,228000],
+    30:[36000,48000,72000,132000,168000,240000],
+    35:[42000,54000,78000,144000,180000,252000],
+    40:[48000,60000,84000,156000,192000,264000],
+    50:[54000,66000,90000,168000,204000,276000],
+    60:[60000,72000,96000,180000,216000,288000],
+    70:[66000,78000,102000,192000,228000,300000],
+    80:[72000,84000,108000,204000,240000,312000],
+    90:[78000,90000,114000,216000,252000,324000],
+   100:[84000,96000,120000,228000,264000,336000],
+  };
+  const f = n => n.toLocaleString('ko-KR');
+  document.getElementById('distRateBody').innerHTML = Object.keys(FULL).map((km,i) =>
+    `<tr style="background:${i%2?'#f8fafc':'#fff'};">
+      <td style="border:1px solid #e2e8f0;padding:5px 10px;text-align:center;font-weight:700;background:#eef2ff;">${km}</td>
+      ${FULL[km].map(v=>`<td style="border:1px solid #e2e8f0;padding:5px 10px;">${f(v)}</td>`).join('')}
+    </tr>`).join('');
+})();
 </script>
 </body>
 </html>
