@@ -1587,6 +1587,9 @@ class Handler(BaseHTTPRequestHandler):
                     cc = 'canon'           # 옛 자료는 client_code 가 비어 있을 수 있다
                 # 배송 리드타임 — 창고에서 출고를 누른 건만 나온다.
                 # ⚠️ 안 누른 건은 줄을 아예 뺀다 — '0분' 으로 찍어 두면 그 숫자가 지표로 쓰여 거짓말이 된다.
+                # ⚠️ 내일 오전착 건을 오늘 저녁 상차하는 일이 있다 (2026-08-18 대표님).
+                #    그런 건을 '14시간' 으로 찍으면 운행시간이 아니라 밤새 세워 둔 시간이 섞인다.
+                #    날짜가 다른 건은 소요시간 대신 **지정 시간을 지켰는지**를 보여 준다.
                 lead = ''
                 try:
                     dep = str(rec2.get('departed_at') or '').strip()
@@ -1595,9 +1598,26 @@ class Handler(BaseHTTPRequestHandler):
                         d2 = datetime.strptime(now[:19], '%Y-%m-%d %H:%M:%S')
                         mins = int((d2 - d1).total_seconds() // 60)
                         if 0 <= mins < 60 * 24 * 3:
-                            hm = f'{mins // 60}시간 {mins % 60}분' if mins >= 60 else f'{mins}분'
-                            lead = (f'\n⏱ 배송시간: <b>{hm}</b> '
-                                    f'(출고 {d1.strftime("%H:%M")} → 서명 {d2.strftime("%H:%M")})')
+                            if d1.date() == d2.date():
+                                hm = f'{mins // 60}시간 {mins % 60}분' if mins >= 60 else f'{mins}분'
+                                lead = ('\n⏱ 배송시간: <b>' + hm + '</b> (출고 '
+                                        + d1.strftime('%H:%M') + ' → 서명 ' + d2.strftime('%H:%M') + ')')
+                            else:
+                                want = str(rec2.get('arrival_time') or '').strip()
+                                gap = ''
+                                try:
+                                    hh, mm = (want.replace('시', ':').replace('분', '') + ':0').split(':')[:2]
+                                    tgt = d2.replace(hour=int(hh), minute=int(mm), second=0)
+                                    diff = int((d2 - tgt).total_seconds() // 60)
+                                    if diff == 0:
+                                        gap = ' — 정각'
+                                    elif -720 < diff < 720:
+                                        gap = ' — ' + str(abs(diff)) + '분 ' + ('늦게' if diff > 0 else '이르게')
+                                except Exception:
+                                    gap = ''
+                                lead = ('\n⏱ 도착지정 건: 출고 ' + d1.strftime('%m-%d %H:%M')
+                                        + ' → 서명 ' + d2.strftime('%m-%d %H:%M')
+                                        + ((' (지정 ' + want + gap + ')') if want else ''))
                 except Exception:
                     lead = ''
                 send_telegram(
