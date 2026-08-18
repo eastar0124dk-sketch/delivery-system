@@ -128,7 +128,7 @@ if DATABASE_URL:
                     'shipping_docs TEXT',
                     # 도착지 상호 (예: 청주성모병원). 예전에는 주소 글자에서 뽑아 썼는데
                     # 주소에 상호가 안 적힌 건은 빈칸이 됐다. 접수 때 파싱한 값을 그대로 남긴다
-                    'dest_co TEXT']:
+                    'dest_co TEXT','departed_at TEXT']:
             try: cur.execute(f"ALTER TABLE delivery_records ADD COLUMN IF NOT EXISTS {col}")
             except: pass
         cur.execute('''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)''')
@@ -289,7 +289,7 @@ else:
         for col in ['work_fee TEXT','return_fee TEXT','delivery_note TEXT','vehicle_type TEXT',
                     'origin TEXT','origin_address TEXT','contact_person TEXT','contact_phone TEXT',
                     'transport_type TEXT','dest_sido TEXT','dest_sigun TEXT','origin_sido TEXT','origin_sigun TEXT',
-                    'client_code TEXT','dn_list TEXT','sign_token TEXT','shipping_docs TEXT','dest_co TEXT']:
+                    'client_code TEXT','dn_list TEXT','sign_token TEXT','shipping_docs TEXT','dest_co TEXT','departed_at TEXT']:
             try: c.execute(f'ALTER TABLE delivery_records ADD COLUMN {col}'); c.commit()
             except: pass
         c.execute('''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)''')
@@ -1585,6 +1585,21 @@ class Handler(BaseHTTPRequestHandler):
                 cc = rec2.get('client_code') or ''
                 if not cc and '캐논' in str(rec2.get('customer_company', '')):
                     cc = 'canon'           # 옛 자료는 client_code 가 비어 있을 수 있다
+                # 배송 리드타임 — 창고에서 출고를 누른 건만 나온다.
+                # ⚠️ 안 누른 건은 줄을 아예 뺀다 — '0분' 으로 찍어 두면 그 숫자가 지표로 쓰여 거짓말이 된다.
+                lead = ''
+                try:
+                    dep = str(rec2.get('departed_at') or '').strip()
+                    if dep:
+                        d1 = datetime.strptime(dep[:19], '%Y-%m-%d %H:%M:%S')
+                        d2 = datetime.strptime(now[:19], '%Y-%m-%d %H:%M:%S')
+                        mins = int((d2 - d1).total_seconds() // 60)
+                        if 0 <= mins < 60 * 24 * 3:
+                            hm = f'{mins // 60}시간 {mins % 60}분' if mins >= 60 else f'{mins}분'
+                            lead = (f'\n⏱ 배송시간: <b>{hm}</b> '
+                                    f'(출고 {d1.strftime("%H:%M")} → 서명 {d2.strftime("%H:%M")})')
+                except Exception:
+                    lead = ''
                 send_telegram(
                     f'📦 <b>서명 완료 알림</b>\n'
                     f'DN번호: {rec2.get("order_no","")}\n'
@@ -1594,7 +1609,7 @@ class Handler(BaseHTTPRequestHandler):
                     f'수량: {rec2.get("quantity","")}\n'
                     f'수취인: {rec2.get("receiver_name","")}\n'
                     f'기사: {body.get("driver_name","")}\n'
-                    f'완료시각: {now}', cc)
+                    f'완료시각: {now}{lead}', cc)
             return self.send_json({'success': True})
 
         # 오더 등록 (admin/staff)
