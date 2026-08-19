@@ -893,14 +893,24 @@ class Handler(BaseHTTPRequestHandler):
             # 있는 날"을 거슬러 찾는다. 주말·법정공휴일·임시휴무일이 한꺼번에 걸러진다.
             # (예: 8/18 화요일 → 8/17 은 광복절 대체공휴일이라 기록이 없다 → 8/14 금요일)
             rows, ds, target = [], None, None
-            for back in range(1, 11):
-                t = now_kst - timedelta(days=back)
-                if t.weekday() >= 5: continue        # 토·일은 애초에 영업일이 아니다
-                d = t.strftime('%Y-%m-%d')
-                r = db_fetchall(SEL, (d,))
-                if r:
-                    rows, ds, target = r, d, t
-                    break
+            # date=YYYY-MM-DD — 지난 날짜를 다시 보고할 때만 쓴다. 조회 전용이라 아무것도
+            # 바꾸지 않는다. (보고를 놓친 날을 뒤늦게 보내야 할 때)
+            want = str(g('date') or '').strip()
+            if want:
+                try:
+                    t = datetime.strptime(want, '%Y-%m-%d')
+                    rows, ds, target = db_fetchall(SEL, (want,)), want, t
+                except ValueError:
+                    return self.send_json({'error': 'date 는 YYYY-MM-DD 형식'}, 400)
+            else:
+                for back in range(1, 11):
+                    t = now_kst - timedelta(days=back)
+                    if t.weekday() >= 5: continue    # 토·일은 애초에 영업일이 아니다
+                    d = t.strftime('%Y-%m-%d')
+                    r = db_fetchall(SEL, (d,))
+                    if r:
+                        rows, ds, target = r, d, t
+                        break
             if ds is None:                            # 열흘을 거슬러도 기록이 없다
                 target = now_kst - timedelta(days=3 if now_kst.weekday() == 0 else 1)
                 ds = target.strftime('%Y-%m-%d')
