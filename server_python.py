@@ -1615,21 +1615,30 @@ class Handler(BaseHTTPRequestHandler):
                                         gap = ' — ' + str(abs(diff)) + '분 ' + ('늦게' if diff > 0 else '이르게')
                                 except Exception:
                                     gap = ''
+                                # ⚠️ 총 시간도 같이 적는다 (2026-08-19 대표님).
+                                #    지표로는 '지정 시간을 지켰나' 를 보지만,
+                                #    현장에서는 짐이 얼마나 오래 밖에 있었는지도 알아야 한다.
+                                hm2 = f'{mins // 60}시간 {mins % 60}분' if mins >= 60 else f'{mins}분'
                                 lead = ('\n⏱ 도착지정 건: 출고 ' + d1.strftime('%m-%d %H:%M')
                                         + ' → 서명 ' + d2.strftime('%m-%d %H:%M')
+                                        + ' · 총 <b>' + hm2 + '</b>'
                                         + ((' (지정 ' + want + gap + ')') if want else ''))
                 except Exception:
                     lead = ''
-                send_telegram(
-                    f'📦 <b>서명 완료 알림</b>\n'
-                    f'DN번호: {rec2.get("order_no","")}\n'
-                    f'고객사: {rec2.get("customer_company","")}\n'
-                    f'도착지: {rec2.get("customer_address","")}\n'
-                    f'제품명: {rec2.get("product_name","")}\n'
-                    f'수량: {rec2.get("quantity","")}\n'
-                    f'수취인: {rec2.get("receiver_name","")}\n'
-                    f'기사: {body.get("driver_name","")}\n'
-                    f'완료시각: {now}{lead}', cc)
+                # ⚠️ 빈 칸은 줄을 아예 뺀다 (2026-08-19 대표님).
+                #    예전엔 '수량: None' 이 그대로 찍혔다 — 값이 없는 것과 None 은 다르다.
+                # ⚠️ 번호 이름은 화주마다 다르다 — 메틀러는 DN번호, 그 밖은 오더번호다.
+                #    ACTOS 배차문도 같은 규칙을 쓴다. 둘이 달라지면 같은 건을 따로 부르게 된다.
+                v = lambda k: str(rec2.get(k) or '').strip()
+                _who = (v('customer_company') + ' ' + str(cc or '')).lower()
+                no_label = 'DN번호' if ('메틀러' in _who or 'mettler' in _who) else '오더번호'
+                rows_ = [(no_label, v('order_no')), ('고객사', v('customer_company')),
+                         ('도착지', v('customer_address')), ('제품명', v('product_name')),
+                         ('수량', v('quantity')), ('수취인', v('receiver_name')),
+                         ('기사', str(body.get('driver_name') or '').strip())]
+                body_ = ''.join(f'{a}: {b}\n' for a, b in rows_ if b)
+                send_telegram('📦 <b>서명 완료 알림</b>\n' + body_
+                              + f'완료시각: {now}{lead}', cc)
             return self.send_json({'success': True})
 
         # 오더 등록 (admin/staff)
